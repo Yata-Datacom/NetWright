@@ -13,11 +13,13 @@ authors = [{ name = "Yata-Datacom" }]
 dependencies = ["paramiko>=3.4"]
 
 [project.scripts]
-netforge = "netforge:main"
+netforge = "netforge.app:main"
 
 [tool.setuptools]
-py-modules = ["netforge"]
-packages = ["netforge_lib"]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

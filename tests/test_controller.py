@@ -11,12 +11,14 @@ import urllib.request
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+SRC = os.path.join(ROOT, 'src')
+if SRC not in sys.path:
+    sys.path.insert(0, SRC)
 
-from netforge_lib.controller import deploy, intents, topology  # noqa: E402
-from netforge_lib.controller.restapi import ControllerAPI, ControllerState  # noqa: E402
-from netforge_lib.inventory import Device, Inventory  # noqa: E402
+
+from netforge.lib.controller import deploy, intents, topology  # noqa: E402
+from netforge.lib.controller.restapi import ControllerAPI, ControllerState  # noqa: E402
+from netforge.lib.inventory import Device, Inventory  # noqa: E402
 
 
 # ── 意图渲染 ────────────────────────────────────────────────────────
@@ -106,7 +108,7 @@ Interface GE1/0/48 has 1 neighbor(s):
 
 def test_parse_huawei_brief():
     links = topology.parse_neighbors("huawei", HUAWEI_BRIEF, "SW-1")
-    assert [(l.local_intf, l.peer_device, l.peer_intf) for l in links] == [
+    assert [(lk.local_intf, lk.peer_device, lk.peer_intf) for lk in links] == [
         ("GigabitEthernet0/0/1", "SW-2", "GigabitEthernet0/0/24"),
         ("GigabitEthernet0/0/2", "SW-3", "GigabitEthernet0/0/24")]
 
@@ -155,7 +157,7 @@ def test_apply_records_audit(tmp_path, monkeypatch):
     def fake_run_commands(dev, cmds, timeout=15.0, port=None):
         return [(c, c, "ok", "") for c in cmds]
 
-    from netforge_lib import ssh_client
+    from netforge.lib import ssh_client
     with patch.object(ssh_client, "run_commands", fake_run_commands):
         result = deploy.apply("vlan_deploy", {"vlans": "10", "description": "Users"}, devices)
     assert result["results"][0]["status"] == "OK"

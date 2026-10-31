@@ -1,0 +1,28 @@
+name: Build EXE
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build dependencies
+        run: pip install paramiko pyinstaller pillow
+      - name: Build icon (idempotent)
+        run: python tools/make_icon.py
+      - name: Build single-file exe
+        run: pyinstaller NetForge.spec --noconfirm
+      - name: Smoke check exe exists
+        shell: pwsh
+        run: Test-Path dist/NetForge.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NetForge-windows
+          path: dist/NetForge.exe

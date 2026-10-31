@@ -76,18 +76,42 @@ OpenDaylight 的核心思想（意图编排 + 多厂商南向 + 拓扑 + 北向 
 ## 运行 / 打包
 
 ```bash
-pip install paramiko            # 唯一依赖（SSH 巡检）；不装也能用其余模块
-python netforge.py              # Python 3.10+
+pip install paramiko            # 唯一运行依赖（SSH 巡检）；不装也能用其余模块
+python main.py                  # Python 3.10+
 
 pip install pyinstaller pillow
-pyinstaller --onefile --name NetForge --icon assets/icon.ico --add-data "assets;assets" --add-data "templates;templates" netforge.py
+pyinstaller NetForge.spec --noconfirm      # 或见 README 下方工作流
 ```
 
-## 测试
+## 项目结构（工程化）
+
+```
+NetForge/
+├── main.py                  # 启动入口（薄壳）
+├── src/netforge/
+│   ├── app.py               # 应用壳（导航/主题/页面装配）
+│   ├── theme.py             # 设计令牌（暗/亮两套，云控制台风格）
+│   ├── widgets.py           # 可复用组件（Card/StatCard/DataTable/Page…）
+│   ├── pages/               # 七个工作区（注册表驱动，新增页面零改壳）
+│   ├── controller/          # 意图编排 / LLDP 拓扑 / 部署流水线 / REST 北向
+│   └── lib/                 # inventory / inspector / generator / netcalc …
+├── templates/               # 内置配置模板库（105 个，library.json 清单）
+├── tests/                   # 单元 + GUI 冒烟（多轮全页循环）+ REST 端到端
+├── tools/                   # 图标生成 / 模板库同步脚本
+└── .github/workflows/       # CI（ruff+pytest，Win/Ubuntu）+ Build EXE
+```
+
+## 测试与质量
 
 ```bash
-python -m pytest tests/ -v      # 29 项：凭据加密 / 清单 / 生成引擎 / 巡检规则 / 网络计算
+python -m pytest tests/ -v -o faulthandler_timeout=60   # 68 项
+ruff check --select E4,E7,E9,F src tests main.py        # 核心规则全绿
 ```
+
+- **多轮 GUI 冒烟**：全页循环 ×2、厂商过滤联动、巡检方案切换、子网计算/密码生成、
+  意图 Dry-Run、REST 生命周期（启动→health→停止）
+- GitHub Actions：每次 push 自动跑 ruff + pytest（Windows/Ubuntu 矩阵），
+  打 tag 自动构建 exe 并上传 artifact
 
 ## 数据与安全
 

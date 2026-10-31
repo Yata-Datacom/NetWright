@@ -10,11 +10,13 @@ from unittest.mock import patch
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+SRC = os.path.join(ROOT, 'src')
+if SRC not in sys.path:
+    sys.path.insert(0, SRC)
 
-from netforge_lib import inspector  # noqa: E402
-from netforge_lib.inventory import Device  # noqa: E402
+
+from netforge.lib import inspector  # noqa: E402
+from netforge.lib.inventory import Device  # noqa: E402
 
 ADVANCED = ("VXLAN+EVPN", "MPLS/SR 骨干", "堆叠与M-LAG", "RoCEv2 无损", "IPv6 与过渡")
 KEYWORDS = {

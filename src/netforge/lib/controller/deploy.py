@@ -77,7 +77,6 @@ def apply(intent_key: str, intent: dict, devices: list, timeout: float = 15.0,
     :return: {"results": [{"device","status","outputs","error"}], "skipped"}
     """
     plan = dry_run(intent_key, intent, devices)
-    spec = intents_mod.INTENTS[intent_key]["spec"]
     results = []
     done = 0
     from ..ssh_client import run_commands

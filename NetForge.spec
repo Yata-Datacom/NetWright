@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['netforge.py'],
-    pathex=[],
+    ['main.py'],
+    pathex=['src'],
     binaries=[],
     datas=[('assets', 'assets'), ('templates', 'templates')],
-    hiddenimports=[],
+    hiddenimports=['netforge.lib.ssh_client'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

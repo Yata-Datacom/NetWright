@@ -1,0 +1,117 @@
+"""配置生成工作区页面。"""
+from __future__ import annotations
+
+import os
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+
+from netforge.lib import generator as gen
+from netforge.lib.inventory import safe_filename
+from netforge.theme import (
+    ACCENT, BG, FG, LINE, MUTED, NAVY, NAVY2, PANEL, MONO,
+)
+from netforge.widgets import Page, page_header
+
+
+def header(title, desc, page):
+    page_header(page, title, desc)
+class GeneratePage(Page):
+    def __init__(self, master, app):
+        super().__init__(master, app)
+        header("配置生成", "内置多厂商模板 × 设备参数表 → 批量生成 .cfg（零残留校验，坏配置不下发）", self)
+        body = tk.Frame(self, bg=BG)
+        body.pack(fill=tk.BOTH, expand=True, padx=16, pady=(0, 12))
+
+        bar = tk.Frame(body, bg=BG)
+        bar.pack(fill=tk.X, pady=(0, 6))
+        ttk.Label(bar, text="厂商:", style="H2.TLabel").pack(side=tk.LEFT)
+        self.cmb_vendor = ttk.Combobox(bar, state="readonly", width=13)
+        self.cmb_vendor["values"] = ["全部", "华为", "新华三", "思科"]
+        self.cmb_vendor.current(0)
+        self.cmb_vendor.pack(side=tk.LEFT, padx=(6, 10))
+        self.cmb_vendor.bind("<<ComboboxSelected>>", lambda e: self._apply_vendor_filter())
+        ttk.Label(bar, text="模板:", style="H2.TLabel").pack(side=tk.LEFT)
+        self.all_templates = gen.list_builtin_templates()
+        self.cmb_tpl = ttk.Combobox(bar, state="readonly", width=52)
+        self.cmb_tpl.pack(side=tk.LEFT, padx=(6, 10))
+        self.cmb_tpl.bind("<<ComboboxSelected>>", lambda e: self._load_template())
+        tk.Button(bar, text="生成到目录…", bg=ACCENT, fg="white", relief=tk.FLAT,
+                  activebackground=NAVY2, command=self.generate).pack(side=tk.LEFT, padx=(0, 6))
+        tk.Button(bar, text="载入清单设备", bg=NAVY2, fg=FG, relief=tk.FLAT,
+                  activebackground=NAVY, command=self.load_inventory).pack(side=tk.LEFT)
+        self.var_info = tk.StringVar(value="")
+        tk.Label(bar, textvariable=self.var_info, bg=BG, fg=MUTED, font=("", 9)).pack(side=tk.RIGHT)
+
+        pane = tk.PanedWindow(body, orient=tk.HORIZONTAL, bg=LINE, sashwidth=2)
+        pane.pack(fill=tk.BOTH, expand=True)
+
+        left = tk.Frame(pane, bg=PANEL)
+        pane.add(left)
+        tk.Label(left, text="设备参数表（CSV：首行 = 模板变量名）", bg=PANEL, fg=MUTED,
+                 font=("", 9)).pack(anchor="w", padx=10, pady=(8, 2))
+        self.table_text = tk.Text(left, bg="#0a1526", fg=FG, relief=tk.FLAT, font=MONO,
+                                  insertbackground=FG, wrap=tk.NONE)
+        self.table_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+
+        right = tk.Frame(pane, bg=PANEL)
+        pane.add(right)
+        tk.Label(right, text="模板预览", bg=PANEL, fg=MUTED, font=("", 9)).pack(anchor="w", padx=10, pady=(8, 2))
+        self.tpl_text = tk.Text(right, bg="#0a1526", fg=MUTED, relief=tk.FLAT, font=MONO,
+                                insertbackground=FG, wrap=tk.NONE)
+        self.tpl_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+        self._apply_vendor_filter()   # 控件就绪后再填充模板（顺序不能提前）
+
+    def _apply_vendor_filter(self):
+        """按厂商过滤模板下拉（92 个模板按厂商分档）。"""
+        vendor_key = {"华为": "huawei", "新华三": "h3c", "思科": "cisco"}.get(self.cmb_vendor.get())
+        picked = [t for t in self.all_templates
+                  if vendor_key is None or t["vendor"] == vendor_key]
+        self.tpl_map = {t["name"]: t for t in picked}
+        self.cmb_tpl["values"] = list(self.tpl_map)
+        if self.tpl_map:
+            self.cmb_tpl.current(0)
+        self._load_template()
+
+    def _load_template(self):
+        t = self.tpl_map.get(self.cmb_tpl.get())
+        self.tpl_text.delete("1.0", tk.END)
+        if t:
+            self.tpl_text.insert(tk.END, t["text"])
+            self.var_info.set(f"变量: {', '.join(t['vars'])}")
+
+    def load_inventory(self):
+        rows = []
+        tpl = self.tpl_map.get(self.cmb_tpl.get())
+        var_names = tpl["vars"] if tpl else []
+        cols = ["hostname"] + [v for v in var_names if v != "hostname"]
+        rows.append(",".join(cols))
+        for i, d in enumerate(self.app.inventory.devices, 1):
+            sample = {c: "" for c in cols}
+            sample["hostname"] = d.hostname or d.host
+            for c in cols:
+                if c.endswith("_password") and not sample[c]:
+                    sample[c] = d.password
+            rows.append(",".join(sample[c] for c in cols))
+        self.table_text.delete("1.0", tk.END)
+        self.table_text.insert(tk.END, "\n".join(rows))
+        self.app.set_status("已按设备清单生成参数表骨架（缺的变量请自行补齐）")
+
+    def generate(self):
+        t = self.tpl_map.get(self.cmb_tpl.get())
+        if not t:
+            return
+        try:
+            _header, devices = gen.parse_device_table(self.table_text.get("1.0", tk.END))
+            files = gen.generate(t["text"], devices, filename_rule="hostname")
+        except ValueError as e:
+            messagebox.showwarning("生成失败", str(e))
+            return
+        out = filedialog.askdirectory(title="选择输出目录")
+        if not out:
+            return
+        out = os.path.join(out, safe_filename(t["file"].replace("/", "_").replace(".cfg", "")))
+        n = gen.write_outputs(out, files)
+        messagebox.showinfo("生成完成", f"已生成 {n} 个配置文件到:\n{out}")
+        self.app.set_status(f"已生成 {n} 个配置 → {out}")
+
+

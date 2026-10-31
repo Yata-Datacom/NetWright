@@ -38,22 +38,20 @@ class Topology:
 
     def add_links(self, device: str, links: list[Link]):
         self.nodes.add(device)
-        for l in links:
-            self.nodes.add(l.peer_device)
-            self.links.append(l)
+        for lk in links:
+            self.nodes.add(lk.peer_device)
+            self.links.append(lk)
 
     def undirected_edges(self) -> list[tuple[str, str, str, str]]:
-        """去重后的无向边：A-B 与 B-A 视为同一条，保留一条（含两端接口名）。"""
+        """去重后的无向边：A-B 与 B-A 视为同一条，保留首条（含两端接口名）。"""
         seen: set = set()
         out = []
-        for l in self.links:
-            key = tuple(sorted([l.device, l.peer_device])) + tuple(
-                sorted([l.local_intf, l.peer_intf]))[:0]  # 仅按设备对去重
-            dev_key = tuple(sorted([l.device, l.peer_device]))
+        for lk in self.links:
+            dev_key = tuple(sorted([lk.device, lk.peer_device]))
             if dev_key in seen:
                 continue
             seen.add(dev_key)
-            out.append((l.device, l.local_intf, l.peer_device, l.peer_intf))
+            out.append((lk.device, lk.local_intf, lk.peer_device, lk.peer_intf))
         return out
 
 
