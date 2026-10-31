@@ -3,76 +3,77 @@
 <div align="center">
 <img src="assets/logo.png" width="96" alt="NetForge" />
 
-**一个轻量的网络工程师平台壳**：把你手头的工具收进一个窗口，再补上日常最高频的小工具。
+**一个独立、完整的网络工程师平台**：设备清单、SSH 批量巡检、配置生成、日常工具，全部长在同一个程序里。
 
-`子网计算` · `端口扫描` · `在线检测` · `命令速查` · `模块启动器`
+`设备清单中心` · `SSH 批量巡检 + 报告` · `配置生成` · `子网计算/VLSM` · `端口扫描` · `在线检测` · `命令速查`
 </div>
 
 ---
 
-## 它解决什么
+## 定位
 
-网络工程师的桌面上往往同时有四五个工具——NETCONF 管理、ZTP 开局、批量巡检、网关压测——
-每个都要单独找图标、单独记入口。NetForge 做两件事：
+NetForge **不是启动器，也不依赖任何外部工具**——它是一个自包含的单机平台：
 
-1. **收纳**：自动发现同级目录的 NetPilot / NADT / Inspection Studio / Traffic Studio（exe 或源码入口），一键启动；
-2. **补缺**：内置一批开箱即用的小工具，覆盖日常最高频的"随手一查"场景。
+- 一份**设备清单**（集中管理地址/厂商/凭据，密码经 Windows DPAPI 加密落盘）是所有模块的共同底座；
+- **巡检**、**配置生成** 直接读这份清单；
+- 常用小工具（子网计算、端口扫描、在线检测、命令速查、密码生成）随手可用；
+- 单文件 exe，双击即用，配置数据落在 exe 同目录。
 
-## 内置工具
+## 功能
 
-| 模块 | 能力 |
+### 🗂 设备清单中心
+集中维护主机 / 端口 / 厂商 / 账号密码 / 备注。密码用 **Windows DPAPI**（当前用户）加密存储，
+界面打码显示，导出 CSV 时也经同一通道还原。支持 CSV 批量导入（列自动映射、重复跳过）。
+
+### 🔎 SSH 批量巡检
+- 内置 4 套巡检方案：**标准巡检** / **硬件健康**（光功率·电源·风扇·温度）/ **链路与拓扑**（STP·邻居·MAC）/ **安全基线**（SSH·ACL·SNMP），
+  每套覆盖华为 VRP / 思科 IOS / 新华三 Comware / 锐捷 / Linux；
+- 网络设备走交互 shell 自动关分页，Linux 走 exec 通道；每台设备独立会话、跑完即断；
+- **异常自动标记**：CPU/内存过高、接口错包、电源风扇故障、光功率 < -20dBm、温度超标、Linux 失败服务等；
+- 结果分级（OK / WARNING / FAILED / UNREACHABLE），一键导出**HTML 报告**（含逐命令原始输出，已做转义）。
+
+### 🛠 配置生成
+- 内置 **9 个多厂商模板**（接入 / 核心 / 堆叠 / 分支路由，华为·思科·H3C，源自 NADT 模板库格式）；
+- 设备参数表（CSV，首行即变量名）× 模板 → 批量 .cfg；
+- **零残留校验**：变量缺失或占位符渲染不出就直接报错，绝不生成含 `{{占位符}}` 的坏配置；
+- 可从设备清单一键生成参数表骨架。
+
+### 🧰 工具箱
+| 工具 | 能力 |
 |---|---|
-| **子网计算** | CIDR / 点分掩码换算、网络/广播/可用范围、二进制掩码、地址类别与私网公网判定、**VLSM 按主机数划分** |
-| **端口扫描** | TCP connect 并发探测（最高 500 线程）、端口段/混合描述解析、常用端口服务对照 |
-| **在线检测** | 网段 ping 扫描（单 IP / 区间 / 末八位简写 `192.0.2.10-12` / CIDR）、存活主机、延迟、主机名反查 |
-| **命令速查** | 场景 × 厂商 CLI 备忘（接口/VLAN、链路故障、路由协议、安全、DHCP、常用端口），即时过滤、双击复制 |
+| 子网计算 | CIDR / 点分掩码、网络/广播/可用范围、二进制掩码、**VLSM 按主机数划分** |
+| 端口扫描 | TCP connect 并发（≤500 线程）、端口段混合描述、常用端口服务对照 |
+| 在线检测 | ping 扫描（单 IP / 区间 / 末八位简写 `x.x.x.10-12` / CIDR）、延迟统计 |
+| 密码生成 | 长度与字符集可调，SystemRandom 强随机 |
 
-## 外部模块发现
-
-把 `NetForge.exe` 放在如下同级目录结构中即可自动发现（也支持源码运行）：
-
-```
-coding/
-├── NetForge/            ← 本工具
-├── netconf-web/         ← NetPilot（NETCONF 控制台，app.py）
-├── NADT/                ← ZTP 开局（nadt2.py / NADT 2.0.exe）
-├── network_A/           ← 巡检（net_inspect_v6.py）
-└── test_A/              ← 网关压测（TrafficTest.exe）
-```
-
-想加自己的工具？在 NetForge 同目录放 `netforge_modules.json`：
-
-```json
-{
-  "modules": [
-    {"name": "SecureCRT", "path": "C:/Program Files/VanDyke/SecureCRT.exe", "desc": "终端"}
-  ]
-}
-```
+### 📖 命令速查
+场景 × 厂商 CLI 备忘（接口/VLAN、链路故障、路由协议、安全、DHCP、常用端口），即时过滤、双击复制。
 
 ## 运行 / 打包
 
 ```bash
-python netforge.py                     # 需要 Python 3.10+（纯标准库）
+pip install paramiko            # 唯一依赖（SSH 巡检）；不装也能用其余模块
+python netforge.py              # Python 3.10+
 
 pip install pyinstaller pillow
-python tools/make_icon.py              # 重新生成图标（已预生成可跳过）
-pyinstaller --onefile --name NetForge --icon assets/icon.ico --add-data "assets;assets" netforge.py
+pyinstaller --onefile --name NetForge --icon assets/icon.ico --add-data "assets;assets" --add-data "templates;templates" netforge.py
 ```
 
 ## 测试
 
 ```bash
-python -m pytest tests/ -v             # 17 项：子网计算 / 端口与目标解析 / 模块发现
+python -m pytest tests/ -v      # 29 项：凭据加密 / 清单 / 生成引擎 / 巡检规则 / 网络计算
 ```
 
-## 安全提示
+## 数据与安全
 
-端口扫描与在线检测请只用于**自己管理或获得授权的网络**。
+- 设备数据：`netforge_devices.json`（exe 同目录），密码 DPAPI 加密——**换电脑/换用户无法解密**，属预期行为；
+- 巡检报告与生成的配置保存在你选择的目录，可能包含敏感信息，请妥善保管；
+- SSH 巡检与端口扫描请只用于**自己管理或获得授权的网络**。
 
 ---
 
-MIT License · NetForge 是 [Yata-Datacom](https://github.com/Yata-Datacom) 网络工具家族的一员：
-[NetPilot](https://github.com/) · [NADT](https://github.com/Yata-Datacom/NADT-Network-Automation-Deployment-Tool) ·
-[Network Inspection Studio](https://github.com/Yata-Datacom/Network-Device-Server-Inspection-Tool-GUI-Edition) ·
+MIT License · NetForge 与 [NADT](https://github.com/Yata-Datacom/NADT-Network-Automation-Deployment-Tool)、
+[Network Inspection Studio](https://github.com/Yata-Datacom/Network-Device-Server-Inspection-Tool-GUI-Edition)、
 [Traffic Studio](https://github.com/Yata-Datacom/Traffic-Load-Tester---Gateway-Stress-Tool)
+同属 [Yata-Datacom](https://github.com/Yata-Datacom) 网络工具家族（配置模板库格式互通）。

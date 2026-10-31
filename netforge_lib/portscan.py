@@ -4,11 +4,11 @@
 """
 from __future__ import annotations
 
-import concurrent.futures as futures
 import ipaddress
 import re
 import socket
 import subprocess
+from concurrent import futures
 from dataclasses import dataclass
 
 # 常用端口速查（TCP）

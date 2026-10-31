@@ -1,0 +1,68 @@
+{
+  "_comment": "NADT 内置模板库清单：file 相对 templates/ 目录；vars 是除标准字段（hostname/mgmt_vlan/mgmt_ip/mask/gateway/access_vlan/vlan_batch）外的模板变量。",
+  "templates": [
+    {
+      "file": "access-switch.cfg",
+      "vendor": "huawei",
+      "name": "接入交换机（华为 S 系列，48 口）",
+      "desc": "二层接入：VLAN + Eth-Trunk 上行 + SSH/AAA 管理基线（原有模板）",
+      "vars": []
+    },
+    {
+      "file": "huawei/core-switch.cfg",
+      "vendor": "huawei",
+      "name": "核心/汇聚交换机（华为 CE&S，三层）",
+      "desc": "VLANIF 三层网关 + VRRP + Eth-Trunk 互联 + OSPF + DHCP 中继 + 管理基线",
+      "vars": ["ospf_router_id", "ospf_area", "uplink_vlans", "vrrp_priority", "dhcp_server", "core_password"]
+    },
+    {
+      "file": "huawei/stack-switch.cfg",
+      "vendor": "huawei",
+      "name": "堆叠接入交换机（华为 CSS/iStack）",
+      "desc": "堆叠口 + 双上行 Eth-Trunk（跨设备链路聚合）+ 接入口",
+      "vars": ["stack_member", "stack_priority", "uplink_vlans"]
+    },
+    {
+      "file": "huawei/router-branch.cfg",
+      "vendor": "huawei",
+      "name": "分支路由器（华为 AR，NAT 上网）",
+      "desc": "WAN 拨号/静态 + easy-IP NAT + OSPF/默认路由 + LAN DHCP + 管理基线",
+      "vars": ["wan_ip", "wan_mask", "wan_gateway", "lan_network", "lan_mask", "dns_server", "ospf_area", "ospf_router_id", "core_password"]
+    },
+    {
+      "file": "cisco/access-switch.cfg",
+      "vendor": "cisco",
+      "name": "接入交换机（思科 IOS，二层）",
+      "desc": "VLAN + Trunk 上行 + access 口（range 批量）+ SSH/AAA 管理基线",
+      "vars": ["uplink_vlans", "domain_name", "admin_password"]
+    },
+    {
+      "file": "cisco/core-switch.cfg",
+      "vendor": "cisco",
+      "name": "核心交换机（思科 IOS，三层）",
+      "desc": "SVI 网关 + HSRP + EtherChannel 互联 + OSPF + 管理基线",
+      "vars": ["ospf_router_id", "ospf_area", "hsrp_priority", "hsrp_vip", "uplink_vlans", "admin_password"]
+    },
+    {
+      "file": "cisco/router-branch.cfg",
+      "vendor": "cisco",
+      "name": "分支路由器（思科 IOS，NAT 上网）",
+      "desc": "WAN 静态 + PAT 上网 + OSPF/默认路由 + LAN DHCP + 管理基线",
+      "vars": ["wan_ip", "wan_mask", "wan_gateway", "lan_network", "lan_mask", "dns_server", "ospf_area", "ospf_router_id", "admin_password"]
+    },
+    {
+      "file": "h3c/access-switch.cfg",
+      "vendor": "h3c",
+      "name": "接入交换机（新华三 Comware V7，二层）",
+      "desc": "VLAN + Bridge-Aggregation 上行 + access 口 + SSH/AAA 管理基线",
+      "vars": ["uplink_vlans", "core_password"]
+    },
+    {
+      "file": "h3c/core-switch.cfg",
+      "vendor": "h3c",
+      "name": "核心交换机（新华三 Comware V7，三层）",
+      "desc": "Vlan-interface 网关 + VRRP + Bridge-Aggregation 互联 + OSPF + DHCP 中继",
+      "vars": ["ospf_router_id", "ospf_area", "vrrp_priority", "uplink_vlans", "core_password"]
+    }
+  ]
+}

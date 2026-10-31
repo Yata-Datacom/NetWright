@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 """NetForge 纯逻辑模块测试：子网计算 / 端口与目标解析 / 模块发现。"""
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 
@@ -13,7 +11,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from netforge_lib import launch, netcalc, portscan  # noqa: E402
+from netforge_lib import netcalc, portscan
 
 
 # ── 子网计算 ────────────────────────────────────────────────────
@@ -111,29 +109,3 @@ def test_tcp_port_localhost():
     r2 = portscan.tcp_port("127.0.0.1", 1, timeout=0.5)
     assert r2.state in ("closed", "filtered")
     srv.close()
-
-
-# ── 外部模块发现 ────────────────────────────────────────────────
-def test_discover_modules_from_coding_dir():
-    """在真实 coding 目录跑：四个已知模块应全部可发现（exe 或源码入口）。"""
-    mods = launch.discover_modules("C:/Users/yata/Documents/coding")
-    by_key = {m.key: m for m in mods}
-    assert set(by_key) == {"netpilot", "nadt", "inspection", "traffic"}
-    for m in mods:
-        assert m.available, f"{m.key} 未发现"
-        assert m.candidates[0].path
-
-
-def test_discover_custom_modules(tmp_path):
-    cfg = {"modules": [{"name": "自定义工具", "path": "tools/custom.exe"}]}
-    (tmp_path / "netforge_modules.json").write_text(
-        json.dumps(cfg, ensure_ascii=False), encoding="utf-8")
-    tools = tmp_path / "tools"
-    tools.mkdir()
-    (tools / "custom.exe").write_bytes(b"MZ")
-    mods = launch.load_custom_modules(str(tmp_path))
-    assert len(mods) == 1 and mods[0].name == "自定义工具" and mods[0].available
-
-
-def test_custom_modules_missing_file(tmp_path):
-    assert launch.load_custom_modules(str(tmp_path)) == []
