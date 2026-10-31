@@ -5,7 +5,7 @@ a = Analysis(
     ['netforge.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets')],
+    datas=[('assets', 'assets'), ('templates', 'templates')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

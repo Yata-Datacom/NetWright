@@ -13,56 +13,703 @@
       "vendor": "huawei",
       "name": "核心/汇聚交换机（华为 CE&S，三层）",
       "desc": "VLANIF 三层网关 + VRRP + Eth-Trunk 互联 + OSPF + DHCP 中继 + 管理基线",
-      "vars": ["ospf_router_id", "ospf_area", "uplink_vlans", "vrrp_priority", "dhcp_server", "core_password"]
+      "vars": [
+        "ospf_router_id",
+        "ospf_area",
+        "uplink_vlans",
+        "vrrp_priority",
+        "dhcp_server",
+        "core_password"
+      ]
     },
     {
       "file": "huawei/stack-switch.cfg",
       "vendor": "huawei",
       "name": "堆叠接入交换机（华为 CSS/iStack）",
       "desc": "堆叠口 + 双上行 Eth-Trunk（跨设备链路聚合）+ 接入口",
-      "vars": ["stack_member", "stack_priority", "uplink_vlans"]
+      "vars": [
+        "stack_member",
+        "stack_priority",
+        "uplink_vlans"
+      ]
     },
     {
       "file": "huawei/router-branch.cfg",
       "vendor": "huawei",
       "name": "分支路由器（华为 AR，NAT 上网）",
       "desc": "WAN 拨号/静态 + easy-IP NAT + OSPF/默认路由 + LAN DHCP + 管理基线",
-      "vars": ["wan_ip", "wan_mask", "wan_gateway", "lan_network", "lan_mask", "dns_server", "ospf_area", "ospf_router_id", "core_password"]
+      "vars": [
+        "wan_ip",
+        "wan_mask",
+        "wan_gateway",
+        "lan_network",
+        "lan_mask",
+        "dns_server",
+        "ospf_area",
+        "ospf_router_id",
+        "core_password"
+      ]
     },
     {
       "file": "cisco/access-switch.cfg",
       "vendor": "cisco",
       "name": "接入交换机（思科 IOS，二层）",
       "desc": "VLAN + Trunk 上行 + access 口（range 批量）+ SSH/AAA 管理基线",
-      "vars": ["uplink_vlans", "domain_name", "admin_password"]
+      "vars": [
+        "uplink_vlans",
+        "domain_name",
+        "admin_password"
+      ]
     },
     {
       "file": "cisco/core-switch.cfg",
       "vendor": "cisco",
       "name": "核心交换机（思科 IOS，三层）",
       "desc": "SVI 网关 + HSRP + EtherChannel 互联 + OSPF + 管理基线",
-      "vars": ["ospf_router_id", "ospf_area", "hsrp_priority", "hsrp_vip", "uplink_vlans", "admin_password"]
+      "vars": [
+        "ospf_router_id",
+        "ospf_area",
+        "hsrp_priority",
+        "hsrp_vip",
+        "uplink_vlans",
+        "admin_password"
+      ]
     },
     {
       "file": "cisco/router-branch.cfg",
       "vendor": "cisco",
       "name": "分支路由器（思科 IOS，NAT 上网）",
       "desc": "WAN 静态 + PAT 上网 + OSPF/默认路由 + LAN DHCP + 管理基线",
-      "vars": ["wan_ip", "wan_mask", "wan_gateway", "lan_network", "lan_mask", "dns_server", "ospf_area", "ospf_router_id", "admin_password"]
+      "vars": [
+        "wan_ip",
+        "wan_mask",
+        "wan_gateway",
+        "lan_network",
+        "lan_mask",
+        "dns_server",
+        "ospf_area",
+        "ospf_router_id",
+        "admin_password"
+      ]
     },
     {
       "file": "h3c/access-switch.cfg",
       "vendor": "h3c",
       "name": "接入交换机（新华三 Comware V7，二层）",
       "desc": "VLAN + Bridge-Aggregation 上行 + access 口 + SSH/AAA 管理基线",
-      "vars": ["uplink_vlans", "core_password"]
+      "vars": [
+        "uplink_vlans",
+        "core_password"
+      ]
     },
     {
       "file": "h3c/core-switch.cfg",
       "vendor": "h3c",
       "name": "核心交换机（新华三 Comware V7，三层）",
       "desc": "Vlan-interface 网关 + VRRP + Bridge-Aggregation 互联 + OSPF + DHCP 中继",
-      "vars": ["ospf_router_id", "ospf_area", "vrrp_priority", "uplink_vlans", "core_password"]
+      "vars": [
+        "ospf_router_id",
+        "ospf_area",
+        "vrrp_priority",
+        "uplink_vlans",
+        "core_password"
+      ]
+    },
+    {
+      "file": "cli/vlan/huawei.cfg",
+      "vendor": "huawei",
+      "name": "VLAN 基础（Access / Trunk / VLANIF） · 华为 VRP",
+      "desc": "划分业务 VLAN，配置 Access/Trunk 端口与三层网关 VLANIF。最常用的起步模板。",
+      "vars": []
+    },
+    {
+      "file": "cli/vlan/h3c.cfg",
+      "vendor": "h3c",
+      "name": "VLAN 基础（Access / Trunk / VLANIF） · 新华三 Comware",
+      "desc": "划分业务 VLAN，配置 Access/Trunk 端口与三层网关 VLANIF。最常用的起步模板。",
+      "vars": []
+    },
+    {
+      "file": "cli/vlan/cisco.cfg",
+      "vendor": "cisco",
+      "name": "VLAN 基础（Access / Trunk / VLANIF） · 思科 IOS-XE/NX-OS",
+      "desc": "划分业务 VLAN，配置 Access/Trunk 端口与三层网关 VLANIF。最常用的起步模板。",
+      "vars": []
+    },
+    {
+      "file": "cli/lacp/huawei.cfg",
+      "vendor": "huawei",
+      "name": "链路聚合 Eth-Trunk / LACP · 华为 VRP",
+      "desc": "多条物理链路捆绑为一个逻辑口，配 LACP 模式实现故障检测与负载分担。",
+      "vars": []
+    },
+    {
+      "file": "cli/lacp/h3c.cfg",
+      "vendor": "h3c",
+      "name": "链路聚合 Eth-Trunk / LACP · 新华三 Comware",
+      "desc": "多条物理链路捆绑为一个逻辑口，配 LACP 模式实现故障检测与负载分担。",
+      "vars": []
+    },
+    {
+      "file": "cli/lacp/cisco.cfg",
+      "vendor": "cisco",
+      "name": "链路聚合 Eth-Trunk / LACP · 思科 IOS-XE/NX-OS",
+      "desc": "多条物理链路捆绑为一个逻辑口，配 LACP 模式实现故障检测与负载分担。",
+      "vars": []
+    },
+    {
+      "file": "cli/mstp/huawei.cfg",
+      "vendor": "huawei",
+      "name": "MSTP 多生成树 + 根桥保护 · 华为 VRP",
+      "desc": "多实例生成树，按 VLAN 分组负载分担；配置根桥/备根与边缘端口。",
+      "vars": []
+    },
+    {
+      "file": "cli/mstp/h3c.cfg",
+      "vendor": "h3c",
+      "name": "MSTP 多生成树 + 根桥保护 · 新华三 Comware",
+      "desc": "多实例生成树，按 VLAN 分组负载分担；配置根桥/备根与边缘端口。",
+      "vars": []
+    },
+    {
+      "file": "cli/mstp/cisco.cfg",
+      "vendor": "cisco",
+      "name": "MSTP 多生成树 + 根桥保护 · 思科 IOS-XE/NX-OS",
+      "desc": "多实例生成树，按 VLAN 分组负载分担；配置根桥/备根与边缘端口。",
+      "vars": []
+    },
+    {
+      "file": "cli/ospf/huawei.cfg",
+      "vendor": "huawei",
+      "name": "OSPF（多区域 / 默认路由下发 / 优化） · 华为 VRP",
+      "desc": "骨干区 0 + 常规区划分，ABR 汇总，边界下发默认路由，接口开销与认证。",
+      "vars": []
+    },
+    {
+      "file": "cli/ospf/h3c.cfg",
+      "vendor": "h3c",
+      "name": "OSPF（多区域 / 默认路由下发 / 优化） · 新华三 Comware",
+      "desc": "骨干区 0 + 常规区划分，ABR 汇总，边界下发默认路由，接口开销与认证。",
+      "vars": []
+    },
+    {
+      "file": "cli/ospf/cisco.cfg",
+      "vendor": "cisco",
+      "name": "OSPF（多区域 / 默认路由下发 / 优化） · 思科 IOS-XE/NX-OS",
+      "desc": "骨干区 0 + 常规区划分，ABR 汇总，边界下发默认路由，接口开销与认证。",
+      "vars": []
+    },
+    {
+      "file": "cli/bgp/huawei.cfg",
+      "vendor": "huawei",
+      "name": "BGP（eBGP 对等 / 引入直连 / 团体属性） · 华为 VRP",
+      "desc": "AS 间互联基础模板：建立 eBGP/iBGP 邻居，注入路由，常用属性控制。",
+      "vars": []
+    },
+    {
+      "file": "cli/bgp/h3c.cfg",
+      "vendor": "h3c",
+      "name": "BGP（eBGP 对等 / 引入直连 / 团体属性） · 新华三 Comware",
+      "desc": "AS 间互联基础模板：建立 eBGP/iBGP 邻居，注入路由，常用属性控制。",
+      "vars": []
+    },
+    {
+      "file": "cli/bgp/cisco.cfg",
+      "vendor": "cisco",
+      "name": "BGP（eBGP 对等 / 引入直连 / 团体属性） · 思科 IOS-XE/NX-OS",
+      "desc": "AS 间互联基础模板：建立 eBGP/iBGP 邻居，注入路由，常用属性控制。",
+      "vars": []
+    },
+    {
+      "file": "cli/vrrp/huawei.cfg",
+      "vendor": "huawei",
+      "name": "VRRP 网关主备 / 双活分担 · 华为 VRP",
+      "desc": "两台网关互为主备；双组 VRRP 交叉承担 VLAN 实现负载分担，联动上行口状态。",
+      "vars": []
+    },
+    {
+      "file": "cli/vrrp/h3c.cfg",
+      "vendor": "h3c",
+      "name": "VRRP 网关主备 / 双活分担 · 新华三 Comware",
+      "desc": "两台网关互为主备；双组 VRRP 交叉承担 VLAN 实现负载分担，联动上行口状态。",
+      "vars": []
+    },
+    {
+      "file": "cli/vrrp/cisco.cfg",
+      "vendor": "cisco",
+      "name": "VRRP 网关主备 / 双活分担 · 思科 IOS-XE/NX-OS",
+      "desc": "两台网关互为主备；双组 VRRP 交叉承担 VLAN 实现负载分担，联动上行口状态。",
+      "vars": []
+    },
+    {
+      "file": "cli/gre_ipsec/huawei.cfg",
+      "vendor": "huawei",
+      "name": "GRE over IPsec 站点互联 · 华为 VRP",
+      "desc": "分支-总部隧道：先建 GRE 承载路由，再叠加 IPsec 加密保护（IKE 协商）。",
+      "vars": []
+    },
+    {
+      "file": "cli/gre_ipsec/h3c.cfg",
+      "vendor": "h3c",
+      "name": "GRE over IPsec 站点互联 · 新华三 Comware",
+      "desc": "分支-总部隧道：先建 GRE 承载路由，再叠加 IPsec 加密保护（IKE 协商）。",
+      "vars": []
+    },
+    {
+      "file": "cli/gre_ipsec/cisco.cfg",
+      "vendor": "cisco",
+      "name": "GRE over IPsec 站点互联 · 思科 IOS-XE/NX-OS",
+      "desc": "分支-总部隧道：先建 GRE 承载路由，再叠加 IPsec 加密保护（IKE 协商）。",
+      "vars": []
+    },
+    {
+      "file": "cli/vxlan_evpn/huawei.cfg",
+      "vendor": "huawei",
+      "name": "VXLAN + BGP EVPN（Spine-Leaf 分布式网关） · 华为 VRP",
+      "desc": "数据中心 Overlay：Underlay OSPF 打通，BGP EVPN 传递 MAC/IP 路由，Leaf 双活网关。以 2 Spine + 2 Leaf 为例。",
+      "vars": []
+    },
+    {
+      "file": "cli/vxlan_evpn/h3c.cfg",
+      "vendor": "h3c",
+      "name": "VXLAN + BGP EVPN（Spine-Leaf 分布式网关） · 新华三 Comware",
+      "desc": "数据中心 Overlay：Underlay OSPF 打通，BGP EVPN 传递 MAC/IP 路由，Leaf 双活网关。以 2 Spine + 2 Leaf 为例。",
+      "vars": []
+    },
+    {
+      "file": "cli/vxlan_evpn/cisco.cfg",
+      "vendor": "cisco",
+      "name": "VXLAN + BGP EVPN（Spine-Leaf 分布式网关） · 思科 IOS-XE/NX-OS",
+      "desc": "数据中心 Overlay：Underlay OSPF 打通，BGP EVPN 传递 MAC/IP 路由，Leaf 双活网关。以 2 Spine + 2 Leaf 为例。",
+      "vars": []
+    },
+    {
+      "file": "cli/mlag/huawei.cfg",
+      "vendor": "huawei",
+      "name": "M-LAG / DRNI / vPC 跨设备链路聚合 · 华为 VRP",
+      "desc": "两台设备逻辑成一台对接服务器/交换机，双活无环。华为 M-LAG、H3C DRNI、思科 vPC 三种写法。",
+      "vars": []
+    },
+    {
+      "file": "cli/mlag/h3c.cfg",
+      "vendor": "h3c",
+      "name": "M-LAG / DRNI / vPC 跨设备链路聚合 · 新华三 Comware",
+      "desc": "两台设备逻辑成一台对接服务器/交换机，双活无环。华为 M-LAG、H3C DRNI、思科 vPC 三种写法。",
+      "vars": []
+    },
+    {
+      "file": "cli/mlag/cisco.cfg",
+      "vendor": "cisco",
+      "name": "M-LAG / DRNI / vPC 跨设备链路聚合 · 思科 IOS-XE/NX-OS",
+      "desc": "两台设备逻辑成一台对接服务器/交换机，双活无环。华为 M-LAG、H3C DRNI、思科 vPC 三种写法。",
+      "vars": []
+    },
+    {
+      "file": "cli/stack/huawei.cfg",
+      "vendor": "huawei",
+      "name": "堆叠虚拟化（CSS / IRF / StackWise） · 华为 VRP",
+      "desc": "两台框/盒式设备堆叠成一台管理。注意先断电接堆叠线再上电，堆叠口与成员号按规划。",
+      "vars": []
+    },
+    {
+      "file": "cli/stack/h3c.cfg",
+      "vendor": "h3c",
+      "name": "堆叠虚拟化（CSS / IRF / StackWise） · 新华三 Comware",
+      "desc": "两台框/盒式设备堆叠成一台管理。注意先断电接堆叠线再上电，堆叠口与成员号按规划。",
+      "vars": []
+    },
+    {
+      "file": "cli/stack/cisco.cfg",
+      "vendor": "cisco",
+      "name": "堆叠虚拟化（CSS / IRF / StackWise） · 思科 IOS-XE/NX-OS",
+      "desc": "两台框/盒式设备堆叠成一台管理。注意先断电接堆叠线再上电，堆叠口与成员号按规划。",
+      "vars": []
+    },
+    {
+      "file": "cli/dhcp/huawei.cfg",
+      "vendor": "huawei",
+      "name": "DHCP 服务（地址池 / 中继） · 华为 VRP",
+      "desc": "网关侧地址池下发（含 DNS/网关/租期/静态绑定），或中继到远端 DHCP 服务器。",
+      "vars": []
+    },
+    {
+      "file": "cli/dhcp/h3c.cfg",
+      "vendor": "h3c",
+      "name": "DHCP 服务（地址池 / 中继） · 新华三 Comware",
+      "desc": "网关侧地址池下发（含 DNS/网关/租期/静态绑定），或中继到远端 DHCP 服务器。",
+      "vars": []
+    },
+    {
+      "file": "cli/dhcp/cisco.cfg",
+      "vendor": "cisco",
+      "name": "DHCP 服务（地址池 / 中继） · 思科 IOS-XE/NX-OS",
+      "desc": "网关侧地址池下发（含 DNS/网关/租期/静态绑定），或中继到远端 DHCP 服务器。",
+      "vars": []
+    },
+    {
+      "file": "cli/acl/huawei.cfg",
+      "vendor": "huawei",
+      "name": "ACL 访问控制（时间对象 / 结合接口） · 华为 VRP",
+      "desc": "标准/高级 ACL 限制互访，含时段控制，并在接口方向应用。",
+      "vars": []
+    },
+    {
+      "file": "cli/acl/h3c.cfg",
+      "vendor": "h3c",
+      "name": "ACL 访问控制（时间对象 / 结合接口） · 新华三 Comware",
+      "desc": "标准/高级 ACL 限制互访，含时段控制，并在接口方向应用。",
+      "vars": []
+    },
+    {
+      "file": "cli/acl/cisco.cfg",
+      "vendor": "cisco",
+      "name": "ACL 访问控制（时间对象 / 结合接口） · 思科 IOS-XE/NX-OS",
+      "desc": "标准/高级 ACL 限制互访，含时段控制，并在接口方向应用。",
+      "vars": []
+    },
+    {
+      "file": "cli/qos_mqc/huawei.cfg",
+      "vendor": "huawei",
+      "name": "MQC / QoS（分类-行为-策略：限速 / 重标记 / 队列调度 / WRED） · 华为 VRP",
+      "desc": "经典三段式：traffic classifier → behavior → policy。示例：业务流重标记 DSCP、关键流量保证带宽、P2P 限速、拥塞避免。",
+      "vars": []
+    },
+    {
+      "file": "cli/qos_mqc/h3c.cfg",
+      "vendor": "h3c",
+      "name": "MQC / QoS（分类-行为-策略：限速 / 重标记 / 队列调度 / WRED） · 新华三 Comware",
+      "desc": "经典三段式：traffic classifier → behavior → policy。示例：业务流重标记 DSCP、关键流量保证带宽、P2P 限速、拥塞避免。",
+      "vars": []
+    },
+    {
+      "file": "cli/qos_mqc/cisco.cfg",
+      "vendor": "cisco",
+      "name": "MQC / QoS（分类-行为-策略：限速 / 重标记 / 队列调度 / WRED） · 思科 IOS-XE/NX-OS",
+      "desc": "经典三段式：traffic classifier → behavior → policy。示例：业务流重标记 DSCP、关键流量保证带宽、P2P 限速、拥塞避免。",
+      "vars": []
+    },
+    {
+      "file": "cli/mgmt/huawei.cfg",
+      "vendor": "huawei",
+      "name": "管理面加固（SSH / AAA / SNMP / NTP / 日志） · 华为 VRP",
+      "desc": "安全远程管理基线：本地账号+SSHv2、SNMPv3、NTP、Syslog、关闭不安全服务。",
+      "vars": []
+    },
+    {
+      "file": "cli/mgmt/h3c.cfg",
+      "vendor": "h3c",
+      "name": "管理面加固（SSH / AAA / SNMP / NTP / 日志） · 新华三 Comware",
+      "desc": "安全远程管理基线：本地账号+SSHv2、SNMPv3、NTP、Syslog、关闭不安全服务。",
+      "vars": []
+    },
+    {
+      "file": "cli/mgmt/cisco.cfg",
+      "vendor": "cisco",
+      "name": "管理面加固（SSH / AAA / SNMP / NTP / 日志） · 思科 IOS-XE/NX-OS",
+      "desc": "安全远程管理基线：本地账号+SSHv2、SNMPv3、NTP、Syslog、关闭不安全服务。",
+      "vars": []
+    },
+    {
+      "file": "cli/static_route/huawei.cfg",
+      "vendor": "huawei",
+      "name": "静态路由 / 浮动备份 / 静态+BFD 联动 · 华为 VRP",
+      "desc": "基础静态路由、低优先级浮动备份链路、静态路由绑定 BFD 实现秒级切换。",
+      "vars": []
+    },
+    {
+      "file": "cli/static_route/h3c.cfg",
+      "vendor": "h3c",
+      "name": "静态路由 / 浮动备份 / 静态+BFD 联动 · 新华三 Comware",
+      "desc": "基础静态路由、低优先级浮动备份链路、静态路由绑定 BFD 实现秒级切换。",
+      "vars": []
+    },
+    {
+      "file": "cli/static_route/cisco.cfg",
+      "vendor": "cisco",
+      "name": "静态路由 / 浮动备份 / 静态+BFD 联动 · 思科 IOS-XE/NX-OS",
+      "desc": "基础静态路由、低优先级浮动备份链路、静态路由绑定 BFD 实现秒级切换。",
+      "vars": []
+    },
+    {
+      "file": "cli/isis/huawei.cfg",
+      "vendor": "huawei",
+      "name": "IS-IS（Level-1/2 / 广域网 IGP） · 华为 VRP",
+      "desc": "运营商常用 IGP：NET 地址规划、Level 分层、wide 开销、BFD 联动。",
+      "vars": []
+    },
+    {
+      "file": "cli/isis/h3c.cfg",
+      "vendor": "h3c",
+      "name": "IS-IS（Level-1/2 / 广域网 IGP） · 新华三 Comware",
+      "desc": "运营商常用 IGP：NET 地址规划、Level 分层、wide 开销、BFD 联动。",
+      "vars": []
+    },
+    {
+      "file": "cli/isis/cisco.cfg",
+      "vendor": "cisco",
+      "name": "IS-IS（Level-1/2 / 广域网 IGP） · 思科 IOS-XE/NX-OS",
+      "desc": "运营商常用 IGP：NET 地址规划、Level 分层、wide 开销、BFD 联动。",
+      "vars": []
+    },
+    {
+      "file": "cli/bfd/huawei.cfg",
+      "vendor": "huawei",
+      "name": "BFD 双向转发检测（与 OSPF/BGP/静态联动） · 华为 VRP",
+      "desc": "毫秒级故障检测：会话建立、与动态路由协议联动、接口级参数调整。",
+      "vars": []
+    },
+    {
+      "file": "cli/bfd/h3c.cfg",
+      "vendor": "h3c",
+      "name": "BFD 双向转发检测（与 OSPF/BGP/静态联动） · 新华三 Comware",
+      "desc": "毫秒级故障检测：会话建立、与动态路由协议联动、接口级参数调整。",
+      "vars": []
+    },
+    {
+      "file": "cli/bfd/cisco.cfg",
+      "vendor": "cisco",
+      "name": "BFD 双向转发检测（与 OSPF/BGP/静态联动） · 思科 IOS-XE/NX-OS",
+      "desc": "毫秒级故障检测：会话建立、与动态路由协议联动、接口级参数调整。",
+      "vars": []
+    },
+    {
+      "file": "cli/mpls_vpn/huawei.cfg",
+      "vendor": "huawei",
+      "name": "MPLS L3VPN（PE-CE，VPN 实例 + MP-BGP） · 华为 VRP",
+      "desc": "运营商/大网专线：PE 上创建 VRF、绑接口、MP-BGP VPNv4 传路由、PE-CE 用 OSPF/BGP 对接。",
+      "vars": []
+    },
+    {
+      "file": "cli/mpls_vpn/h3c.cfg",
+      "vendor": "h3c",
+      "name": "MPLS L3VPN（PE-CE，VPN 实例 + MP-BGP） · 新华三 Comware",
+      "desc": "运营商/大网专线：PE 上创建 VRF、绑接口、MP-BGP VPNv4 传路由、PE-CE 用 OSPF/BGP 对接。",
+      "vars": []
+    },
+    {
+      "file": "cli/mpls_vpn/cisco.cfg",
+      "vendor": "cisco",
+      "name": "MPLS L3VPN（PE-CE，VPN 实例 + MP-BGP） · 思科 IOS-XE/NX-OS",
+      "desc": "运营商/大网专线：PE 上创建 VRF、绑接口、MP-BGP VPNv4 传路由、PE-CE 用 OSPF/BGP 对接。",
+      "vars": []
+    },
+    {
+      "file": "cli/nat/huawei.cfg",
+      "vendor": "huawei",
+      "name": "NAT（上网动态 NAT / 静态映射 / 服务器发布） · 华为 VRP",
+      "desc": "出口上网 easy-IP 复用公网地址、静态一对一映射、对外发布内网服务器。",
+      "vars": []
+    },
+    {
+      "file": "cli/nat/h3c.cfg",
+      "vendor": "h3c",
+      "name": "NAT（上网动态 NAT / 静态映射 / 服务器发布） · 新华三 Comware",
+      "desc": "出口上网 easy-IP 复用公网地址、静态一对一映射、对外发布内网服务器。",
+      "vars": []
+    },
+    {
+      "file": "cli/nat/cisco.cfg",
+      "vendor": "cisco",
+      "name": "NAT（上网动态 NAT / 静态映射 / 服务器发布） · 思科 IOS-XE/NX-OS",
+      "desc": "出口上网 easy-IP 复用公网地址、静态一对一映射、对外发布内网服务器。",
+      "vars": []
+    },
+    {
+      "file": "cli/ipv6/huawei.cfg",
+      "vendor": "huawei",
+      "name": "IPv6 双栈（地址 / OSPFv3 / VRRP6 / RA） · 华为 VRP",
+      "desc": "v4+v6 双栈基线：接口 v6 地址、OSPFv3、VRRP for IPv6 网关冗余、RA 前缀公告。",
+      "vars": []
+    },
+    {
+      "file": "cli/ipv6/h3c.cfg",
+      "vendor": "h3c",
+      "name": "IPv6 双栈（地址 / OSPFv3 / VRRP6 / RA） · 新华三 Comware",
+      "desc": "v4+v6 双栈基线：接口 v6 地址、OSPFv3、VRRP for IPv6 网关冗余、RA 前缀公告。",
+      "vars": []
+    },
+    {
+      "file": "cli/ipv6/cisco.cfg",
+      "vendor": "cisco",
+      "name": "IPv6 双栈（地址 / OSPFv3 / VRRP6 / RA） · 思科 IOS-XE/NX-OS",
+      "desc": "v4+v6 双栈基线：接口 v6 地址、OSPFv3、VRRP for IPv6 网关冗余、RA 前缀公告。",
+      "vars": []
+    },
+    {
+      "file": "cli/multicast/huawei.cfg",
+      "vendor": "huawei",
+      "name": "组播（IGMP / PIM-SM / IGMP Snooping） · 华为 VRP",
+      "desc": "IPTV/监控场景：三层 PIM-SM + 静态 RP，二层 VLAN 开 IGMP Snooping 防泛洪。",
+      "vars": []
+    },
+    {
+      "file": "cli/multicast/h3c.cfg",
+      "vendor": "h3c",
+      "name": "组播（IGMP / PIM-SM / IGMP Snooping） · 新华三 Comware",
+      "desc": "IPTV/监控场景：三层 PIM-SM + 静态 RP，二层 VLAN 开 IGMP Snooping 防泛洪。",
+      "vars": []
+    },
+    {
+      "file": "cli/multicast/cisco.cfg",
+      "vendor": "cisco",
+      "name": "组播（IGMP / PIM-SM / IGMP Snooping） · 思科 IOS-XE/NX-OS",
+      "desc": "IPTV/监控场景：三层 PIM-SM + 静态 RP，二层 VLAN 开 IGMP Snooping 防泛洪。",
+      "vars": []
+    },
+    {
+      "file": "cli/l2_security/huawei.cfg",
+      "vendor": "huawei",
+      "name": "二层安全（端口安全 / DHCP Snooping / ARP 检测 / 802.1X / 风暴抑制） · 华为 VRP",
+      "desc": "接入层安全基线：MAC 端口安全、防私接 DHCP 服务器、防 ARP 欺骗、风暴抑制、环路检测、802.1X。",
+      "vars": []
+    },
+    {
+      "file": "cli/l2_security/h3c.cfg",
+      "vendor": "h3c",
+      "name": "二层安全（端口安全 / DHCP Snooping / ARP 检测 / 802.1X / 风暴抑制） · 新华三 Comware",
+      "desc": "接入层安全基线：MAC 端口安全、防私接 DHCP 服务器、防 ARP 欺骗、风暴抑制、环路检测、802.1X。",
+      "vars": []
+    },
+    {
+      "file": "cli/l2_security/cisco.cfg",
+      "vendor": "cisco",
+      "name": "二层安全（端口安全 / DHCP Snooping / ARP 检测 / 802.1X / 风暴抑制） · 思科 IOS-XE/NX-OS",
+      "desc": "接入层安全基线：MAC 端口安全、防私接 DHCP 服务器、防 ARP 欺骗、风暴抑制、环路检测、802.1X。",
+      "vars": []
+    },
+    {
+      "file": "cli/route_policy/huawei.cfg",
+      "vendor": "huawei",
+      "name": "路由策略工具箱（prefix-list / route-policy / filter-policy） · 华为 VRP",
+      "desc": "路由过滤与属性改写：前缀列表、route-policy 各节点写法、在 OSPF/BGP 中的挂载点。",
+      "vars": []
+    },
+    {
+      "file": "cli/route_policy/h3c.cfg",
+      "vendor": "h3c",
+      "name": "路由策略工具箱（prefix-list / route-policy / filter-policy） · 新华三 Comware",
+      "desc": "路由过滤与属性改写：前缀列表、route-policy 各节点写法、在 OSPF/BGP 中的挂载点。",
+      "vars": []
+    },
+    {
+      "file": "cli/route_policy/cisco.cfg",
+      "vendor": "cisco",
+      "name": "路由策略工具箱（prefix-list / route-policy / filter-policy） · 思科 IOS-XE/NX-OS",
+      "desc": "路由过滤与属性改写：前缀列表、route-policy 各节点写法、在 OSPF/BGP 中的挂载点。",
+      "vars": []
+    },
+    {
+      "file": "cli/flow_telemetry/huawei.cfg",
+      "vendor": "huawei",
+      "name": "流量采集（NetStream / NetFlow / sFlow） · 华为 VRP",
+      "desc": "把五元组流量统计导出到采集器，用于流量分析与审计。",
+      "vars": []
+    },
+    {
+      "file": "cli/flow_telemetry/h3c.cfg",
+      "vendor": "h3c",
+      "name": "流量采集（NetStream / NetFlow / sFlow） · 新华三 Comware",
+      "desc": "把五元组流量统计导出到采集器，用于流量分析与审计。",
+      "vars": []
+    },
+    {
+      "file": "cli/flow_telemetry/cisco.cfg",
+      "vendor": "cisco",
+      "name": "流量采集（NetStream / NetFlow / sFlow） · 思科 IOS-XE/NX-OS",
+      "desc": "把五元组流量统计导出到采集器，用于流量分析与审计。",
+      "vars": []
+    },
+    {
+      "file": "cli/port_mirror/huawei.cfg",
+      "vendor": "huawei",
+      "name": "端口镜像（抓包/旁路审计设备接入） · 华为 VRP",
+      "desc": "把业务口流量复制到观察口，接抓包机或安全审计设备。",
+      "vars": []
+    },
+    {
+      "file": "cli/port_mirror/h3c.cfg",
+      "vendor": "h3c",
+      "name": "端口镜像（抓包/旁路审计设备接入） · 新华三 Comware",
+      "desc": "把业务口流量复制到观察口，接抓包机或安全审计设备。",
+      "vars": []
+    },
+    {
+      "file": "cli/port_mirror/cisco.cfg",
+      "vendor": "cisco",
+      "name": "端口镜像（抓包/旁路审计设备接入） · 思科 IOS-XE/NX-OS",
+      "desc": "把业务口流量复制到观察口，接抓包机或安全审计设备。",
+      "vars": []
+    },
+    {
+      "file": "cli/rocev2/huawei.cfg",
+      "vendor": "huawei",
+      "name": "RoCEv2 无损网络（PFC + ECN + DSCP 映射 + 巨帧） · 华为 VRP",
+      "desc": "分布式存储/AI 训练场景：RDMA 流量进专用无丢包队列（PFC no-drop），拥塞时 ECN 主动通知源端降速（配合 WRED 阈值），DSCP 46 → COS 5 映射，全网巨帧。注意：全链路 MTU 必须一致，服务器侧网卡（如 Mellanox：set_pcp、cma_roce_tos=46）需同步配置。",
+      "vars": []
+    },
+    {
+      "file": "cli/rocev2/h3c.cfg",
+      "vendor": "h3c",
+      "name": "RoCEv2 无损网络（PFC + ECN + DSCP 映射 + 巨帧） · 新华三 Comware",
+      "desc": "分布式存储/AI 训练场景：RDMA 流量进专用无丢包队列（PFC no-drop），拥塞时 ECN 主动通知源端降速（配合 WRED 阈值），DSCP 46 → COS 5 映射，全网巨帧。注意：全链路 MTU 必须一致，服务器侧网卡（如 Mellanox：set_pcp、cma_roce_tos=46）需同步配置。",
+      "vars": []
+    },
+    {
+      "file": "cli/rocev2/cisco.cfg",
+      "vendor": "cisco",
+      "name": "RoCEv2 无损网络（PFC + ECN + DSCP 映射 + 巨帧） · 思科 IOS-XE/NX-OS",
+      "desc": "分布式存储/AI 训练场景：RDMA 流量进专用无丢包队列（PFC no-drop），拥塞时 ECN 主动通知源端降速（配合 WRED 阈值），DSCP 46 → COS 5 映射，全网巨帧。注意：全链路 MTU 必须一致，服务器侧网卡（如 Mellanox：set_pcp、cma_roce_tos=46）需同步配置。",
+      "vars": []
+    },
+    {
+      "file": "cli/dc_baseline/huawei.cfg",
+      "vendor": "huawei",
+      "name": "CloudEngine 数据中心基线（星河 AI Fabric 准备层） · 华为 VRP",
+      "desc": "LLDP/BFD 可靠性 + SSH/NETCONF 管理面 + NTP/SNMPv3 + 光口监控，为 VXLAN/RoCEv2 打底",
+      "vars": [
+        "ospf_router_id",
+        "core_password"
+      ]
+    },
+    {
+      "file": "cli/dc_baseline/h3c.cfg",
+      "vendor": "h3c",
+      "name": "数据中心基线 · 新华三 Comware V7",
+      "desc": "LLDP/BFD + SSH/NETCONF + NTP/SNMPv3 + 日志",
+      "vars": [
+        "ospf_router_id",
+        "core_password"
+      ]
+    },
+    {
+      "file": "cli/dc_baseline/cisco.cfg",
+      "vendor": "cisco",
+      "name": "数据中心基线 · 思科 NX-OS",
+      "desc": "LLDP/BFD + SSH/NETCONF 特性 + NTP/SNMPv3 + 日志",
+      "vars": [
+        "ospf_router_id",
+        "admin_password"
+      ]
+    },
+    {
+      "file": "cli/sr_mpls/huawei.cfg",
+      "vendor": "huawei",
+      "name": "SR-MPLS 骨干（IS-IS + SRGB + Prefix-SID） · 华为",
+      "desc": "无控制器手工部署 Segment Routing MPLS 骨干（TE/FRR 前置）",
+      "vars": [
+        "ospf_router_id",
+        "prefix_sid"
+      ]
+    },
+    {
+      "file": "cli/sr_mpls/cisco.cfg",
+      "vendor": "cisco",
+      "name": "SR-MPLS 骨干（IS-IS + SRGB + Prefix-SID） · 思科 IOS-XR",
+      "desc": "无控制器手工部署 Segment Routing MPLS 骨干",
+      "vars": [
+        "ospf_router_id",
+        "prefix_sid"
+      ]
     }
   ]
 }

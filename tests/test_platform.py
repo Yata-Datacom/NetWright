@@ -69,9 +69,27 @@ def test_inventory_csv_roundtrip(tmp_path):
 # ── 配置生成 ────────────────────────────────────────────────────────
 def test_builtin_templates_available():
     tpls = gen.list_builtin_templates()
-    assert len(tpls) >= 9
+    assert len(tpls) >= 85, f"模板库应 ≥85 条，实际 {len(tpls)}"
     vendors = {t["vendor"] for t in tpls}
     assert {"huawei", "cisco", "h3c"} <= vendors
+
+
+def test_advanced_scenarios_present():
+    """无 SDN 控制器手工场景：VXLAN+EVPN / MSTP / MPLS / M-LAG / 堆叠 / RoCEv2 / SR。"""
+    names = " ".join(t["name"] for t in gen.list_builtin_templates())
+    for kw in ("VXLAN", "MSTP", "MPLS", "M-LAG", "堆叠", "RoCEv2", "SR-MPLS", "数据中心基线"):
+        assert kw in names, f"缺少场景: {kw}"
+
+
+def test_every_template_renders_clean():
+    """全部模板用占位值渲染，不允许任何残留 {{}}（宁报错不下发坏配置）。"""
+    for t in gen.list_builtin_templates():
+        variables = {v: "1" for v in t["vars"]}
+        variables.update({"hostname": "SW-1", "mgmt_vlan": "11", "mgmt_ip": "192.0.2.1",
+                          "mask": "255.255.255.0", "gateway": "192.0.2.254",
+                          "access_vlan": "10", "vlan_batch": "10 20"})
+        cfg = gen.render_template(t["text"], variables)
+        assert "{{" not in cfg, f"{t['file']} 渲染后残留占位符"
 
 
 def test_render_no_leftovers():

@@ -425,14 +425,18 @@ class GeneratePage(Page):
 
         bar = tk.Frame(body, bg=BG)
         bar.pack(fill=tk.X, pady=(0, 6))
+        ttk.Label(bar, text="厂商:", style="H2.TLabel").pack(side=tk.LEFT)
+        self.cmb_vendor = ttk.Combobox(bar, state="readonly", width=13)
+        self.cmb_vendor["values"] = ["全部", "华为", "新华三", "思科"]
+        self.cmb_vendor.current(0)
+        self.cmb_vendor.pack(side=tk.LEFT, padx=(6, 10))
+        self.cmb_vendor.bind("<<ComboboxSelected>>", lambda e: self._apply_vendor_filter())
         ttk.Label(bar, text="模板:", style="H2.TLabel").pack(side=tk.LEFT)
-        self.tpl_map = {t["name"]: t for t in gen.list_builtin_templates()}
-        self.cmb_tpl = ttk.Combobox(bar, state="readonly", width=38,
-                                    values=list(self.tpl_map))
-        if self.tpl_map:
-            self.cmb_tpl.current(0)
+        self.all_templates = gen.list_builtin_templates()
+        self.cmb_tpl = ttk.Combobox(bar, state="readonly", width=52)
         self.cmb_tpl.pack(side=tk.LEFT, padx=(6, 10))
         self.cmb_tpl.bind("<<ComboboxSelected>>", lambda e: self._load_template())
+        self._apply_vendor_filter()
         tk.Button(bar, text="生成到目录…", bg=ACCENT, fg="white", relief=tk.FLAT,
                   activebackground=NAVY2, command=self.generate).pack(side=tk.LEFT, padx=(0, 6))
         tk.Button(bar, text="载入清单设备", bg=NAVY2, fg=FG, relief=tk.FLAT,
@@ -457,6 +461,17 @@ class GeneratePage(Page):
         self.tpl_text = tk.Text(right, bg="#0a1526", fg=MUTED, relief=tk.FLAT, font=MONO,
                                 insertbackground=FG, wrap=tk.NONE)
         self.tpl_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+        self._load_template()
+
+    def _apply_vendor_filter(self):
+        """按厂商过滤模板下拉（92 个模板按厂商分档）。"""
+        vendor_key = {"华为": "huawei", "新华三": "h3c", "思科": "cisco"}.get(self.cmb_vendor.get())
+        picked = [t for t in self.all_templates
+                  if vendor_key is None or t["vendor"] == vendor_key]
+        self.tpl_map = {t["name"]: t for t in picked}
+        self.cmb_tpl["values"] = list(self.tpl_map)
+        if self.tpl_map:
+            self.cmb_tpl.current(0)
         self._load_template()
 
     def _load_template(self):

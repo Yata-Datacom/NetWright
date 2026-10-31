@@ -33,7 +33,11 @@ NetForge **不是启动器，也不依赖任何外部工具**——它是一个�
 - 结果分级（OK / WARNING / FAILED / UNREACHABLE），一键导出**HTML 报告**（含逐命令原始输出，已做转义）。
 
 ### 🛠 配置生成
-- 内置 **9 个多厂商模板**（接入 / 核心 / 堆叠 / 分支路由，华为·思科·H3C，源自 NADT 模板库格式）；
+- 内置 **92 个多厂商 CLI 模板**（华为 VRP / 新华三 Comware / 思科 IOS-XE·NX-OS），覆盖无 SDN 控制器环境下的高级网络手工部署：
+  - **数据中心**：VXLAN+BGP EVPN 分布式网关（手工 VTEP）、M-LAG/DRNI/vPC 双活网关、CloudEngine 数据中心基线（星河 AI Fabric 准备层）、**RoCEv2 无损**（PFC+ECN+DSCP 映射）、SR-MPLS 骨干（IS-IS SRGB+Prefix-SID）
+  - **园区**：MSTP 多实例、VRRP/HSRP、堆叠（CSS/IRF/StackWise）、DHCP、ACL、MQC/QoS
+  - **广域与骨干**：MPLS L3VPN（PE-CE）、BGP、IS-IS、BFD 联动、GRE over IPsec、NAT、静态路由+浮动备份
+  - **基础与治理**：IPv6 双栈/OSPFv3、组播 PIM-SM、二层安全（端口安全/DHCP Snooping/802.1X）、路由策略、流量采集 NetFlow、端口镜像、管理面加固
 - 设备参数表（CSV，首行即变量名）× 模板 → 批量 .cfg；
 - **零残留校验**：变量缺失或占位符渲染不出就直接报错，绝不生成含 `{{占位符}}` 的坏配置；
 - 可从设备清单一键生成参数表骨架。
