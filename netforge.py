@@ -361,26 +361,29 @@ class InspectPage(Page):
         self.var_count.set(f"巡检中… 0/{len(picked)}")
 
         def worker():
-            results = inspector.run_batch(picked, scheme, workers=workers,
-                                          progress=self._progress)
-            self.app.after(0, lambda: self._done(results, scheme_name))
+            results, skipped = inspector.run_batch(picked, scheme, workers=workers,
+                                                   progress=self._progress)
+            self.app.after(0, lambda: self._done(results, scheme_name, skipped))
 
         threading.Thread(target=worker, daemon=True).start()
 
     def _progress(self, done, total):
         self.app.after(0, lambda: self.var_count.set(f"巡检中… {done}/{total}"))
 
-    def _done(self, results, scheme_name):
+    def _done(self, results, scheme_name, skipped=None):
         self.btn_run.config(state=tk.NORMAL)
         self.results = results
         self._scheme_name = scheme_name
         for i, r in enumerate(results):
             self.tree.insert("", "end", iid=str(i), values=(
                 r.host, r.status, r.critical_count, len(r.anomalies), f"{r.cost_ms} ms"))
-        self.var_count.set(f"完成：{len(results)} 台 · " +
-                           " ".join(f"{k}:{v}" for k, v in sorted(
-                               {s: sum(1 for r in results if r.status == s)
-                                for s in {r.status for r in results}}.items())))
+        summary = " ".join(f"{k}:{v}" for k, v in sorted(
+            {s: sum(1 for r in results if r.status == s)
+             for s in {r.status for r in results}}.items()))
+        note = f" · 跳过 {len(skipped)} 台（{scheme_name} 无该厂商命令集）" if skipped else ""
+        self.var_count.set(f"完成：{len(results)} 台 · {summary}{note}")
+        if skipped:
+            self.app.set_status("已跳过: " + "、".join(skipped[:5]) + ("…" if len(skipped) > 5 else ""))
         if results:
             self.tree.selection_set("0")
 

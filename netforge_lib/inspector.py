@@ -63,6 +63,53 @@ BUILTIN_SCHEMES: dict[str, dict[str, list[str]]] = {
         "linux": ["ss -tunlp", "last -n 15", "lastb -n 20", "journalctl -p warning -n 40 --no-pager"],
         },
     },
+    # ── 高级场景（无 SDN 控制器手工环境）────────────────────────────
+    "VXLAN+EVPN": {
+        "desc": "数据中心 Overlay：VNI/隧道/EVPN 邻居/MAC 路由（手工 BGP EVPN）",
+        "commands": {
+            "huawei": ["display vxlan vni", "display vxlan tunnel", "display interface nve 1",
+                       "display bgp evpn peer", "display bgp evpn all routing-table",
+                       "display bridge-domain"],
+            "cisco": ["show nve vni", "show nve peers", "show bgp l2vpn evpn summary",
+                      "show mac address-table vni", "show interface nve1"],
+            "h3c": ["display vxlan", "display vxlan tunnel", "display bgp peer l2vpn evpn",
+                    "display evpn ipv4 auto-discovery", "display interface tunnel"],
+        },
+    },
+    "MPLS/SR 骨干": {
+        "desc": "LDP/LSP、VPNv4 邻居、SR Prefix-SID 转发表（PE/骨干排查）",
+        "commands": {
+            "huawei": ["display mpls lsp", "display mpls ldp session", "display mpls vpn-instance",
+                       "display bgp vpnv4 all summary",
+                       "display segment-routing prefix mpls forwarding"],
+            "cisco": ["show mpls ldp neighbor", "show mpls forwarding-table", "show mpls interfaces",
+                      "show bgp vpnv4 unicast all summary",
+                      "show mpls label range"],
+            "h3c": ["display mpls lsp", "display mpls ldp peer", "display bgp vpnv4 all",
+                    "display ip vpn-instance"],
+        },
+    },
+    "堆叠与M-LAG": {
+        "desc": "堆叠/集群状态 + 双活检测（CSS/IRF/StackWise、M-LAG/DRNI/vPC/VSU）",
+        "commands": {
+            "huawei": ["display stack", "display css status", "display dfs-group 1 m-lag",
+                       "display eth-trunk"],
+            "h3c": ["display irf", "display irf configuration", "display drni summary",
+                    "display drni keepalive"],
+            "cisco": ["show vpc brief", "show vpc role", "show switch detail"],
+            "ruijie": ["show vsu", "show vsu link", "show ethernet-link"],
+        },
+    },
+    "RoCEv2 无损": {
+        "desc": "AI/存储无损网：PFC 协商与 PAUSE 计数、ECN/WRED、ETS 带宽（命令随型号有差异）",
+        "commands": {
+            "huawei": ["display dcb", "display dcb pfc interface", "display dcb ets"],
+            "cisco": ["show priority-flow-control", "show queuing interface",
+                      "show policy-map type queuing"],
+            "h3c": ["display priority-flow-control", "display qos wred interface",
+                    "display qos policy interface"],
+        },
+    },
 }
 
 # 关分页命令（进入交互后先发）
@@ -222,21 +269,32 @@ def run_device(device, scheme_commands: list[str], timeout: float = 15.0,
 
 
 def run_batch(devices: list, scheme: dict[str, list[str]], workers: int = 20,
-              timeout: float = 15.0, progress=None) -> list[DeviceResult]:
-    """并发巡检一批设备（每个设备独立 SSH 会话，跑完即断）。"""
+              timeout: float = 15.0, progress=None) -> tuple[list[DeviceResult], list[str]]:
+    """并发巡检一批设备（每个设备独立 SSH 会话，跑完即断）。
+
+    方案里没有该厂商命令集的设备会被自动跳过（避免空跑）。
+    :return: (结果列表, 跳过原因列表)
+    """
     results: list[DeviceResult] = []
-    total = len(devices)
+    skipped: list[str] = []
+    targets = []
+    for dev in devices:
+        if scheme.get(dev.vendor):
+            targets.append(dev)
+        else:
+            skipped.append(f"{dev.display_name}（{dev.vendor} 无此方案命令集）")
+    total = len(targets)
     done = 0
     with futures.ThreadPoolExecutor(max_workers=max(1, min(workers, 100))) as ex:
         futs = {ex.submit(run_device, dev, scheme.get(dev.vendor, []), timeout): dev
-                for dev in devices}
+                for dev in targets}
         for fut in futures.as_completed(futs):
             results.append(fut.result())
             done += 1
             if progress:
                 progress(done, total)
     order = {"FAILED": 0, "WARNING": 1, "OK": 2, "UNREACHABLE": 3}
-    return sorted(results, key=lambda r: (order.get(r.status, 9), r.host))
+    return sorted(results, key=lambda r: (order.get(r.status, 9), r.host)), skipped
 
 
 # ── 报告 ─────────────────────────────────────────────────────────────

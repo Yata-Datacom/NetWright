@@ -26,8 +26,11 @@ NetForge **不是启动器，也不依赖任何外部工具**——它是一个�
 界面打码显示，导出 CSV 时也经同一通道还原。支持 CSV 批量导入（列自动映射、重复跳过）。
 
 ### 🔎 SSH 批量巡检
-- 内置 4 套巡检方案：**标准巡检** / **硬件健康**（光功率·电源·风扇·温度）/ **链路与拓扑**（STP·邻居·MAC）/ **安全基线**（SSH·ACL·SNMP），
-  每套覆盖华为 VRP / 思科 IOS / 新华三 Comware / 锐捷 / Linux；
+- 内置 **8 套巡检方案**，覆盖与模板库同级的无 SDN 控制器高级场景：
+  - **标准巡检** / **硬件健康**（光功率·电源·风扇·温度）/ **链路与拓扑**（STP·邻居·MAC）/ **安全基线**（SSH·ACL·SNMP）
+  - **VXLAN+EVPN**（VNI/隧道/NVE/EVPN 邻居/MAC 路由）· **MPLS/SR 骨干**（LDP/LSP/VPNv4/SR 转发表）
+    · **堆叠与M-LAG**（CSS/IRF/StackWise、M-LAG/DRNI/vPC/VSU）· **RoCEv2 无损**（PFC/ECN/WRED/ETS）
+  - 方案没有某厂商命令集时自动跳过该设备并在状态栏提示；
 - 网络设备走交互 shell 自动关分页，Linux 走 exec 通道；每台设备独立会话、跑完即断；
 - **异常自动标记**：CPU/内存过高、接口错包、电源风扇故障、光功率 < -20dBm、温度超标、Linux 失败服务等；
 - 结果分级（OK / WARNING / FAILED / UNREACHABLE），一键导出**HTML 报告**（含逐命令原始输出，已做转义）。
