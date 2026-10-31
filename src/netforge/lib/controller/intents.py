@@ -198,7 +198,7 @@ INTENTS: dict[str, dict] = {
                 f"set protocols bgp system-as {p['local_as']}",
                 f"set protocols bgp parameters router-id {p['router_id']}",
                 f"set protocols bgp neighbor {p['neighbor_ip']} remote-as {p['remote_as']}",
-                f"set protocols bgp address-family ipv4-unicast network 192.0.2.0/24",
+                "set protocols bgp address-family ipv4-unicast network 192.0.2.0/24",
             ],
         },
     },
