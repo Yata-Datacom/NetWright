@@ -54,6 +54,7 @@ OpenDaylight 的核心思想（意图编排 + 多厂商南向 + 拓扑 + 北向 
 ### 🛠 配置生成
 - 内置 **92 个多厂商 CLI 模板**（华为 VRP / 新华三 Comware / 思科 IOS-XE·NX-OS），覆盖无 SDN 控制器环境下的高级网络手工部署：
   - **数据中心**：VXLAN+BGP EVPN 分布式网关（手工 VTEP）、M-LAG/DRNI/vPC 双活网关、CloudEngine 数据中心基线（星河 AI Fabric 准备层）、**RoCEv2 无损**（PFC+ECN+DSCP 映射）、SR-MPLS 骨干（IS-IS SRGB+Prefix-SID）
+  - **IPv6 全家桶**：SLAAC + 无状态 DHCPv6（M=0 O=1）、**有状态 DHCPv6**（M=1 含前缀委派 PD）、OSPFv3/VRRP6 动态路由、隧道（手工 GRE + 6to4）、**过渡 NAT64/DNS64**、**SRv6**（IS-IS Locator + End SID）
   - **园区**：MSTP 多实例、VRRP/HSRP、堆叠（CSS/IRF/StackWise）、DHCP、ACL、MQC/QoS
   - **广域与骨干**：MPLS L3VPN（PE-CE）、BGP、IS-IS、BFD 联动、GRE over IPsec、NAT、静态路由+浮动备份
   - **基础与治理**：IPv6 双栈/OSPFv3、组播 PIM-SM、二层安全（端口安全/DHCP Snooping/802.1X）、路由策略、流量采集 NetFlow、端口镜像、管理面加固

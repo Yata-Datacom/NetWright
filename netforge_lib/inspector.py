@@ -110,6 +110,21 @@ BUILTIN_SCHEMES: dict[str, dict[str, list[str]]] = {
                     "display qos policy interface"],
         },
     },
+    "IPv6 与过渡": {
+        "desc": "v6 接口/邻居表、OSPFv3/BGP v6、DHCPv6、隧道与 NAT64 状态",
+        "commands": {
+            "huawei": ["display ipv6 interface brief", "display ipv6 neighbors",
+                       "display ospfv3 peer", "display bgp ipv6 peer",
+                       "display dhcpv6 pool", "display ipv6 routing-table"],
+            "cisco": ["show ipv6 interface brief", "show ipv6 neighbors",
+                      "show ipv6 ospf neighbor", "show bgp ipv6 unicast summary",
+                      "show ipv6 dhcp pool"],
+            "h3c": ["display ipv6 interface brief", "display ipv6 neighbors",
+                    "display ospfv3", "display bgp peer ipv6 unicast",
+                    "display dhcpv6 pool"],
+            "linux": ["ip -6 addr", "ip -6 route", "ip -6 neigh", "ss -6 -tunlp"],
+        },
+    },
 }
 
 # 关分页命令（进入交互后先发）

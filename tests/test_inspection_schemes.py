@@ -16,12 +16,13 @@ if ROOT not in sys.path:
 from netforge_lib import inspector  # noqa: E402
 from netforge_lib.inventory import Device  # noqa: E402
 
-ADVANCED = ("VXLAN+EVPN", "MPLS/SR 骨干", "堆叠与M-LAG", "RoCEv2 无损")
+ADVANCED = ("VXLAN+EVPN", "MPLS/SR 骨干", "堆叠与M-LAG", "RoCEv2 无损", "IPv6 与过渡")
 KEYWORDS = {
     "VXLAN+EVPN": ("vxlan", "evpn"),
     "MPLS/SR 骨干": ("mpls",),
     "堆叠与M-LAG": ("vpc", "irf", "drni", "vsu", "stack", "css", "dfs-group"),
     "RoCEv2 无损": ("pfc", "wred", "queuing", "priority-flow-control", "dcb"),
+    "IPv6 与过渡": ("ipv6", "ospfv3", "dhcpv6", "-6"),
 }
 
 
@@ -37,6 +38,8 @@ def test_advanced_scheme_structure(name):
         for c in cmds:
             assert c.strip() and c == c.strip()
             low = c.lower()
+            if vendor == "linux":
+                continue  # Linux 用 ip/ss/journalctl 等系统命令，风格豁免
             if vendor in ("huawei", "h3c"):
                 assert low.startswith("display"), f"{name}/{vendor}: {c}"
             else:

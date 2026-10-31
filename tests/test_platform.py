@@ -69,7 +69,7 @@ def test_inventory_csv_roundtrip(tmp_path):
 # ── 配置生成 ────────────────────────────────────────────────────────
 def test_builtin_templates_available():
     tpls = gen.list_builtin_templates()
-    assert len(tpls) >= 85, f"模板库应 ≥85 条，实际 {len(tpls)}"
+    assert len(tpls) >= 105, f"模板库应 ≥105 条，实际 {len(tpls)}"
     vendors = {t["vendor"] for t in tpls}
     assert {"huawei", "cisco", "h3c"} <= vendors
 
@@ -77,7 +77,8 @@ def test_builtin_templates_available():
 def test_advanced_scenarios_present():
     """无 SDN 控制器手工场景：VXLAN+EVPN / MSTP / MPLS / M-LAG / 堆叠 / RoCEv2 / SR。"""
     names = " ".join(t["name"] for t in gen.list_builtin_templates())
-    for kw in ("VXLAN", "MSTP", "MPLS", "M-LAG", "堆叠", "RoCEv2", "SR-MPLS", "数据中心基线"):
+    for kw in ("VXLAN", "MSTP", "MPLS", "M-LAG", "堆叠", "RoCEv2", "SR-MPLS",
+               "数据中心基线", "SLAAC", "有状态 DHCPv6", "NAT64", "SRv6"):
         assert kw in names, f"缺少场景: {kw}"
 
 

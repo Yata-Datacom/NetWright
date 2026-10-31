@@ -710,6 +710,162 @@
         "ospf_router_id",
         "prefix_sid"
       ]
+    },
+    {
+      "file": "cli/ipv6_slaac/huawei.cfg",
+      "vendor": "huawei",
+      "name": "IPv6 地址自动配置：SLAAC + 无状态 DHCPv6 · 华为 VRP",
+      "desc": "RA 前缀自配（M=0 O=1），DNS 经无状态 DHCPv6 下发；OSPFv3 接入",
+      "vars": [
+        "dns_v6",
+        "v6_gateway",
+        "ospf_router_id",
+        "ospf_area"
+      ]
+    },
+    {
+      "file": "cli/ipv6_slaac/h3c.cfg",
+      "vendor": "h3c",
+      "name": "IPv6 地址自动配置：SLAAC + 无状态 DHCPv6 · 新华三 Comware V7",
+      "desc": "RA 前缀自配 + 无状态 DHCPv6 选项池",
+      "vars": [
+        "dns_v6",
+        "v6_gateway",
+        "ospf_router_id",
+        "ospf_area"
+      ]
+    },
+    {
+      "file": "cli/ipv6_slaac/cisco.cfg",
+      "vendor": "cisco",
+      "name": "IPv6 地址自动配置：SLAAC + 无状态 DHCPv6 · 思科 IOS-XE",
+      "desc": "ipv6 nd prefix RA + other-config-flag + dhcp pool",
+      "vars": [
+        "dns_v6",
+        "v6_gateway",
+        "lan_prefix",
+        "ospf_router_id",
+        "ospf_area"
+      ]
+    },
+    {
+      "file": "cli/ipv6_dhcpv6_stateful/huawei.cfg",
+      "vendor": "huawei",
+      "name": "IPv6 有状态 DHCPv6 · 华为 VRP",
+      "desc": "M=1 集中分配地址（含前缀委派 PD 注释）+ DHCPv6 池",
+      "vars": [
+        "dhcpv6_prefix",
+        "dns_v6",
+        "v6_gateway",
+        "ospf_router_id",
+        "ospf_area"
+      ]
+    },
+    {
+      "file": "cli/ipv6_dhcpv6_stateful/h3c.cfg",
+      "vendor": "h3c",
+      "name": "IPv6 有状态 DHCPv6 · 新华三 Comware V7",
+      "desc": "network 池 + PD 前缀委派 + M=1",
+      "vars": [
+        "dhcpv6_prefix",
+        "dns_v6",
+        "v6_gateway",
+        "ospf_router_id",
+        "ospf_area"
+      ]
+    },
+    {
+      "file": "cli/ipv6_dhcpv6_stateful/cisco.cfg",
+      "vendor": "cisco",
+      "name": "IPv6 有状态 DHCPv6 · 思科 IOS-XE",
+      "desc": "address prefix 池 + prefix-delegation PD + M=1",
+      "vars": [
+        "dhcpv6_prefix",
+        "dns_v6",
+        "v6_gateway",
+        "ospf_router_id",
+        "ospf_area"
+      ]
+    },
+    {
+      "file": "cli/ipv6_tunnel/huawei.cfg",
+      "vendor": "huawei",
+      "name": "IPv6 隧道：手工 GRE + 6to4 · 华为 VRP",
+      "desc": "IPv6 孤岛穿越 IPv4 骨干：GRE 点对点 + 6to4 自动前缀",
+      "vars": [
+        "tunnel_v6_local",
+        "wan_ip",
+        "wan_peer",
+        "tunnel_v6_peer"
+      ]
+    },
+    {
+      "file": "cli/ipv6_tunnel/h3c.cfg",
+      "vendor": "h3c",
+      "name": "IPv6 隧道：手工 GRE + 6to4 · 新华三 Comware V7",
+      "desc": "Tunnel mode gre / ipv6-ipv4 6to4",
+      "vars": [
+        "tunnel_v6_local",
+        "wan_ip",
+        "wan_peer",
+        "tunnel_v6_peer"
+      ]
+    },
+    {
+      "file": "cli/ipv6_tunnel/cisco.cfg",
+      "vendor": "cisco",
+      "name": "IPv6 隧道：手工 GRE + 6to4 · 思科 IOS-XE",
+      "desc": "tunnel mode ipv6ip 6to4 + 双栈 GRE",
+      "vars": [
+        "tunnel_v6_local",
+        "wan_peer",
+        "tunnel_v6_peer"
+      ]
+    },
+    {
+      "file": "cli/ipv6_transition/huawei.cfg",
+      "vendor": "huawei",
+      "name": "IPv6 过渡：NAT64/DNS64 · 华为（NE/AR 类平台）",
+      "desc": "IPv6-only 终端访问 IPv4：NAT64 地址池 + DNS64 合成前缀（平台相关需核对）",
+      "vars": [
+        "acl_v6_source",
+        "nat64_prefix",
+        "pool_v4_start",
+        "pool_v4_end"
+      ]
+    },
+    {
+      "file": "cli/ipv6_transition/cisco.cfg",
+      "vendor": "cisco",
+      "name": "IPv6 过渡：NAT64/DNS64 · 思科 IOS-XE",
+      "desc": "nat64 v6v4 地址池 + 64:ff9b::/96 合成前缀",
+      "vars": [
+        "nat64_prefix",
+        "pool_v4_start",
+        "pool_v4_end",
+        "acl_v6_source"
+      ]
+    },
+    {
+      "file": "cli/srv6/huawei.cfg",
+      "vendor": "huawei",
+      "name": "SRv6（IS-IS Locator + End SID） · 华为",
+      "desc": "基于 IPv6 的 Segment Routing：Locator/End SID 由 IGP 扩散（版本差异大）",
+      "vars": [
+        "srv6_locator",
+        "prefix_sid",
+        "ospf_router_id"
+      ]
+    },
+    {
+      "file": "cli/srv6/cisco.cfg",
+      "vendor": "cisco",
+      "name": "SRv6（IS-IS Locator + End SID） · 思科 IOS-XR",
+      "desc": "SRv6 locator + End SID（IOS-XR 7.3+）",
+      "vars": [
+        "srv6_locator",
+        "prefix_sid"
+      ]
     }
   ]
 }
