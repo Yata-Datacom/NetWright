@@ -21,6 +21,12 @@ VENDORS = {
     "cisco": "思科 IOS",
     "ruijie": "锐捷 RGOS",
     "linux": "Linux 服务器",
+    "mikrotik": "MikroTik RouterOS",
+    "vyos": "VyOS",
+    "sonic": "SONiC",
+    "huawei_ac": "华为 WLAN AC",
+    "h3c_ac": "新华三 WLAN AC",
+    "cisco_wlc": "思科 WLC（9800）",
     "generic": "通用",
 }
 

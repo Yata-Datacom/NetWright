@@ -18,13 +18,14 @@ if SRC not in sys.path:
 from netforge.lib import inspector  # noqa: E402
 from netforge.lib.inventory import Device  # noqa: E402
 
-ADVANCED = ("VXLAN+EVPN", "MPLS/SR 骨干", "堆叠与M-LAG", "RoCEv2 无损", "IPv6 与过渡")
+ADVANCED = ("VXLAN+EVPN", "MPLS/SR 骨干", "堆叠与M-LAG", "RoCEv2 无损", "IPv6 与过渡", "无线 WLAN")
 KEYWORDS = {
     "VXLAN+EVPN": ("vxlan", "evpn"),
     "MPLS/SR 骨干": ("mpls",),
     "堆叠与M-LAG": ("vpc", "irf", "drni", "vsu", "stack", "css", "dfs-group"),
     "RoCEv2 无损": ("pfc", "wred", "queuing", "priority-flow-control", "dcb"),
     "IPv6 与过渡": ("ipv6", "ospfv3", "dhcpv6", "-6"),
+    "无线 WLAN": ("ap", "wlan", "wireless", "vap", "ssid"),
 }
 
 
@@ -33,7 +34,10 @@ def test_advanced_scheme_structure(name):
     scheme = inspector.BUILTIN_SCHEMES[name]
     assert scheme["desc"].strip()
     cmds_map = scheme["commands"]
-    assert {"huawei", "cisco"} <= set(cmds_map), f"{name} 至少要覆盖华为和思科"
+    # AC/WLC 类方案的厂商键是 huawei_ac/cisco_wlc，归一后校验
+    aliases = {"huawei_ac": "huawei", "cisco_wlc": "cisco"}
+    covered = {aliases.get(v, v) for v in cmds_map}
+    assert {"huawei", "cisco"} <= covered, f"{name} 至少要覆盖华为和思科"
     for vendor, cmds in cmds_map.items():
         assert cmds, f"{name}/{vendor} 命令集为空"
         assert len(cmds) == len(set(cmds)), f"{name}/{vendor} 存在重复命令"
@@ -42,7 +46,10 @@ def test_advanced_scheme_structure(name):
             low = c.lower()
             if vendor == "linux":
                 continue  # Linux 用 ip/ss/journalctl 等系统命令，风格豁免
-            if vendor in ("huawei", "h3c"):
+            if vendor == "mikrotik":
+                assert c.startswith("/"), f"{name}/{vendor}: RouterOS 命令应以 / 开头"
+                continue
+            if vendor in ("huawei", "h3c", "huawei_ac", "h3c_ac"):
                 assert low.startswith("display"), f"{name}/{vendor}: {c}"
             else:
                 assert low.startswith("show"), f"{name}/{vendor}: {c}"

@@ -24,6 +24,12 @@ BUILTIN_SCHEMES: dict[str, dict[str, list[str]]] = {
                    "show logging | include ERR|CRIT"],
         "linux": ["hostname", "uname -r", "uptime", "free -h", "df -h --total",
                   "systemctl --failed --no-pager"],
+        "mikrotik": ["/system identity print", "/system resource print",
+                     "/ip address print", "/ip route print", "/log print without-paging"],
+        "vyos": ["show interfaces", "show ip route summary", "show dhcp server leases",
+                 "show log last 50"],
+        "sonic": ["show version", "show interfaces status", "show vlan brief",
+                  "show ip route summary", "show logging 50"],
         },
     },
     "硬件健康": {
@@ -36,6 +42,11 @@ BUILTIN_SCHEMES: dict[str, dict[str, list[str]]] = {
                 "display fan", "display alarm active"],
         "ruijie": ["show environment", "show inventory", "show interfaces transceiver"],
         "linux": ["dmesg -T | tail -40", "sensors 2>/dev/null || cat /proc/uptime"],
+        "mikrotik": ["/system health print", "/system resource print",
+                     "/system routerboard print"],
+        "vyos": ["show hardware detail", "show interfaces detail"],
+        "sonic": ["show platform summary", "show platform psustatus",
+                  "show platform temperature", "show platform ssdhealth"],
         },
     },
     "链路与拓扑": {
@@ -49,6 +60,10 @@ BUILTIN_SCHEMES: dict[str, dict[str, list[str]]] = {
                 "display link-aggregation summary", "display mac-address"],
         "ruijie": ["show spanning-tree summary", "show cdp neighbors", "show etherchannel summary"],
         "linux": ["ip -br link", "ip -br addr", "ip neigh"],
+        "mikrotik": ["/interface print detail", "/ip neighbor print", "/ip arp print",
+                     "/interface bridge vlan print"],
+        "vyos": ["show lldp neighbors", "show arp", "show interfaces detail"],
+        "sonic": ["show lldp table", "show mac", "show portchannel"],
         },
     },
     "安全基线": {
@@ -61,6 +76,10 @@ BUILTIN_SCHEMES: dict[str, dict[str, list[str]]] = {
                 "display snmp-agent community"],
         "ruijie": ["show ip ssh", "show users", "show access-lists"],
         "linux": ["ss -tunlp", "last -n 15", "lastb -n 20", "journalctl -p warning -n 40 --no-pager"],
+        "mikrotik": ["/ip service print", "/user print", "/ip firewall filter print",
+                     "/snmp print"],
+        "vyos": ["show configuration commands", "show firewall", "show log last 30"],
+        "sonic": ["show acl table", "show users", "show logging 30"],
         },
     },
     # ── 高级场景（无 SDN 控制器手工环境）────────────────────────────
@@ -123,6 +142,22 @@ BUILTIN_SCHEMES: dict[str, dict[str, list[str]]] = {
                     "display ospfv3", "display bgp peer ipv6 unicast",
                     "display dhcpv6 pool"],
             "linux": ["ip -6 addr", "ip -6 route", "ip -6 neigh", "ss -6 -tunlp"],
+            "mikrotik": ["/ipv6 address print", "/ipv6 route print", "/ipv6 neighbor print"],
+            "vyos": ["show ipv6 route", "show interfaces detail", "show ipv6 neighbors"],
+            "sonic": ["show ipv6 route", "show ipv6 bgp summary"],
+        },
+    },
+    "无线 WLAN": {
+        "desc": "AC/AP 状态：AP 上线、SSID/VAP、客户端、射频（华为/H3C/思科 WLC/MikroTik）",
+        "commands": {
+            "huawei_ac": ["display ap all", "display vap-profile all", "display ssid-profile all",
+                          "display station all", "display radio all",
+                          "display capwap configuration"],
+            "h3c_ac": ["display wlan ap all", "display wlan service-template",
+                       "display wlan client", "display wlan ap-group all"],
+            "cisco_wlc": ["show ap summary", "show wlan summary", "show client summary",
+                          "show ap join stats summary"],
+            "mikrotik": ["/interface wireless print", "/interface wireless registration-table print"],
         },
     },
 }
@@ -133,6 +168,12 @@ DISABLE_PAGING = {
     "h3c": "screen-length disable",
     "cisco": "terminal length 0",
     "ruijie": "terminal length 0",
+    "mikrotik": None,          # RouterOS print 自带分页控制（无参不分页）
+    "vyos": None,              # FRR show 默认不分页
+    "sonic": "terminal length 0",
+    "huawei_ac": "screen-length 0 temporary",
+    "h3c_ac": "screen-length disable",
+    "cisco_wlc": "terminal length 0",
     "linux": None,
 }
 

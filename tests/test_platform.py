@@ -71,7 +71,7 @@ def test_inventory_csv_roundtrip(tmp_path):
 # ── 配置生成 ────────────────────────────────────────────────────────
 def test_builtin_templates_available():
     tpls = gen.list_builtin_templates()
-    assert len(tpls) >= 105, f"模板库应 ≥105 条，实际 {len(tpls)}"
+    assert len(tpls) >= 116, f"模板库应 ≥116 条，实际 {len(tpls)}"
     vendors = {t["vendor"] for t in tpls}
     assert {"huawei", "cisco", "h3c"} <= vendors
 
@@ -80,7 +80,8 @@ def test_advanced_scenarios_present():
     """无 SDN 控制器手工场景：VXLAN+EVPN / MSTP / MPLS / M-LAG / 堆叠 / RoCEv2 / SR。"""
     names = " ".join(t["name"] for t in gen.list_builtin_templates())
     for kw in ("VXLAN", "MSTP", "MPLS", "M-LAG", "堆叠", "RoCEv2", "SR-MPLS",
-               "数据中心基线", "SLAAC", "有状态 DHCPv6", "NAT64", "SRv6"):
+               "数据中心基线", "SLAAC", "有状态 DHCPv6", "NAT64", "SRv6",
+               "MikroTik", "VyOS", "SONiC", "无线 AC", "WLC"):
         assert kw in names, f"缺少场景: {kw}"
 
 
@@ -125,8 +126,11 @@ def test_write_outputs(tmp_path):
 
 # ── 巡检逻辑 ────────────────────────────────────────────────────────
 def test_schemes_cover_vendors():
+    # AC/WLC 类方案的厂商键为 huawei_ac/h3c_ac/cisco_wlc，做别名归一后校验
+    aliases = {"huawei_ac": "huawei", "h3c_ac": "h3c", "cisco_wlc": "cisco"}
     for name, scheme in inspector.BUILTIN_SCHEMES.items():
-        assert {"huawei", "cisco", "h3c"} <= set(scheme["commands"]), name
+        vendors = {aliases.get(v, v) for v in scheme["commands"]}
+        assert {"huawei", "cisco", "h3c"} <= vendors, name
         for vendor, cmds in scheme["commands"].items():
             assert cmds and all(c.strip() for c in cmds)
 

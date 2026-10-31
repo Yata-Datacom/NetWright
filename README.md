@@ -42,7 +42,7 @@ OpenDaylight 的核心思想（意图编排 + 多厂商南向 + 拓扑 + 北向 
 界面打码显示，导出 CSV 时也经同一通道还原。支持 CSV 批量导入（列自动映射、重复跳过）。
 
 ### 🔎 SSH 批量巡检
-- 内置 **8 套巡检方案**，覆盖与模板库同级的无 SDN 控制器高级场景：
+- 内置 **10 套巡检方案**，厂商覆盖华为/思科/H3C/锐捷/Linux/**MikroTik/VyOS/SONiC/华为 AC/新华三 AC/思科 WLC**，场景包括：
   - **标准巡检** / **硬件健康**（光功率·电源·风扇·温度）/ **链路与拓扑**（STP·邻居·MAC）/ **安全基线**（SSH·ACL·SNMP）
   - **VXLAN+EVPN**（VNI/隧道/NVE/EVPN 邻居/MAC 路由）· **MPLS/SR 骨干**（LDP/LSP/VPNv4/SR 转发表）
     · **堆叠与M-LAG**（CSS/IRF/StackWise、M-LAG/DRNI/vPC/VSU）· **RoCEv2 无损**（PFC/ECN/WRED/ETS）
@@ -52,12 +52,14 @@ OpenDaylight 的核心思想（意图编排 + 多厂商南向 + 拓扑 + 北向 
 - 结果分级（OK / WARNING / FAILED / UNREACHABLE），一键导出**HTML 报告**（含逐命令原始输出，已做转义）。
 
 ### 🛠 配置生成
-- 内置 **92 个多厂商 CLI 模板**（华为 VRP / 新华三 Comware / 思科 IOS-XE·NX-OS），覆盖无 SDN 控制器环境下的高级网络手工部署：
+- 内置 **92 个多厂商 CLI 模板**（华为 VRP / 新华三 Comware / 思科 IOS-XE·NX-OS / **MikroTik RouterOS** / **VyOS** / **SONiC** / **华为·新华三 AC / 思科 WLC**），覆盖无 SDN 控制器环境下的高级网络手工部署：
   - **数据中心**：VXLAN+BGP EVPN 分布式网关（手工 VTEP）、M-LAG/DRNI/vPC 双活网关、CloudEngine 数据中心基线（星河 AI Fabric 准备层）、**RoCEv2 无损**（PFC+ECN+DSCP 映射）、SR-MPLS 骨干（IS-IS SRGB+Prefix-SID）
   - **IPv6 全家桶**：SLAAC + 无状态 DHCPv6（M=0 O=1）、**有状态 DHCPv6**（M=1 含前缀委派 PD）、OSPFv3/VRRP6 动态路由、隧道（手工 GRE + 6to4）、**过渡 NAT64/DNS64**、**SRv6**（IS-IS Locator + End SID）
   - **园区**：MSTP 多实例、VRRP/HSRP、堆叠（CSS/IRF/StackWise）、DHCP、ACL、MQC/QoS
   - **广域与骨干**：MPLS L3VPN（PE-CE）、BGP、IS-IS、BFD 联动、GRE over IPsec、NAT、静态路由+浮动备份
   - **基础与治理**：IPv6 双栈/OSPFv3、组播 PIM-SM、二层安全（端口安全/DHCP Snooping/802.1X）、路由策略、流量采集 NetFlow、端口镜像、管理面加固
+  - **新厂商**：MikroTik RouterOS v7（基础路由/网桥 VLAN/无线 AP）、VyOS 1.4（基础/VLAN/OSPF+BGP）、SONiC（VLAN 基线/FRR BGP）
+  - **无线 WLAN**：华为 AC（CAPWAP+VAP）、新华三 WX（服务模板+AP 组）、思科 Catalyst 9800（WLAN+Policy+Site Tag）
 - 设备参数表（CSV，首行即变量名）× 模板 → 批量 .cfg；
 - **零残留校验**：变量缺失或占位符渲染不出就直接报错，绝不生成含 `{{占位符}}` 的坏配置；
 - 可从设备清单一键生成参数表骨架。

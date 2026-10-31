@@ -866,6 +866,145 @@
         "srv6_locator",
         "prefix_sid"
       ]
+    },
+    {
+      "file": "cli/mikrotik_base/mikrotik.cfg",
+      "vendor": "mikrotik",
+      "name": "MikroTik 基础路由（WAN+LAN+DHCP+NAT+防火墙） · RouterOS v7",
+      "desc": "RouterOS v7 分层命令：接口分组 + DHCP + masquerade + 基础防火墙 + 管理基线",
+      "vars": [
+        "lan_cidr",
+        "dhcp_range",
+        "lan_net",
+        "dns_server",
+        "wan_cidr",
+        "admin_password",
+        "ntp_server",
+        "syslog_server"
+      ]
+    },
+    {
+      "file": "cli/mikrotik_vlan/mikrotik.cfg",
+      "vendor": "mikrotik",
+      "name": "MikroTik VLAN（bridge vlan-filtering） · RouterOS v7",
+      "desc": "网桥 VLAN filtering + Trunk/Access + VLAN SVI",
+      "vars": [
+        "bridge_name",
+        "trunk_ports",
+        "vlan_ids"
+      ]
+    },
+    {
+      "file": "cli/mikrotik_wireless/mikrotik.cfg",
+      "vendor": "mikrotik",
+      "name": "MikroTik 无线 AP（SSID+WPA2，双频） · RouterOS v7",
+      "desc": "wireless 包：安全模板 + 2.4G/5G ap-bridge + 入网桥（ax 平台用 wifi-qcom 需核对）",
+      "vars": [
+        "wifi_password",
+        "ssid",
+        "bridge_name"
+      ]
+    },
+    {
+      "file": "cli/vyos_base/vyos.cfg",
+      "vendor": "vyos",
+      "name": "VyOS 基础路由（WAN+LAN+DHCP+NAT+防火墙） · VyOS 1.4",
+      "desc": "set 语法：接口 + dhcp-server + dns forwarding + masquerade + WAN 防火墙",
+      "vars": [
+        "ntp_server",
+        "syslog_server",
+        "admin_password",
+        "wan_cidr",
+        "lan_cidr",
+        "lan_net",
+        "dns_server",
+        "dhcp_range"
+      ]
+    },
+    {
+      "file": "cli/vyos_vlan/vyos.cfg",
+      "vendor": "vyos",
+      "name": "VyOS VLAN（bridge vif 子接口） · VyOS 1.4",
+      "desc": "VLAN 感知桥 + vif 三层网关 + 按 VLAN DHCP",
+      "vars": [
+        "vlan_ids",
+        "lan_cidr_10",
+        "lan_net_10",
+        "lan_net_20",
+        "lan_cidr_20"
+      ]
+    },
+    {
+      "file": "cli/vyos_routing/vyos.cfg",
+      "vendor": "vyos",
+      "name": "VyOS 动态路由（OSPF + BGP） · VyOS 1.4",
+      "desc": "FRR 之上：OSPF 区域 + eBGP 邻居 + IPv4 地址族",
+      "vars": [
+        "router_id",
+        "ospf_area",
+        "local_as",
+        "neighbor_ip",
+        "remote_as"
+      ]
+    },
+    {
+      "file": "cli/sonic_base/sonic.cfg",
+      "vendor": "sonic",
+      "name": "SONiC 基线（VLAN/接口/管理）",
+      "desc": "config 命令族：VLAN+成员+VLANIF+保存，config_db 风格",
+      "vars": [
+        "ntp_server",
+        "syslog_server"
+      ]
+    },
+    {
+      "file": "cli/sonic_routing/sonic.cfg",
+      "vendor": "sonic",
+      "name": "SONiC 动态路由（FRR BGP）",
+      "desc": "vtysh：BGP 对等体 + extended-nexthop（spine-leaf 惯例）",
+      "vars": [
+        "loopback_v6",
+        "local_as",
+        "router_id",
+        "peer_ip",
+        "peer_as"
+      ]
+    },
+    {
+      "file": "cli/wlan_ac_huawei/huawei_ac.cfg",
+      "vendor": "huawei_ac",
+      "name": "无线 AC 开局（CAPWAP+VAP 下发） · 华为 AC",
+      "desc": "域/安全/SSID/VAP 模板体系 + AP MAC 认证上线 + 隧道转发",
+      "vars": [
+        "service_vlan",
+        "wifi_password",
+        "ssid",
+        "ap_group"
+      ]
+    },
+    {
+      "file": "cli/wlan_ac_h3c/h3c_ac.cfg",
+      "vendor": "h3c_ac",
+      "name": "无线 AC 开局（服务模板+AP 组） · 新华三 WX",
+      "desc": "wlan service-template + ap-group/ap-model + 序列号上线",
+      "vars": [
+        "service_vlan",
+        "ssid",
+        "wifi_password",
+        "ap_group"
+      ]
+    },
+    {
+      "file": "cli/wlan_ac_cisco/cisco_wlc.cfg",
+      "vendor": "cisco_wlc",
+      "name": "无线 WLC 开局（WLAN+Policy+Join） · 思科 9800",
+      "desc": "9800 IOS-XE 四件套：wlan → policy-profile → join-profile → site tag",
+      "vars": [
+        "service_vlan",
+        "ssid",
+        "wifi_password",
+        "ap_group"
+      ]
     }
   ]
 }

@@ -75,6 +75,11 @@ def _vlan_batch(ids: list[str]) -> str:
     return " ".join(ids)
 
 
+def _mask_to_prefix(mask: str) -> int:
+    import ipaddress
+    return bin(int(ipaddress.IPv4Address(mask))).count("1")
+
+
 def _iface_cmd(vendor: str, intf: str) -> str:
     """把用户写的接口名规范化（容忍 GE0/0/1 这类简写）。"""
     def expand(name: str) -> str:
@@ -113,6 +118,12 @@ INTENTS: dict[str, dict] = {
                 [c for v in p["_ids"] for c in (f"vlan {v}", f" name {p['description']}-{v}")]),
             "ruijie": lambda p, dev: (
                 [c for v in p["_ids"] for c in (f"vlan {v}", f" name {p['description']}-{v}")]),
+            "mikrotik": lambda p, dev: (
+                [f"/interface vlan add vlan-id={v} name=vlan{v} comment={p['description']}-{v}"
+                 for v in p["_ids"]]),
+            "vyos": lambda p, dev: (
+                [f"set interfaces bridge br0 vif {v} description '{p['description']}-{v}'"
+                 for v in p["_ids"]]),
         },
     },
     # ────────────────────────── 端口角色 ──────────────────────────
@@ -183,6 +194,12 @@ INTENTS: dict[str, dict] = {
                 " address-family ipv4",
                 "  neighbor " + p["neighbor_ip"] + " activate",
             ],
+            "vyos": lambda p, dev: [
+                f"set protocols bgp system-as {p['local_as']}",
+                f"set protocols bgp parameters router-id {p['router_id']}",
+                f"set protocols bgp neighbor {p['neighbor_ip']} remote-as {p['remote_as']}",
+                f"set protocols bgp address-family ipv4-unicast network 192.0.2.0/24",
+            ],
         },
     },
     # ────────────────────────── 静态路由 ──────────────────────────
@@ -198,6 +215,16 @@ INTENTS: dict[str, dict] = {
             "h3c": lambda p, dev: [f"ip route-static {p['destination']} {p['mask']} {p['nexthop']} preference {p['preference']}"],
             "cisco": lambda p, dev: [f"ip route {p['destination']} {p['mask']} {p['nexthop']} {p['preference']}"],
             "ruijie": lambda p, dev: [f"ip route {p['destination']} {p['mask']} {p['nexthop']} {p['preference']}"],
+            "mikrotik": lambda p, dev: [
+                f"/ip route add dst-address={p['destination']}/{_mask_to_prefix(p['mask'])} "
+                f"gateway={p['nexthop']} comment=static"
+            ],
+            "vyos": lambda p, dev: [
+                f"set protocols static route {p['destination']}/{_mask_to_prefix(p['mask'])} "
+                f"next-hop {p['nexthop']}",
+                f"set protocols static route {p['destination']}/{_mask_to_prefix(p['mask'])} "
+                f"distance {p['preference']}",
+            ],
         },
     },
     # ────────────────────────── 管理基线 ──────────────────────────
@@ -215,6 +242,15 @@ INTENTS: dict[str, dict] = {
                                      f"logging host {p['syslog_server']}"],
             "ruijie": lambda p, dev: [f"ntp server {p['ntp_server']}",
                                       f"logging host {p['syslog_server']}"],
+            "mikrotik": lambda p, dev: [
+                "/system ntp client set enabled=yes servers=" + p["ntp_server"],
+                "/system logging action add name=to-syslog target=remote remote=" + p["syslog_server"],
+                "/system logging add topics=info action=to-syslog",
+            ],
+            "vyos": lambda p, dev: [
+                f"set system ntp server {p['ntp_server']}",
+                f"set system syslog host {p['syslog_server']} facility all level info",
+            ],
         },
     },
 }
