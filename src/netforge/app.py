@@ -31,7 +31,7 @@ from netforge.pages import PAGE_REGISTRY  # noqa: E402
 from netforge.theme import (  # noqa: E402
     FONT_SMALL, THEMES, setup_ttk, theme,
 )
-from netforge.widgets import GradientFrame  # noqa: E402
+from netforge.widgets import GradientFrame, _lerp, draw_wallpaper  # noqa: E402
 
 
 class NetForgeApp(tk.Tk):
@@ -63,7 +63,10 @@ class NetForgeApp(tk.Tk):
                                             port=int(self.settings.get("rest_port", 8899)))
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
+        self._active_key = "dashboard"
         self._build_chrome()
+        self._build_main()
+        self._apply_wallpaper()
         self.show(self.settings.get("last_page", "dashboard"))
 
     # ── 界面装配（主题切换时整体重建）───────────────────────────────
@@ -99,63 +102,139 @@ class NetForgeApp(tk.Tk):
         self.mb_theme["menu"] = menu
         self.mb_theme.pack(side=tk.RIGHT, padx=(0, 12))
 
-        # 主体：渐变侧栏 + 工作区
+        self.mb_wall = tk.Menubutton(self.top, text="🖼 壁纸", bg=theme.header1,
+                                     fg="white", relief=tk.FLAT, font=FONT_SMALL,
+                                     activebackground=theme.header2, cursor="hand2")
+        wall_menu = tk.Menu(self.mb_wall, tearoff=0, font=FONT_SMALL)
+        wall_menu.add_command(label="上传壁纸…", command=self.upload_wallpaper)
+        wall_menu.add_command(label="清除壁纸（恢复渐变）", command=lambda: self.set_wallpaper(None))
+        self.mb_wall["menu"] = wall_menu
+        self.mb_wall.pack(side=tk.RIGHT, padx=(0, 8))
+
+    def upload_wallpaper(self):
+        from tkinter import filedialog
+        path = filedialog.askopenfilename(
+            title="选择壁纸图片",
+            filetypes=[("图片", "*.png *.jpg *.jpeg *.bmp *.webp"), ("全部", "*.*")])
+        if path:
+            self.set_wallpaper(path)
+
+    def _build_main(self):
+        """侧栏（渐变/壁纸自绘）+ 工作区容器 + 页面装配。"""
         main = tk.Frame(self, bg=theme.bg)
         main.pack(fill=tk.BOTH, expand=True)
-        self.rail = GradientFrame(main, theme.nav1, theme.nav2, "v", width=172)
+        self.rail = tk.Canvas(main, width=172, highlightthickness=0, bd=0,
+                              bg=theme.nav1)
         self.rail.pack(side=tk.LEFT, fill=tk.Y)
-        self.rail.pack_propagate(False)
-        self._build_nav(self.rail)
-
         self.container = tk.Frame(main, bg=theme.bg)
         self.container.pack(fill=tk.BOTH, expand=True)
         self.pages = {key: cls(self.container, self)
                       for key, (_n, _i, cls) in PAGE_REGISTRY.items()}
+        self._build_nav(self.rail)
+        self._apply_wallpaper()
 
-    # ── 侧栏导航（hover 反馈 + 选中强调）───────────────────────────
-    def _build_nav(self, rail: tk.Frame):
-        tk.Label(rail, text="  工作区", bg=theme.nav1, fg=theme.muted,
-                 font=FONT_SMALL, anchor="w").pack(fill=tk.X, pady=(10, 2))
-        self._nav_buttons: dict[str, tk.Label] = {}
-        self._active_key = "dashboard"
+    # ── 侧栏导航（Canvas 自绘：渐变/壁纸背景 + hover/选中）──────────
+    def _build_nav(self, rail: tk.Canvas):
+        self._nav_rects: dict[str, int] = {}
+        self._nav_texts: dict[str, int] = {}
+        rail.bind("<Configure>", lambda e: self._repaint_nav())
+        rail.bind("<Motion>", self._nav_hover)
+        rail.bind("<Leave>", lambda e: self._repaint_nav())
+        rail.bind("<Button-1>", self._nav_click)
+        self._repaint_nav()
+
+    def _repaint_nav(self):
+        rail = self.rail
+        rail.delete("all")
+        w = max(rail.winfo_width(), 172)
+        h = max(rail.winfo_height(), 600)
+        # 背景：壁纸优先，否则纵向渐变
+        wp = self.settings.get("wallpaper") if hasattr(self, "settings") else ""
+        img = draw_wallpaper(wp, w, h) if wp else None
+        if img is not None:
+            rail.create_image(0, 0, image=img, anchor="nw")
+            self._nav_wall_ref = img
+        else:
+            for y in range(h):
+                rail.create_line(0, y, w, y,
+                                 fill=_lerp(theme.nav1, theme.nav2, y / max(1, h - 1)))
+        y = 12
+        rail.create_text(14, y, text="工 作 区", anchor="w", fill=theme.muted,
+                         font=FONT_SMALL)
+        y += 34
         for key, (name, icon, _cls) in PAGE_REGISTRY.items():
-            btn = tk.Label(rail, text=f"  {icon}  {name}", bg=theme.nav1, fg=theme.muted,
-                           font=("Microsoft YaHei UI", 11), anchor="w", pady=9,
-                           cursor="hand2")
-            btn.pack(fill=tk.X)
-            btn.bind("<Button-1>", lambda e, k=key: self.show(k))
-            btn.bind("<Enter>", lambda e, b=btn: b.config(fg="white")
-                     if self._active_key != b.nav_key else None)
-            btn.bind("<Leave>", lambda e, b=btn: b.config(fg=theme.muted)
-                     if self._active_key != b.nav_key else None)
-            btn.nav_key = key
-            self._nav_buttons[key] = btn
-        tk.Frame(rail, bg=theme.line, height=1).pack(fill=tk.X, padx=10, pady=8)
-        tk.Label(rail, text=f"v{__version__}", bg=theme.nav2, fg=theme.muted,
-                 font=FONT_SMALL).pack(side=tk.BOTTOM, pady=10)
+            active = key == getattr(self, "_active_key", "")
+            hover = key == getattr(self, "_hover_key", "")
+            if active:
+                rail.create_rectangle(8, y - 4, w - 8, y + 30,
+                                      fill=theme.accent, outline="", width=0)
+            elif hover:
+                rail.create_rectangle(8, y - 4, w - 8, y + 30,
+                                      fill=_lerp(theme.nav1, "#ffffff", 0.10),
+                                      outline="", width=0)
+            fg = "#ffffff" if active else ("#ffffff" if hover else theme.muted)
+            rail.create_text(18, y + 12, text=f"{icon}  {name}", anchor="w",
+                             fill=fg, font=("Microsoft YaHei UI", 11, "bold" if active else "normal"),
+                             tags=f"nav:{key}")
+            self._nav_rects[key] = y
+            y += 38
+        rail.create_text(w / 2, h - 22, text=f"v{__version__}", fill=theme.muted,
+                         font=FONT_SMALL)
 
+    def _nav_hit(self, y: int) -> str | None:
+        for key, top in self._nav_rects.items():
+            if top - 6 <= y <= top + 32:
+                return key
+        return None
+
+    def _nav_hover(self, e):
+        key = self._nav_hit(e.y)
+        if key != getattr(self, "_hover_key", None):
+            self._hover_key = key
+            self._repaint_nav()
+
+    def _nav_click(self, e):
+        key = self._nav_hit(e.y)
+        if key:
+            self.show(key)
+
+    def _apply_wallpaper(self):
+        """侧栏应用壁纸（若有）；随窗口尺寸重绘。"""
+        self.rail.bind("<Configure>", lambda e: self._repaint_nav())
+        self._repaint_nav()
+
+    def set_wallpaper(self, path: str | None):
+        """上传/清除壁纸（持久化到设置）。"""
+        self.settings["wallpaper"] = path or ""
+        save_settings(self.settings, BASE_DIR)
+        self._apply_wallpaper()
+        self.set_status("壁纸已设置" if path else "壁纸已清除（恢复渐变）")
+
+    # ── 主题切换（先建后销，避免悬挂引用）─────────────────────────
     def _highlight_nav(self, key: str):
         self._active_key = key
-        for k, btn in self._nav_buttons.items():
-            active = k == key
-            btn.config(bg=theme.accent if active else theme.nav1,
-                       fg="white" if active else theme.muted,
-                       font=("Microsoft YaHei UI", 11, "bold" if active else "normal"))
+        self._repaint_nav()
 
-    # ── 主题切换（重建 chrome + 页面）─────────────────────────────
     def apply_theme(self, name: str):
         theme.use(name)
         self.settings["theme"] = name
         save_settings(self.settings, BASE_DIR)
-        # 销毁旧界面
-        for page in self.pages.values():
-            page.destroy()
-        self.top.destroy()
-        self.rail.destroy()
-        self.container.destroy()
         setup_ttk(self)
         self.configure(bg=theme.bg)
+
+        old_pages, old_top, old_rail, old_container = (
+            self.pages, self.top, self.rail, self.container)
+        # 先建新界面
+        self._active_key = "dashboard"
         self._build_chrome()
+        self._build_main()
+        self._highlight_nav(self._active_key)
+        # 再销毁旧界面
+        for page in old_pages.values():
+            page.destroy()
+        old_top.destroy()
+        old_rail.destroy()
+        old_container.destroy()
         self.show(self._active_key)
         self.set_status(f"配色已切换：{name}")
 
@@ -168,7 +247,7 @@ class NetForgeApp(tk.Tk):
                 page.place(relx=0, rely=0, relwidth=1, relheight=1)
             else:
                 page.place_forget()
-        self._highlight_nav(key)
+        self._repaint_nav()
         hooks = {"dashboard": "refresh", "inventory": "refresh",
                  "inspect": "refresh_devices"}
         hook = hooks.get(key)

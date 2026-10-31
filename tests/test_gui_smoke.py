@@ -104,9 +104,9 @@ def test_smoke_theme_switch_all_schemes(app):
 
 def test_smoke_theme_light_tokens(app):
     """亮色方案：切到亮色后 bg 为浅色（#f 开头）。"""
-    app.apply_theme("晨曦蓝 · 亮")
+    app.apply_theme("晴空 · 亮")
     from netforge.theme import theme as t
-    assert t.mode == "light" and t.bg.startswith("#f")
+    assert t.mode == "light" and t.bg.startswith("#f") and t.accent == "#0ea5e9"
     app.apply_theme("深空蓝 · 暗")
     from netforge.theme import theme as t2
     assert t2.mode == "dark"

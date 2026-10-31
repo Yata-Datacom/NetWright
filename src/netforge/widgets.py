@@ -9,6 +9,8 @@
 """
 from __future__ import annotations
 
+import os
+
 import tkinter as tk
 from tkinter import ttk
 
@@ -102,6 +104,36 @@ def stat_card(parent, title: str, desc: str, command=None) -> tk.Label:
 
 
 StatCard = stat_card  # 类名别名（历史接口）
+
+
+_wall_cache: dict[tuple, "tk.PhotoImage"] = {}
+
+
+def draw_wallpaper(path: str, w: int, h: int):
+    """把用户图片裁剪铺满 (w,h) 并转 PhotoImage；PIL 缺失/文件无效返回 None。
+
+    结果按 (路径, 宽, 高) 缓存，避免窗口拖动时反复缩放。
+    """
+    if not path or w < 10 or h < 10:
+        return None
+    try:
+        from PIL import Image, ImageOps, ImageTk
+    except ImportError:
+        return None
+    if not os.path.isfile(path):
+        return None
+    key = (os.path.abspath(path), w, h)
+    if key in _wall_cache:
+        return _wall_cache[key]
+    try:
+        with Image.open(path) as im:
+            im = ImageOps.exif_transpose(im).convert("RGB")
+            fitted = ImageOps.fit(im, (w, h))
+            photo = ImageTk.PhotoImage(fitted)
+    except Exception:
+        return None
+    _wall_cache[key] = photo
+    return photo
 
 
 def pill_text(text: str, kind: str) -> str:
