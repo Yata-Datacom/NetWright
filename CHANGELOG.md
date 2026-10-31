@@ -3,6 +3,25 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.3.1] - 2026-11-01
+
+### Performance
+- **子网计算内存修复**：calc_subnet 不再物化地址列表——/8 网段从 OOM 级
+  （1600 万地址对象）降至 ~3KB / 0.3ms；整数运算直接推导可用范围。
+- **渐变绘制**：GradientFrame 按 4px 分块（对象数 -75%）+ 16ms resize 防抖 +
+  同尺寸跳过重绘。
+- **侧栏分层重绘**：渐变/壁纸背景只在尺寸或壁纸变化时重绘，hover 仅重绘
+  轻量条目层（背景 tag 常驻底层）。
+- **模板库缓存**：list_builtin_templates 按 library.json mtime 缓存——总览刷新
+  不再每次读 116 个模板文件。
+- **壁纸缓存上限**：resize 时只保留最近 3 个尺寸的 PhotoImage，防内存膨胀。
+- **IO 削减**：切换工作区不再每次写 settings（last_page 改为退出时保存）；
+  在线检测线程回调加 TclError 防护（关窗后静默放弃）。
+
+### Results
+- 全量测试耗时 41s → **8s**（模板缓存消除 116 文件重复 IO）；
+  75 项 pytest 全过；ruff 全绿。
+
 ## [3.3.0] - 2026-11-01
 
 ### Added

@@ -137,49 +137,62 @@ class NetForgeApp(tk.Tk):
     def _build_nav(self, rail: tk.Canvas):
         self._nav_rects: dict[str, int] = {}
         self._nav_texts: dict[str, int] = {}
-        rail.bind("<Configure>", lambda e: self._repaint_nav())
+        rail.bind("<Configure>", lambda e: self._repaint_nav(full=True))
         rail.bind("<Motion>", self._nav_hover)
         rail.bind("<Leave>", lambda e: self._repaint_nav())
         rail.bind("<Button-1>", self._nav_click)
         self._repaint_nav()
 
-    def _repaint_nav(self):
+    def _repaint_nav(self, full: bool = False):
+        """重绘侧栏。背景只在尺寸变化或强制时重绘；条目/高亮每次重画（轻量）。"""
         rail = self.rail
-        rail.delete("all")
+        if not rail.winfo_exists():
+            return
         w = max(rail.winfo_width(), 172)
         h = max(rail.winfo_height(), 600)
-        # 背景：壁纸优先，否则纵向渐变
+        size = (w, h)
         wp = self.settings.get("wallpaper") if hasattr(self, "settings") else ""
-        img = draw_wallpaper(wp, w, h) if wp else None
-        if img is not None:
-            rail.create_image(0, 0, image=img, anchor="nw")
-            self._nav_wall_ref = img
-        else:
-            for y in range(h):
-                rail.create_line(0, y, w, y,
-                                 fill=_lerp(theme.nav1, theme.nav2, y / max(1, h - 1)))
+        if full or size != getattr(self, "_nav_bg_size", None) or                 wp != getattr(self, "_nav_bg_wp", None):
+            rail.delete("bg")
+            img = draw_wallpaper(wp, w, h) if wp else None
+            if img is not None:
+                rail.create_image(0, 0, image=img, anchor="nw", tags="bg")
+                self._nav_wall_ref = img
+            else:
+                step = 4
+                for y in range(0, h, step):
+                    rail.create_line(0, y, w, y + step,
+                                     fill=_lerp(theme.nav1, theme.nav2, y / max(1, h - 1)),
+                                     tags="bg")
+            self._nav_bg_size = size
+            self._nav_bg_wp = wp
+        rail.delete("items")
         y = 12
         rail.create_text(14, y, text="工 作 区", anchor="w", fill=theme.muted,
-                         font=FONT_SMALL)
+                         font=FONT_SMALL, tags="items")
         y += 34
         for key, (name, icon, _cls) in PAGE_REGISTRY.items():
             active = key == getattr(self, "_active_key", "")
             hover = key == getattr(self, "_hover_key", "")
             if active:
                 rail.create_rectangle(8, y - 4, w - 8, y + 30,
-                                      fill=theme.accent, outline="", width=0)
+                                      fill=theme.accent, outline="", width=0,
+                                      tags="items")
             elif hover:
                 rail.create_rectangle(8, y - 4, w - 8, y + 30,
                                       fill=_lerp(theme.nav1, "#ffffff", 0.10),
-                                      outline="", width=0)
-            fg = "#ffffff" if active else ("#ffffff" if hover else theme.muted)
+                                      outline="", width=0, tags="items")
+            fg = "#ffffff" if active or hover else theme.muted
             rail.create_text(18, y + 12, text=f"{icon}  {name}", anchor="w",
-                             fill=fg, font=("Microsoft YaHei UI", 11, "bold" if active else "normal"),
-                             tags=f"nav:{key}")
+                             fill=fg,
+                             font=("Microsoft YaHei UI", 11,
+                                   "bold" if active else "normal"),
+                             tags=("items", f"nav:{key}"))
             self._nav_rects[key] = y
             y += 38
         rail.create_text(w / 2, h - 22, text=f"v{__version__}", fill=theme.muted,
-                         font=FONT_SMALL)
+                         font=FONT_SMALL, tags="items")
+        rail.tag_lower("bg")
 
     def _nav_hit(self, y: int) -> str | None:
         for key, top in self._nav_rects.items():
@@ -191,7 +204,7 @@ class NetForgeApp(tk.Tk):
         key = self._nav_hit(e.y)
         if key != getattr(self, "_hover_key", None):
             self._hover_key = key
-            self._repaint_nav()
+            self._repaint_nav()          # 仅重绘条目层，背景保留
 
     def _nav_click(self, e):
         key = self._nav_hit(e.y)
@@ -253,8 +266,6 @@ class NetForgeApp(tk.Tk):
         hook = hooks.get(key)
         if hook and hasattr(self.pages[key], hook):
             getattr(self.pages[key], hook)()
-        self.settings["last_page"] = key
-        save_settings(self.settings, BASE_DIR)
         self.set_status("就绪")
 
     # ── 状态 ───────────────────────────────────────────────────────
@@ -273,6 +284,7 @@ class NetForgeApp(tk.Tk):
             self.controller_api.stop()
         except Exception:
             pass
+        self.settings["last_page"] = getattr(self, "_active_key", "dashboard")
         save_settings(self.settings, BASE_DIR)
         self.destroy()
 

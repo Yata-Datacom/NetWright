@@ -155,9 +155,12 @@ class InventoryPage(Page):
         self.app.set_status("在线检测中…")
 
         def worker():
-            for d in self.app.inventory.devices:
-                d._alive = portscan.ping_host(d.host, timeout_ms=800).alive
-            self.app.after(0, self.refresh)
+            try:
+                for d in self.app.inventory.devices:
+                    d._alive = portscan.ping_host(d.host, timeout_ms=800).alive
+                self.app.after(0, self.refresh)
+            except tk.TclError:
+                pass  # 窗口已关闭，放弃回调
 
         threading.Thread(target=worker, daemon=True).start()
 

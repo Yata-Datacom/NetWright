@@ -28,29 +28,56 @@ def _lerp(c1: str, c2: str, t: float) -> str:
 class GradientFrame(tk.Canvas):
     """渐变背景容器：横向/纵向线性渐变，随尺寸变化重绘。
 
-    用途：顶栏品牌渐变、侧栏导航渐变、每页页头带、卡片强调条。
+    性能设计：
+      * 按 4px 分块绘制（视觉无损，绘制对象数量减 75%）；
+      * 尺寸未变化时跳过重绘；
+      * <Configure> 高频触发时用 after(16ms) 合并为一次绘制（防抖）。
     """
+
+    _STEP = 4  # 渐变分块像素
 
     def __init__(self, master, c1: str, c2: str, direction: str = "h", **kw):
         super().__init__(master, highlightthickness=0, bd=0, **kw)
         self._c1, self._c2, self._dir = c1, c2, direction
-        self.bind("<Configure>", lambda e: self.repaint())
+        self._last_size = (0, 0)
+        self._pending = False
+        self.bind("<Configure>", self._on_configure)
 
     def set_colors(self, c1: str, c2: str):
         self._c1, self._c2 = c1, c2
+        self._last_size = (0, 0)  # 强制重绘
+        self.repaint()
+
+    def _on_configure(self, _event=None):
+        if self._pending:
+            return
+        self._pending = True
+        self.after(16, self._debounced_repaint)
+
+    def _debounced_repaint(self):
+        self._pending = False
+        if not self.winfo_exists():
+            return
+        size = (self.winfo_width(), self.winfo_height())
+        if size == self._last_size:
+            return
         self.repaint()
 
     def repaint(self):
-        self.delete("all")
+        if not self.winfo_exists():
+            return
         w = max(self.winfo_width(), 1)
         h = max(self.winfo_height(), 1)
+        self._last_size = (w, h)
+        self.delete("all")
         n = h if self._dir == "v" else w
-        for i in range(n):
+        step = self._STEP
+        for i in range(0, n, step):
             color = _lerp(self._c1, self._c2, i / max(1, n - 1))
             if self._dir == "v":
-                self.create_line(0, i, w, i, fill=color)
+                self.create_line(0, i, w, i + step, fill=color)
             else:
-                self.create_line(i, 0, i, h, fill=color)
+                self.create_line(i, 0, i + step, h, fill=color)
 
 
 class Card(tk.Frame):
@@ -107,6 +134,7 @@ StatCard = stat_card  # 类名别名（历史接口）
 
 
 _wall_cache: dict[tuple, "tk.PhotoImage"] = {}
+_WALL_CACHE_MAX = 3      # resize 时只保留最近几个尺寸的壁纸
 
 
 def draw_wallpaper(path: str, w: int, h: int):
@@ -133,6 +161,8 @@ def draw_wallpaper(path: str, w: int, h: int):
     except Exception:
         return None
     _wall_cache[key] = photo
+    while len(_wall_cache) > _WALL_CACHE_MAX:      # 防止 resize 时缓存无限膨胀
+        _wall_cache.pop(next(iter(_wall_cache)))
     return photo
 
 

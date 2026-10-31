@@ -106,9 +106,23 @@ def write_outputs(out_dir: str, files: list[tuple[str, str]], eol: str = "\r\n")
     return n
 
 
+_TPL_CACHE: dict[str, tuple[float, list[dict]]] = {}
+
+
 def list_builtin_templates(base_dir: str | None = None) -> list[dict]:
-    """内置模板库：templates/ 目录 + library.json（沿用 NADT 模板库格式）。"""
+    """内置模板库：templates/ 目录 + library.json（沿用 NADT 模板库格式）。
+
+    按清单文件 mtime 缓存——116 个模板反复读取只在首次/变更后有 IO。
+    """
     base = base_dir or _base_dir()
+    manifest_path = os.path.join(base, "templates", "library.json")
+    try:
+        stamp = os.path.getmtime(manifest_path)
+    except OSError:
+        stamp = 0
+    cached = _TPL_CACHE.get(base)
+    if cached and cached[0] == stamp:
+        return cached[1]
     tdir = os.path.join(base, "templates")
     manifest_path = os.path.join(tdir, "library.json")
     out: list[dict] = []
@@ -133,4 +147,5 @@ def list_builtin_templates(base_dir: str | None = None) -> list[dict]:
         out.append({"file": rel, "vendor": entry.get("vendor", "generic"),
                     "name": entry.get("name", rel), "desc": entry.get("desc", ""),
                     "vars": template_variables(text), "text": text})
+    _TPL_CACHE[base] = (stamp, out)
     return out
