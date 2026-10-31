@@ -8,14 +8,14 @@ from tkinter import messagebox, ttk
 from netforge.lib.controller import deploy as deploy_mod
 from netforge.lib.controller import intents as intents_mod
 from netforge.lib.inventory import VENDORS
-from netforge.theme import (
-    ACCENT, AMBER, BG, FG, MUTED, NAVY, NAVY2, PANEL, RED, MONO,
-)
-from netforge.widgets import Page, page_header
+from netforge.theme import FONT_MONO, theme
+from netforge.widgets import (Page, page_header)
 
 
 def header(title, desc, page):
     page_header(page, title, desc)
+
+
 class ControllerPage(Page):
     """意图控制器（OpenDaylight 思路的极简实现）：
 
@@ -35,20 +35,20 @@ class ControllerPage(Page):
 
     # ────────── 拓扑 ──────────
     def _topo_tab(self):
-        tab = tk.Frame(self.nb, bg=BG)
+        tab = tk.Frame(self.nb, bg=theme.bg)
         self.nb.add(tab, text=" 拓扑发现 ")
-        bar = tk.Frame(tab, bg=BG)
+        bar = tk.Frame(tab, bg=theme.bg)
         bar.pack(fill=tk.X, pady=(8, 4))
         self.btn_discover = tk.Button(bar, text="从设备清单自动发现拓扑 (LLDP/CDP)",
-                                      bg=ACCENT, fg="white", relief=tk.FLAT,
-                                      activebackground=NAVY2, command=self.discover)
+                                      bg=theme.accent, fg="white", relief=tk.FLAT,
+                                      activebackground=theme.nav2, command=self.discover)
         self.btn_discover.pack(side=tk.LEFT)
         self.var_topo = tk.StringVar(value="尚未发现")
-        tk.Label(bar, textvariable=self.var_topo, bg=BG, fg=MUTED, font=("", 9)).pack(side=tk.LEFT, padx=10)
+        tk.Label(bar, textvariable=self.var_topo, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.LEFT, padx=10)
         self.canvas = tk.Canvas(tab, bg="#0a1526", highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
         self.canvas.create_text(480, 300, text="点击上方按钮开始发现拓扑\n（需要设备已开启 LLDP/CDP 且可 SSH 登录）",
-                                fill=MUTED, font=("", 11), tags="placeholder")
+                                fill=theme.muted, font=("", 11), tags="placeholder")
 
     def discover(self):
         devices = [d for d in self.app.inventory.devices
@@ -81,7 +81,7 @@ class ControllerPage(Page):
         nodes = sorted(topo.nodes)
         if not nodes:
             self.canvas.create_text(480, 300, text="未发现任何邻居（检查 LLDP 是否开启）",
-                                    fill=MUTED, font=("", 11))
+                                    fill=theme.muted, font=("", 11))
             return
         w = max(self.canvas.winfo_width(), 900)
         h = max(self.canvas.winfo_height(), 600)
@@ -93,7 +93,7 @@ class ControllerPage(Page):
             if a in pos and b in pos:
                 self.canvas.create_line(*pos[a], *pos[b], fill="#3b5c8a", width=2)
                 mx, my = (pos[a][0] + pos[b][0]) / 2, (pos[a][1] + pos[b][1]) / 2
-                self.canvas.create_text(mx, my, text=f"{ai}↔{bi}", fill=MUTED, font=("", 8))
+                self.canvas.create_text(mx, my, text=f"{ai}↔{bi}", fill=theme.muted, font=("", 8))
         inv = {d.host: d for d in self.app.inventory.devices}
         for n, (x, y) in pos.items():
             dev = next((d for d in inv.values()
@@ -101,15 +101,15 @@ class ControllerPage(Page):
             color = {"huawei": "#e74c3c", "h3c": "#3498db", "cisco": "#2ecc71",
                      "ruijie": "#f39c12"}.get(dev.vendor if dev else "", "#8aa0bd")
             self.canvas.create_oval(x - 14, y - 14, x + 14, y + 14, fill=color, outline="white", width=2)
-            self.canvas.create_text(x, y + 26, text=n, fill=FG, font=("", 9))
+            self.canvas.create_text(x, y + 26, text=n, fill=theme.fg, font=("", 9))
 
     # ────────── 意图下发 ──────────
     def _intent_tab(self):
-        tab = tk.Frame(self.nb, bg=BG)
+        tab = tk.Frame(self.nb, bg=theme.bg)
         self.nb.add(tab, text=" 意图下发 ")
         self.intent_items = intents_mod.list_intents()
 
-        bar = tk.Frame(tab, bg=BG)
+        bar = tk.Frame(tab, bg=theme.bg)
         bar.pack(fill=tk.X, pady=(8, 4))
         ttk.Label(bar, text="意图类型:", style="H2.TLabel").pack(side=tk.LEFT)
         self.cmb_intent = ttk.Combobox(bar, state="readonly", width=24,
@@ -122,25 +122,25 @@ class ControllerPage(Page):
         self.cmb_target = ttk.Combobox(bar, state="readonly", width=24)
         self.cmb_target.pack(side=tk.LEFT, padx=(6, 0))
 
-        frm = tk.Frame(tab, bg=BG)
+        frm = tk.Frame(tab, bg=theme.bg)
         frm.pack(fill=tk.X, pady=(4, 6))
-        self.fields_frame = tk.Frame(frm, bg=BG)
+        self.fields_frame = tk.Frame(frm, bg=theme.bg)
         self.fields_frame.pack(fill=tk.X)
 
-        btns = tk.Frame(tab, bg=BG)
+        btns = tk.Frame(tab, bg=theme.bg)
         btns.pack(fill=tk.X, pady=(0, 6))
-        tk.Button(btns, text="① Dry-Run 预览（不连接设备）", bg=NAVY2, fg=FG, relief=tk.FLAT,
-                  activebackground=NAVY, command=self.dry_run).pack(side=tk.LEFT)
-        self.btn_apply = tk.Button(btns, text="② 确认下发", bg=AMBER, fg="#1c1200", relief=tk.FLAT,
-                                   activebackground=AMBER, state=tk.DISABLED, command=self.apply)
+        tk.Button(btns, text="① Dry-Run 预览（不连接设备）", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
+                  activebackground=theme.nav1, command=self.dry_run).pack(side=tk.LEFT)
+        self.btn_apply = tk.Button(btns, text="② 确认下发", bg=theme.warn, fg="#1c1200", relief=tk.FLAT,
+                                   activebackground=theme.warn, state=tk.DISABLED, command=self.apply)
         self.btn_apply.pack(side=tk.LEFT, padx=(8, 0))
         self.var_intent = tk.StringVar(value="")
-        tk.Label(btns, textvariable=self.var_intent, bg=BG, fg=MUTED, font=("", 9)).pack(side=tk.RIGHT)
+        tk.Label(btns, textvariable=self.var_intent, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)
 
-        self.preview = tk.Text(tab, bg="#0a1526", fg=FG, relief=tk.FLAT, font=MONO, height=18,
-                               insertbackground=FG)
+        self.preview = tk.Text(tab, bg="#0a1526", fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, height=18,
+                               insertbackground=theme.fg)
         self.preview.pack(fill=tk.BOTH, expand=True)
-        self.preview.tag_config("dev", foreground=ACCENT, font=("", 10, "bold"))
+        self.preview.tag_config("dev", foreground=theme.accent, font=("", 10, "bold"))
         self._render_fields()
 
     def _current_intent(self):
@@ -153,10 +153,10 @@ class ControllerPage(Page):
         spec = self._current_intent()
         self.field_vars: dict[str, tk.StringVar] = {}
         for f in spec["fields"]:
-            row = tk.Frame(self.fields_frame, bg=BG)
+            row = tk.Frame(self.fields_frame, bg=theme.bg)
             row.pack(fill=tk.X, pady=2)
             mark = "*" if f["required"] else ""
-            tk.Label(row, text=f"{f['label']}{mark}:", bg=BG, fg=MUTED, width=22,
+            tk.Label(row, text=f"{f['label']}{mark}:", bg=theme.bg, fg=theme.muted, width=22,
                      anchor="w").pack(side=tk.LEFT)
             var = tk.StringVar(value=f["default"] or "")
             self.field_vars[f["name"]] = var
@@ -166,11 +166,11 @@ class ControllerPage(Page):
                 if f["choices"]:
                     w.current(0)
             else:
-                w = tk.Entry(row, textvariable=var, bg=PANEL, fg=FG, relief=tk.FLAT,
-                             width=34, insertbackground=FG)
+                w = tk.Entry(row, textvariable=var, bg=theme.panel, fg=theme.fg, relief=tk.FLAT,
+                             width=34, insertbackground=theme.fg)
             w.pack(side=tk.LEFT, ipady=3)
             if f["hint"]:
-                tk.Label(row, text=f"  {f['hint']}", bg=BG, fg=MUTED, font=("", 8)).pack(side=tk.LEFT)
+                tk.Label(row, text=f"  {f['hint']}", bg=theme.bg, fg=theme.muted, font=("", 8)).pack(side=tk.LEFT)
         # 目标设备下拉
         self.target_map = {f"{d.display_name} ({d.host}) · {VENDORS.get(d.vendor, d.vendor)}": d
                            for d in self.app.inventory.devices}
@@ -253,7 +253,7 @@ class ControllerPage(Page):
 
     # ────────── REST API ──────────
     def _api_tab(self):
-        tab = tk.Frame(self.nb, bg=BG)
+        tab = tk.Frame(self.nb, bg=theme.bg)
         self.nb.add(tab, text=" REST API ")
         info = (
             "把 NetForge 控制器开放成本机 REST 服务，供自动化脚本/CI 调用。\n\n"
@@ -268,24 +268,41 @@ class ControllerPage(Page):
             "  curl -X POST http://127.0.0.1:8899/api/dry-run -H \"Content-Type: application/json\" \\\n"
             "       -d '{\"intent_key\":\"vlan_deploy\",\"intent\":{\"vlans\":\"10,20\"},"
             "\"device_hosts\":[\"192.0.2.1\"]}'\n")
-        tk.Label(tab, text=info, bg=BG, fg=FG, font=MONO, justify="left").pack(
+        tk.Label(tab, text=info, bg=theme.bg, fg=theme.fg, font=FONT_MONO, justify="left").pack(
             anchor="w", padx=14, pady=(12, 8))
-        row = tk.Frame(tab, bg=BG)
+        row = tk.Frame(tab, bg=theme.bg)
         row.pack(fill=tk.X, padx=14)
         self.var_api = tk.StringVar(value="API 服务未启动")
-        tk.Label(row, textvariable=self.var_api, bg=BG, fg=MUTED, font=("", 10)).pack(side=tk.LEFT)
-        self.btn_api = tk.Button(row, text="启动 REST 服务 (127.0.0.1:8899)", bg=ACCENT, fg="white",
-                                 relief=tk.FLAT, activebackground=NAVY2, command=self.toggle_api)
+        tk.Label(row, textvariable=self.var_api, bg=theme.bg, fg=theme.muted, font=("", 10)).pack(side=tk.LEFT)
+        self.btn_api = tk.Button(row, text="启动 REST 服务 (127.0.0.1:8899)", bg=theme.accent, fg="white",
+                                 relief=tk.FLAT, activebackground=theme.nav2, command=self.toggle_api)
         self.btn_api.pack(side=tk.LEFT, padx=(16, 0))
 
     def toggle_api(self):
         if self.app.controller_api.running:
             self.app.controller_api.stop()
             self.var_api.set("API 服务未启动")
-            self.btn_api.config(text="启动 REST 服务 (127.0.0.1:8899)", bg=ACCENT)
+            self.btn_api.config(text="启动 REST 服务 (127.0.0.1:8899)", bg=theme.accent)
         else:
             self.app.controller_api.start()
             self.var_api.set("API 服务运行中: http://127.0.0.1:8899")
-            self.btn_api.config(text="停止 REST 服务", bg=RED, fg="white")
+            self.btn_api.config(text="停止 REST 服务", bg=theme.err, fg="white")
 
 
+
+    def refresh_audit(self):
+        """把最近审计记录展示（最新 30 条，新在上）。"""
+        entries = deploy_mod.audit_tail(30)
+        box = getattr(self, "audit_text", None)
+        if box is None:
+            box = tk.Text(self, bg=theme.panel_alt, fg=theme.muted, relief=tk.FLAT,
+                          font=FONT_MONO, height=6, insertbackground=theme.fg)
+            self.audit_text = box
+            box.pack(fill=tk.X, side=tk.BOTTOM)
+        box.delete("1.0", tk.END)
+        for e in reversed(entries):
+            box.insert(tk.END,
+                       f"{e.get('time','')}  {e.get('action','')}  {e.get('intent','')}  "
+                       f"{e.get('device', e.get('skipped',''))}  → {e.get('status','')}")
+        if not entries:
+            box.insert(tk.END, "（暂无审计记录）")

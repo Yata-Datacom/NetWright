@@ -6,6 +6,11 @@ from __future__ import annotations
 from netforge.pages import PAGE_REGISTRY
 
 
+def theme_current():
+    from netforge.theme import theme
+    return theme.name
+
+
 def test_smoke_pass1_all_pages_cycle(app):
     """第 1 轮：七个工作区逐个进入。"""
     for key in PAGE_REGISTRY:
@@ -84,3 +89,79 @@ def test_smoke_rest_api_lifecycle(app):
         assert json.loads(r.read().decode())["ok"] is True
     api.stop()
     assert not api.running
+
+def test_smoke_theme_switch_all_schemes(app):
+    """主题系统：6 套配色逐个切换（界面整体重建），令牌与模式正确。"""
+    from netforge.theme import THEMES
+
+    for name, tokens in THEMES.items():
+        app.apply_theme(name)
+        assert theme_current() == name
+        assert app.cget("bg") == tokens["bg"]
+        # 重建后页面字典恢复，可继续切换
+        assert len(app.pages) == len(PAGE_REGISTRY)
+
+
+def test_smoke_theme_light_tokens(app):
+    """亮色方案：切到亮色后 bg 为浅色（#f 开头）。"""
+    app.apply_theme("晨曦蓝 · 亮")
+    from netforge.theme import theme as t
+    assert t.mode == "light" and t.bg.startswith("#f")
+    app.apply_theme("深空蓝 · 暗")
+    from netforge.theme import theme as t2
+    assert t2.mode == "dark"
+
+
+def test_smoke_settings_persistence(app, tmp_path):
+    """设置持久化：主题/last_page 写盘并可回读。"""
+    from netforge.lib.settings import load_settings, save_settings
+    data = {"theme": "暮光紫 · 暗", "rest_port": 8899, "last_page": "cheat"}
+    assert save_settings(data, str(tmp_path))
+    loaded = load_settings(str(tmp_path))
+    assert loaded["theme"] == "暮光紫 · 暗" and loaded["last_page"] == "cheat"
+
+
+def test_smoke_inventory_alive_check(app, monkeypatch):
+    """清单在线检测：mock ping，状态回填树表。"""
+    from netforge.lib.inventory import Device
+
+    app.inventory.devices = []
+    app.inventory.add(Device(host="192.0.2.1", vendor="huawei", hostname="A"))
+    app.inventory.add(Device(host="192.0.2.2", vendor="cisco", hostname="B"))
+
+    import netforge.pages.inventory as inv_page
+    calls = {"n": 0}
+
+    class FakePing:
+        def __init__(self, alive):
+            self.alive = alive
+
+    def fake_ping(host, timeout_ms=800):
+        calls["n"] += 1
+        return FakePing(host == "192.0.2.1")
+
+    monkeypatch.setattr(inv_page.portscan, "ping_host", fake_ping)
+    page = app.pages["inventory"]
+    page.alive_check()
+    # worker 是线程（无 mainloop）：轮询结果后手动触发刷新
+    import time
+    for _ in range(60):
+        if calls["n"] >= 2 and all(d._alive is not None
+                                   for d in app.inventory.devices):
+            break
+        time.sleep(0.1)
+    page.refresh()
+    assert page.tree.set("0", "alive") == "在线"
+    assert page.tree.set("1", "alive") == "离线"
+
+
+def test_smoke_controller_audit_viewer(app):
+    """控制器审计查看：写入审计后刷新展示。"""
+    from netforge.lib.controller import deploy
+
+    deploy._audit({"action": "intent.apply", "intent": "vlan_deploy",
+                   "device": "192.0.2.1", "status": "OK"})
+    page = app.pages["controller"]
+    page.refresh_audit()
+    text = page.audit_text.get("1.0", "end")
+    assert "intent.apply" in text

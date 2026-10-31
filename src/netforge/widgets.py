@@ -1,4 +1,4 @@
-"""widgets.py — 可复用 UI 组件库（云控制台风格）。
+"""widgets.py — 可复用 UI 组件库（云控制台风格，渐变为主视觉）。
 
   page_header  页面标题区（标题 + 说明 + 品牌强调线 + 右侧动作槽）
   Card         白色卡片容器（统一边框/圆角感/内边距）
@@ -13,6 +13,42 @@ import tkinter as tk
 from tkinter import ttk
 
 from .theme import FONT_BOLD, FONT_SMALL, theme
+
+
+def _lerp(c1: str, c2: str, t: float) -> str:
+    """两个 #rrggbb 颜色之间线性插值。"""
+    r1, g1, b1 = int(c1[1:3], 16), int(c1[3:5], 16), int(c1[5:7], 16)
+    r2, g2, b2 = int(c2[1:3], 16), int(c2[3:5], 16), int(c2[5:7], 16)
+    return "#{:02x}{:02x}{:02x}".format(
+        int(r1 + (r2 - r1) * t), int(g1 + (g2 - g1) * t), int(b1 + (b2 - b1) * t))
+
+
+class GradientFrame(tk.Canvas):
+    """渐变背景容器：横向/纵向线性渐变，随尺寸变化重绘。
+
+    用途：顶栏品牌渐变、侧栏导航渐变、每页页头带、卡片强调条。
+    """
+
+    def __init__(self, master, c1: str, c2: str, direction: str = "h", **kw):
+        super().__init__(master, highlightthickness=0, bd=0, **kw)
+        self._c1, self._c2, self._dir = c1, c2, direction
+        self.bind("<Configure>", lambda e: self.repaint())
+
+    def set_colors(self, c1: str, c2: str):
+        self._c1, self._c2 = c1, c2
+        self.repaint()
+
+    def repaint(self):
+        self.delete("all")
+        w = max(self.winfo_width(), 1)
+        h = max(self.winfo_height(), 1)
+        n = h if self._dir == "v" else w
+        for i in range(n):
+            color = _lerp(self._c1, self._c2, i / max(1, n - 1))
+            if self._dir == "v":
+                self.create_line(0, i, w, i, fill=color)
+            else:
+                self.create_line(i, 0, i, h, fill=color)
 
 
 class Card(tk.Frame):
@@ -37,13 +73,14 @@ class Page(tk.Frame):
 
 
 def page_header(parent: tk.Frame, title: str, desc: str) -> None:
-    """页面标题区：标题 + 一句说明 + 品牌强调线。"""
-    bar = tk.Frame(parent, bg=theme.bg)
-    bar.pack(fill=tk.X, padx=18, pady=(14, 8))
-    tk.Label(bar, text=title, bg=theme.bg, fg=theme.fg,
-             font=("Microsoft YaHei UI", 16, "bold")).pack(anchor="w")
-    tk.Label(bar, text=desc, bg=theme.bg, fg=theme.muted, font=FONT_SMALL).pack(anchor="w")
-    tk.Frame(parent, bg=theme.accent, height=2).pack(fill=tk.X, padx=18)
+    """页面标题区：品牌渐变带（accent 横向渐变）+ 白字标题/说明。"""
+    bar = GradientFrame(parent, theme.header1, theme.header2, direction="h", height=64)
+    bar.pack(fill=tk.X)
+    bar.pack_propagate(False)
+    tk.Label(bar, text=title, bg=theme.header1, fg="#ffffff",
+             font=("Microsoft YaHei UI", 15, "bold")).pack(anchor="w", padx=20, pady=(10, 0))
+    tk.Label(bar, text=desc, bg=theme.header1, fg="#dbe7ff",
+             font=FONT_SMALL).pack(anchor="w", padx=20, pady=(2, 10))
 
 
 def stat_card(parent, title: str, desc: str, command=None) -> tk.Label:
@@ -62,6 +99,9 @@ def stat_card(parent, title: str, desc: str, command=None) -> tk.Label:
               activebackground=theme.accent, activeforeground="white", cursor="hand2",
               font=FONT_SMALL, command=command).pack(anchor="w", padx=16, pady=(4, 12))
     return stat
+
+
+StatCard = stat_card  # 类名别名（历史接口）
 
 
 def pill_text(text: str, kind: str) -> str:

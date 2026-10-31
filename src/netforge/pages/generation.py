@@ -7,22 +7,22 @@ from tkinter import filedialog, messagebox, ttk
 
 from netforge.lib import generator as gen
 from netforge.lib.inventory import safe_filename
-from netforge.theme import (
-    ACCENT, BG, FG, LINE, MUTED, NAVY, NAVY2, PANEL, MONO,
-)
-from netforge.widgets import Page, page_header
+from netforge.theme import FONT_MONO, theme
+from netforge.widgets import (Page, page_header)
 
 
 def header(title, desc, page):
     page_header(page, title, desc)
+
+
 class GeneratePage(Page):
     def __init__(self, master, app):
         super().__init__(master, app)
         header("配置生成", "内置多厂商模板 × 设备参数表 → 批量生成 .cfg（零残留校验，坏配置不下发）", self)
-        body = tk.Frame(self, bg=BG)
+        body = tk.Frame(self, bg=theme.bg)
         body.pack(fill=tk.BOTH, expand=True, padx=16, pady=(0, 12))
 
-        bar = tk.Frame(body, bg=BG)
+        bar = tk.Frame(body, bg=theme.bg)
         bar.pack(fill=tk.X, pady=(0, 6))
         ttk.Label(bar, text="厂商:", style="H2.TLabel").pack(side=tk.LEFT)
         self.cmb_vendor = ttk.Combobox(bar, state="readonly", width=13)
@@ -35,29 +35,29 @@ class GeneratePage(Page):
         self.cmb_tpl = ttk.Combobox(bar, state="readonly", width=52)
         self.cmb_tpl.pack(side=tk.LEFT, padx=(6, 10))
         self.cmb_tpl.bind("<<ComboboxSelected>>", lambda e: self._load_template())
-        tk.Button(bar, text="生成到目录…", bg=ACCENT, fg="white", relief=tk.FLAT,
-                  activebackground=NAVY2, command=self.generate).pack(side=tk.LEFT, padx=(0, 6))
-        tk.Button(bar, text="载入清单设备", bg=NAVY2, fg=FG, relief=tk.FLAT,
-                  activebackground=NAVY, command=self.load_inventory).pack(side=tk.LEFT)
+        tk.Button(bar, text="生成到目录…", bg=theme.accent, fg="white", relief=tk.FLAT,
+                  activebackground=theme.nav2, command=self.generate).pack(side=tk.LEFT, padx=(0, 6))
+        tk.Button(bar, text="载入清单设备", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
+                  activebackground=theme.nav1, command=self.load_inventory).pack(side=tk.LEFT)
         self.var_info = tk.StringVar(value="")
-        tk.Label(bar, textvariable=self.var_info, bg=BG, fg=MUTED, font=("", 9)).pack(side=tk.RIGHT)
+        tk.Label(bar, textvariable=self.var_info, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)
 
-        pane = tk.PanedWindow(body, orient=tk.HORIZONTAL, bg=LINE, sashwidth=2)
+        pane = tk.PanedWindow(body, orient=tk.HORIZONTAL, bg=theme.line, sashwidth=2)
         pane.pack(fill=tk.BOTH, expand=True)
 
-        left = tk.Frame(pane, bg=PANEL)
+        left = tk.Frame(pane, bg=theme.panel)
         pane.add(left)
-        tk.Label(left, text="设备参数表（CSV：首行 = 模板变量名）", bg=PANEL, fg=MUTED,
+        tk.Label(left, text="设备参数表（CSV：首行 = 模板变量名）", bg=theme.panel, fg=theme.muted,
                  font=("", 9)).pack(anchor="w", padx=10, pady=(8, 2))
-        self.table_text = tk.Text(left, bg="#0a1526", fg=FG, relief=tk.FLAT, font=MONO,
-                                  insertbackground=FG, wrap=tk.NONE)
+        self.table_text = tk.Text(left, bg="#0a1526", fg=theme.fg, relief=tk.FLAT, font=FONT_MONO,
+                                  insertbackground=theme.fg, wrap=tk.NONE)
         self.table_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
 
-        right = tk.Frame(pane, bg=PANEL)
+        right = tk.Frame(pane, bg=theme.panel)
         pane.add(right)
-        tk.Label(right, text="模板预览", bg=PANEL, fg=MUTED, font=("", 9)).pack(anchor="w", padx=10, pady=(8, 2))
-        self.tpl_text = tk.Text(right, bg="#0a1526", fg=MUTED, relief=tk.FLAT, font=MONO,
-                                insertbackground=FG, wrap=tk.NONE)
+        tk.Label(right, text="模板预览", bg=theme.panel, fg=theme.muted, font=("", 9)).pack(anchor="w", padx=10, pady=(8, 2))
+        self.tpl_text = tk.Text(right, bg="#0a1526", fg=theme.muted, relief=tk.FLAT, font=FONT_MONO,
+                                insertbackground=theme.fg, wrap=tk.NONE)
         self.tpl_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         self._apply_vendor_filter()   # 控件就绪后再填充模板（顺序不能提前）
 
@@ -113,5 +113,4 @@ class GeneratePage(Page):
         n = gen.write_outputs(out, files)
         messagebox.showinfo("生成完成", f"已生成 {n} 个配置文件到:\n{out}")
         self.app.set_status(f"已生成 {n} 个配置 → {out}")
-
 

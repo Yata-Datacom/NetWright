@@ -9,6 +9,15 @@
       "password": "",
       "hostname": "A",
       "note": ""
+    },
+    {
+      "host": "192.0.2.2",
+      "port": 22,
+      "vendor": "cisco",
+      "username": "",
+      "password": "",
+      "hostname": "B",
+      "note": ""
     }
   ]
 }

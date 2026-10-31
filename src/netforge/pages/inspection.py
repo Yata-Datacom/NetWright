@@ -8,22 +8,22 @@ from tkinter import filedialog, messagebox, ttk
 
 from netforge.lib import HAS_SSH, inspector
 from netforge.lib.inventory import VENDORS
-from netforge.theme import (
-    ACCENT, AMBER, BG, FG, LINE, MUTED, NAVY, NAVY2, PANEL, MONO,
-)
-from netforge.widgets import Page, page_header
+from netforge.theme import FONT_MONO, theme
+from netforge.widgets import (Page, page_header)
 
 
 def header(title, desc, page):
     page_header(page, title, desc)
+
+
 class InspectPage(Page):
     def __init__(self, master, app):
         super().__init__(master, app)
         header("SSH 批量巡检", "从设备清单勾选目标 → 选方案 → 并发执行 → 异常标记 → 导出 HTML 报告", self)
-        body = tk.Frame(self, bg=BG)
+        body = tk.Frame(self, bg=theme.bg)
         body.pack(fill=tk.BOTH, expand=True, padx=16, pady=(0, 12))
 
-        top = tk.Frame(body, bg=BG)
+        top = tk.Frame(body, bg=theme.bg)
         top.pack(fill=tk.X, pady=(0, 6))
         ttk.Label(top, text="巡检方案:", style="H2.TLabel").pack(side=tk.LEFT)
         self.cmb_scheme = ttk.Combobox(top, state="readonly", width=14)
@@ -35,33 +35,33 @@ class InspectPage(Page):
                                         values=("5", "10", "20", "50"), )
         self.cmb_workers.current(2)
         self.cmb_workers.pack(side=tk.LEFT, padx=(6, 14))
-        self.btn_run = tk.Button(top, text="开始巡检", bg=ACCENT, fg="white", relief=tk.FLAT,
-                                 activebackground=NAVY2, command=self.start)
+        self.btn_run = tk.Button(top, text="开始巡检", bg=theme.accent, fg="white", relief=tk.FLAT,
+                                 activebackground=theme.nav2, command=self.start)
         self.btn_run.pack(side=tk.LEFT)
-        tk.Button(top, text="导出报告", bg=NAVY2, fg=FG, relief=tk.FLAT,
-                  activebackground=NAVY, command=self.export_report).pack(side=tk.LEFT, padx=(6, 0))
+        tk.Button(top, text="导出报告", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
+                  activebackground=theme.nav1, command=self.export_report).pack(side=tk.LEFT, padx=(6, 0))
         self.var_count = tk.StringVar(value="")
-        tk.Label(top, textvariable=self.var_count, bg=BG, fg=MUTED, font=("", 9)).pack(side=tk.RIGHT)
+        tk.Label(top, textvariable=self.var_count, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)
         if not HAS_SSH:
             tk.Label(body, text="⚠ 未安装 paramiko：pip install paramiko 后重启即可启用巡检",
-                     bg=BG, fg=AMBER, font=("", 10)).pack(anchor="w", pady=(0, 6))
+                     bg=theme.bg, fg=theme.warn, font=("", 10)).pack(anchor="w", pady=(0, 6))
 
-        pane = tk.PanedWindow(body, orient=tk.HORIZONTAL, bg=LINE, sashwidth=2)
+        pane = tk.PanedWindow(body, orient=tk.HORIZONTAL, bg=theme.line, sashwidth=2)
         pane.pack(fill=tk.BOTH, expand=True)
 
         # 左：设备勾选
-        left = tk.Frame(pane, bg=PANEL)
+        left = tk.Frame(pane, bg=theme.panel)
         pane.add(left, width=300)
-        tk.Label(left, text="目标设备（勾选）", bg=PANEL, fg=MUTED, font=("", 9)).pack(anchor="w", padx=10, pady=(8, 2))
-        self.dev_list = tk.Frame(left, bg=PANEL)
+        tk.Label(left, text="目标设备（勾选）", bg=theme.panel, fg=theme.muted, font=("", 9)).pack(anchor="w", padx=10, pady=(8, 2))
+        self.dev_list = tk.Frame(left, bg=theme.panel)
         self.dev_list.pack(fill=tk.BOTH, expand=True, padx=10)
         self.dev_vars: dict[str, tk.BooleanVar] = {}
 
         # 右：结果
-        right = tk.Frame(pane, bg=PANEL)
+        right = tk.Frame(pane, bg=theme.panel)
         pane.add(right)
         cols = ("host", "status", "critical", "warn", "cost")
-        wrap = tk.Frame(right, bg=PANEL)
+        wrap = tk.Frame(right, bg=theme.panel)
         wrap.pack(fill=tk.BOTH, expand=True, padx=10, pady=(8, 4))
         self.tree = ttk.Treeview(wrap, columns=cols, show="headings", height=9)
         for c, t, w in (("host", "设备", 160), ("status", "状态", 110), ("critical", "严重", 60),
@@ -73,8 +73,8 @@ class InspectPage(Page):
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree.bind("<<TreeviewSelect>>", self._show_detail)
-        self.detail = tk.Text(right, bg="#0a1526", fg=FG, relief=tk.FLAT, font=MONO, height=12,
-                              insertbackground=FG)
+        self.detail = tk.Text(right, bg="#0a1526", fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, height=12,
+                              insertbackground=theme.fg)
         self.detail.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         self.results: list[inspector.DeviceResult] = []
         self.refresh_devices()
@@ -171,5 +171,4 @@ class InspectPage(Page):
         with open(path, "w", encoding="utf-8") as f:
             f.write(inspector.build_html_report(self.results, self._scheme_name))
         messagebox.showinfo("导出完成", f"报告已保存到 {path}")
-
 

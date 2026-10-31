@@ -3,6 +3,26 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.2.0] - 2026-11-01
+
+### Added
+- **主题系统**：6 套配色方案（深空蓝/极光绿/暮光紫 · 暗，晨曦蓝/蜜橙/玫瑰 · 亮），
+  顶栏 🎨 菜单一键切换；**渐变色为主视觉**——顶栏品牌横向渐变、侧栏导航纵向渐变、
+  每页页头 accent 渐变带（widgets.GradientFrame，随窗口尺寸重绘）。
+- **设置持久化**：netforge_settings.json 记忆主题/REST 端口/最近工作区（lib/settings.py）。
+- 设备清单**一键在线检测**：并发 ping 清单设备，状态徽章（在线/离线）回填表格。
+- 控制器页新增**下发审计查看**（netforge_audit.log 最近 30 条）。
+
+### Changed
+- 页面颜色引用全部迁移到 `theme.*` 动态访问（支持主题热切换整体重建）。
+- 工具箱表格复用 `widgets.make_table`（斑马纹统一）。
+
+### Fixed
+- 生成页启动崩溃、意图 IP 校验、CDP/H3C 拓扑解析、alive 显示 None 等多处（见 3.1.0 后续修复）。
+
+### Tests
+- 75 项 pytest（新增主题切换×6/亮色令牌/设置持久化/在线检测 mock/审计查看冒烟）。
+
 ## [3.1.0] - 2026-11-01
 
 ### Added
