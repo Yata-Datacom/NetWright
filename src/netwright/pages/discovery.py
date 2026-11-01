@@ -194,7 +194,6 @@ class DiscoveryPage(Page):
     def start(self):
         seed = self.seed_map.get(self.cmb_seed.get())
         if not seed:
-            messagebox = __import__("tkinter.messagebox", fromlist=["messagebox"]).showinfo
             _msg("提示", "设备清单为空，请先在「设备清单」页添加种子设备")
             return
         depth = int(self.cmb_depth.get())

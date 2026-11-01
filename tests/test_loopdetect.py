@@ -113,7 +113,7 @@ def test_history_roundtrip(tmp_path, monkeypatch):
     assert len(entries) == 2 and entries[-1]["fail"] == 1
     series = history.extract_series(entries, "anomalies")
     assert [v for _l, v in series] == [4.0, 2.0]
-    assert all(len(l) == 8 for l, _v in series)   # HH:MM:SS
+    assert all(len(lbl) == 8 for lbl, _v in series)   # HH:MM:SS
 
 
 def test_history_empty(tmp_path, monkeypatch):
