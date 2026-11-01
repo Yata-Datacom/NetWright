@@ -6,7 +6,8 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
-from netwright.lib import discovery
+from netwright.lib import discovery, loopdetect
+from netwright.lib import history as hist
 from netwright.theme import FONT, FONT_SMALL, FONT_MONO, theme
 from netwright.widgets import (Page, page_header, make_table, zebra, WButton)
 
@@ -20,6 +21,7 @@ class DiscoveryPage(Page):
         self._scan_tab()
         self._result_tab()
         self._topo_tab()
+        self._loop_tab()
 
     # ── 盘点执行 ──
     def _scan_tab(self):
@@ -82,6 +84,100 @@ class DiscoveryPage(Page):
         self.canvas.pack(fill=tk.BOTH, expand=True, pady=(6, 8))
         self.canvas.create_text(480, 300, text="盘点后自动生成拓扑（LLDP/CDP 邻居关系）",
                                 fill=theme.muted, font=FONT_SMALL, tags="placeholder")
+        self.loop_devices: set[str] = set()
+
+    # ── 环路 / 漂移检测（联动盘点结果）──
+    def _loop_tab(self):
+        tab = tk.Frame(self.nb, bg=theme.bg)
+        self.nb.add(tab, text=" 环路/漂移 ")
+        bar = tk.Frame(tab, bg=theme.bg)
+        bar.pack(fill=tk.X, pady=(8, 4))
+        ttk.Label(bar, text="采集清单设备的 MAC 表 → 同机多口/跨机同 MAC = 环路线索；"
+                            "与上一轮快照比对 = 漂移", style="H2.TLabel").pack(side=tk.LEFT)
+        bar2 = tk.Frame(tab, bg=theme.bg)
+        bar2.pack(fill=tk.X, pady=(0, 6))
+        self.btn_loop = tk.Button(bar2, text="🔍 检测环路/漂移", bg=theme.accent_deep,
+                                  fg="white", relief=tk.FLAT, activebackground=theme.accent,
+                                  font=FONT, command=self.run_loop_detect)
+        self.btn_loop.pack(side=tk.LEFT)
+        self.var_loop = tk.StringVar(value="")
+        tk.Label(bar2, textvariable=self.var_loop, bg=theme.bg, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.RIGHT)
+
+        cols = ("sev", "kind", "mac", "message")
+        heads = {"sev": "级别", "kind": "类型", "mac": "MAC", "message": "说明"}
+        self.loop_wrap, self.loop_tree = make_table(
+            tab, list(cols), heads,
+            {"sev": 70, "kind": 100, "mac": 170, "message": 420}, height=13)
+        self.loop_wrap.pack(fill=tk.BOTH, expand=True)
+        self.loop_tree.tag_configure("critical", foreground=theme.err)
+        self.loop_tree.tag_configure("warning", foreground=theme.warn)
+        self.loop_tree.bind("<<TreeviewSelect>>", self._loop_select)
+
+    def run_loop_detect(self):
+        devices = [d for d in self.app.inventory.devices
+                   if loopdetect.MAC_COMMANDS.get(d.vendor)]
+        if not devices:
+            import tkinter.messagebox as mb
+            mb.showinfo("NetWright", "清单中没有支持 MAC 表采集的设备")
+            return
+        self.btn_loop.config(state=tk.DISABLED)
+        self.var_loop.set(f"采集 MAC 表… 0/{len(devices)}")
+
+        def worker():
+            outputs = []
+            for i, d in enumerate(devices, 1):
+                try:
+                    from netwright.lib import ssh_client as _ssh
+                    outs = _ssh.ssh_client.run_commands(
+                        d, [loopdetect.MAC_COMMANDS[d.vendor]], timeout=15)
+                    text = chr(10).join(o for _t, _c, o, _e in outs)
+                    outputs.append((d.display_name, text))
+                except Exception:
+                    pass
+                self.app.after(0, lambda i=i, n=len(devices):
+                               self.var_loop.set(f"采集 MAC 表… {i}/{n}"))
+            prev = hist.load_snapshot("mac").get("records", [])
+            curr = loopdetect.collect_records(outputs)
+            alerts = loopdetect.find_loops(curr)
+            alerts += loopdetect.diff_flapping(
+                loopdetect.collect_records([(r["device"], r["raw"]) for r in prev]),
+                curr) if prev else []
+            self.app.after(0, lambda: self._loop_done(curr, alerts))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _loop_done(self, curr, alerts):
+        self.btn_loop.config(state=tk.NORMAL)
+        self.var_loop.set(f"完成：{len(alerts)} 条告警")
+        # 快照：保存本轮 + 原始文本供下轮 diff
+        hist.save_snapshot("mac", {
+            "records": [{"device": r.device, "intf": r.intf, "mac": r.mac}
+                        for r in curr]})
+        self.loop_tree.delete(*self.loop_tree.get_children())
+        self._alerts = alerts
+        for i, a in enumerate(alerts):
+            self.loop_tree.insert("", "end", iid=str(i), values=(
+                "🔴 高危" if a.severity == "critical" else "🟠 中危",
+                {"same-device": "同机多口", "cross-device": "跨设备",
+                 "flap": "漂移"}.get(a.kind, a.kind),
+                a.mac, a.message), tags=(a.severity,))
+            zebra(self.loop_tree, str(i), i)
+        if not alerts:
+            self.loop_tree.insert("", "end", values=("✅", "", "", "未发现环路/漂移线索"),
+                                  tags=("ok",))
+        self.loop_devices = loopdetect.loop_devices(alerts)
+        if getattr(self, "_last_topo", None):
+            self._draw_topology(self._last_topo)   # 红圈高亮环路设备
+
+    def _loop_select(self, _ev=None):
+        sel = self.loop_tree.selection()
+        if sel and getattr(self, "_alerts", None):
+            a = self._alerts[int(sel[0])]
+            import tkinter.messagebox as mb
+            msg = a.message + chr(10) + chr(10).join(
+                f"{d} {i}" for d, i in a.where)
+            mb.showinfo(f"环路线索 · {a.mac}", msg)
 
     def _refresh_seeds(self):
         self.app.inventory.devices and None
@@ -147,6 +243,7 @@ class DiscoveryPage(Page):
         self.raw.insert(tk.END, f"访问过的设备：{'、'.join(result['visited']) or '—'}\n")
         if result["errors"]:
             self.raw.insert(tk.END, "错误：\n" + "\n".join(result["errors"]) + "\n\n")
+        self._last_topo = result["topology"]
         self._draw_topology(result["topology"])
         self.app.set_status(f"盘点完成：{len(assets)} 项资产")
 
@@ -172,9 +269,12 @@ class DiscoveryPage(Page):
             is_new = not any(a.known and a.hostname == n for a in
                              getattr(self, "_result", {"assets": {}})["assets"].values())
             color = theme.warn if is_new else theme.ok
+            in_loop = n in getattr(self, "loop_devices", set())
             c.create_oval(x - 13, y - 13, x + 13, y + 13, fill=color,
-                          outline="white", width=2)
-            c.create_text(x, y + 25, text=n, fill=theme.fg, font=FONT_SMALL)
+                          outline=theme.err if in_loop else "white",
+                          width=4 if in_loop else 2)
+            c.create_text(x, y + 25, text=n + (" ⚠" if in_loop else ""),
+                          fill=theme.err if in_loop else theme.fg, font=FONT_SMALL)
         c.create_text(w - 140, 20, text="● 已知设备", fill=theme.ok, font=FONT_SMALL, anchor="w")
         c.create_text(w - 40, 20, text="● 新发现", fill=theme.warn, font=FONT_SMALL, anchor="w")
 

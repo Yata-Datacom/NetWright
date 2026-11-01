@@ -9,7 +9,8 @@ from tkinter import filedialog, messagebox, ttk
 from netwright.lib import HAS_SSH, inspector
 from netwright.lib.inventory import VENDORS
 from netwright.theme import FONT_MONO, theme
-from netwright.widgets import (Page, page_header, WButton)
+from netwright.lib import history as hist
+from netwright.widgets import (Page, page_header, WButton, draw_line_chart)
 
 
 def header(title, desc, page):
@@ -57,6 +58,25 @@ class InspectPage(Page):
         self.dev_list.pack(fill=tk.BOTH, expand=True, padx=10)
         self.dev_vars: dict[str, tk.BooleanVar] = {}
 
+        # 趋势区（页面底部固定高度）
+        trend = tk.Frame(self, bg=theme.bg, height=230)
+        trend.pack(fill=tk.X, side=tk.BOTTOM, padx=16, pady=(0, 10))
+        trend.pack_propagate(False)
+        tbar = tk.Frame(trend, bg=theme.bg)
+        tbar.place(relx=0, rely=0, relwidth=1)
+        ttk.Label(tbar, text="指标:", style="H2.TLabel").pack(side=tk.LEFT)
+        self.cmb_metric = ttk.Combobox(tbar, state="readonly", width=14,
+                                       values=("anomalies", "fail", "warn", "avg_ms"))
+        self.cmb_metric.current(0)
+        self.cmb_metric.pack(side=tk.LEFT, padx=(6, 8))
+        tk.Button(tbar, text="刷新趋势", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
+                  command=self.draw_trend).pack(side=tk.LEFT)
+        self.trend_canvas = tk.Canvas(trend, bg=theme.panel_alt,
+                                      highlightbackground=theme.line,
+                                      highlightthickness=1)
+        self.trend_canvas.place(relx=0, rely=0, relwidth=1, relheight=1)
+        tbar.lift()
+
         # 右：结果
         right = tk.Frame(pane, bg=theme.panel)
         pane.add(right)
@@ -78,6 +98,10 @@ class InspectPage(Page):
         self.detail.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         self.results: list[inspector.DeviceResult] = []
         self.refresh_devices()
+
+    def on_show(self):
+        self.refresh_devices()
+        self.draw_trend()
 
     def refresh_devices(self):
         for w in self.dev_list.winfo_children():
@@ -141,6 +165,26 @@ class InspectPage(Page):
             self.app.set_status("已跳过: " + "、".join(skipped[:5]) + ("…" if len(skipped) > 5 else ""))
         if results:
             self.tree.selection_set("0")
+        # 趋势数据落盘（每轮巡检一条摘要）
+        hist.append_history("inspection", {
+            "scheme": scheme_name,
+            "ok": sum(1 for r in results if r.status == "OK"),
+            "warn": sum(1 for r in results if r.status == "WARNING"),
+            "fail": sum(1 for r in results if r.status in ("FAILED", "UNREACHABLE")),
+            "anomalies": sum(len(r.anomalies) for r in results),
+            "avg_ms": (sum(r.cost_ms for r in results) // len(results)) if results else 0,
+        })
+
+    METRIC_LABELS = {"anomalies": "异常/告警总数", "fail": "失败/不可达台数",
+                     "warn": "警告台数", "avg_ms": "平均耗时(ms)"}
+
+    def draw_trend(self):
+        metric = self.cmb_metric.get()
+        entries = hist.load_history("inspection", limit=60)
+        series = hist.extract_series(entries, metric)
+        draw_line_chart(self.trend_canvas, series,
+                        title=f"巡检趋势 · {self.METRIC_LABELS.get(metric, metric)}",
+                        empty_text="暂无巡检历史：执行一次批量巡检后即可看到趋势")
 
     def _show_detail(self, _ev=None):
         sel = self.tree.selection()

@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import os
 
+import math
+
 import tkinter as tk
 from tkinter import ttk
 
@@ -246,3 +248,56 @@ def zebra(tree: ttk.Treeview, iid: str, index: int):
 def empty_state(parent, text: str) -> tk.Label:
     return tk.Label(parent, text=text, bg=theme.bg, fg=theme.faint,
                     font=FONT_SMALL, pady=30)
+
+
+def draw_line_chart(canvas: tk.Canvas, series: list[tuple[str, float]],
+                    color: str | None = None, title: str = "",
+                    empty_text: str = "暂无历史数据") -> None:
+    """在 Canvas 上绘制简易折线趋势图（坐标轴/网格/末值标注，纯 Token 配色）。"""
+    canvas.delete("all")
+    fg, muted, line = theme.fg, theme.muted, theme.line
+    color = color or theme.accent
+    w = max(canvas.winfo_width(), 400)
+    h = max(canvas.winfo_height(), 240)
+    pad_l, pad_r, pad_t, pad_b = 48, 20, 34, 34
+    if not series:
+        canvas.create_text(w / 2, h / 2, text=empty_text, fill=muted, font=FONT_SMALL)
+        return
+    values = [v for _l, v in series]
+    vmin, vmax = min(values), max(values)
+    if vmax == vmin:
+        vmax = vmin + 1
+    span = vmax - vmin
+    x0, y0, x1, y1 = pad_l, pad_t, w - pad_r, h - pad_b
+    canvas.create_line(x0, y0 - 6, x0, y1, fill=line)
+    canvas.create_line(x0, y1, x1 + 6, y1, fill=line)
+    for frac in (0, 0.5, 1.0):
+        gy = y0 + (y1 - y0) * frac
+        canvas.create_line(x0, gy, x1, gy, fill=line, dash=(2, 3))
+        canvas.create_text(x0 - 6, gy, text=f"{vmax - span * frac:.0f}",
+                           fill=muted, font=FONT_SMALL, anchor="e")
+    n = len(series)
+    def px(i):
+        return x0 + (x1 - x0) * (i / max(1, n - 1))
+
+    def py(v):
+        return y1 - (y1 - y0) * ((v - vmin) / span)
+    pts = []
+    for i, (_label, v) in enumerate(series):
+        pts += [px(i), py(v)]
+    if n > 1:
+        canvas.create_line(pts, fill=color, width=2, smooth=True)
+    for i, (_label, v) in enumerate(series):
+        r = 3
+        canvas.create_oval(px(i) - r, py(v) - r, px(i) + r, py(v) + r,
+                           fill=color, outline="")
+    _lx, lv = series[-1]
+    canvas.create_text(px(n - 1), py(lv) - 12, text=f"{lv:.0f}", fill=color,
+                       font=FONT_SMALL)
+    stride = max(1, math.ceil(n / 8))
+    for i, (label, _v) in enumerate(series):
+        if i % stride == 0 or i == n - 1:
+            canvas.create_text(px(i), y1 + 12, text=label, fill=muted,
+                               font=FONT_SMALL, angle=-30)
+    if title:
+        canvas.create_text(w / 2, 12, text=title, fill=fg, font=FONT_BOLD)

@@ -292,10 +292,12 @@ class NetWrightApp(tk.Tk):
                 page.place_forget()
         self._repaint_nav()
         hooks = {"dashboard": "refresh", "inventory": "refresh",
-                 "inspect": "refresh_devices"}
+                 "inspect": "refresh_devices", "discovery": "refresh"}
         hook = hooks.get(key)
         if hook and hasattr(self.pages[key], hook):
             getattr(self.pages[key], hook)()
+        if hasattr(self.pages[key], "on_show"):
+            self.pages[key].on_show()
         self.set_status("就绪")
 
     # ── 状态 ───────────────────────────────────────────────────────

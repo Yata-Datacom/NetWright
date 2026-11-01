@@ -3,6 +3,20 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.6.0] - 2026-11-01
+
+### Added
+- **盘点联动环路告警**：MAC 表采集（华为/思科/H3C/MikroTik）→ 同机多口同一 MAC =
+  🔴 高危环路；跨设备同 MAC = 🟠 环路/漂移；拓扑画布环路设备红圈 ⚠ 高亮，
+  点击告警看处置建议（逐口拔线观察广播速率）。
+- **MAC 漂移可视化**：每轮检测自动保存快照，与上一轮 diff——同设备换口 /
+  跨设备迁移均告警。
+- **巡检趋势图**：每轮批量巡检自动落盘摘要（netwright_history_inspection.jsonl），
+  巡检页底部 📈 趋势折线图（Canvas 纯实现）：告警总数/失败台数/警告台数/平均耗时。
+
+### Tests
+- 100 项 pytest（MAC 表三厂商+MikroTik 解析、环路/漂移判定、历史序列提取）。
+
 ## [3.5.0] - 2026-11-01
 
 ### Added
