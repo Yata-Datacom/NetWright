@@ -308,6 +308,7 @@ class NetWrightApp(tk.Tk):
                 page.place_forget()
         self._active_key = key        # 选中态移动（修复高亮不跟随）
         self._hover_key = None
+        self.var_ptitle.set(PAGE_REGISTRY[key][1] if key in PAGE_REGISTRY else "")
         self._repaint_nav()
         hooks = {"dashboard": "refresh", "inventory": "refresh",
                  "inspect": "refresh_devices", "discovery": "refresh"}

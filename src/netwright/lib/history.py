@@ -24,6 +24,7 @@ def history_path(kind: str) -> str:
 
 
 def append_history(kind: str, entry: dict) -> None:
+    """追加一条记录（自动加时间戳；线程安全；IO 失败静默——历史不阻塞业务）。"""
     entry = {"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), **entry}
     try:
         with _lock:
@@ -34,6 +35,7 @@ def append_history(kind: str, entry: dict) -> None:
 
 
 def load_history(kind: str, limit: int = 60) -> list[dict]:
+    """读取最近 limit 条记录（旧的在前）。损坏行静默跳过。"""
     try:
         with _lock:
             with open(history_path(kind), "r", encoding="utf-8") as f:
@@ -50,7 +52,12 @@ def load_history(kind: str, limit: int = 60) -> list[dict]:
 
 
 def extract_series(entries: list[dict], metric: str) -> list[tuple[str, float]]:
-    """从历史条目提取折线数据 [(时间短标签, 数值)]。"""
+    """从历史条目提取折线数据 [(时间短标签, 数值)]。
+
+    :param entries: load_history 的输出
+    :param metric: 数值字段名（如 anomalies/fail/avg_ms）
+    :return: [(HH:MM:SS, float)]——非数值/缺字段的条目自动跳过
+    """
     series = []
     for e in entries:
         label = e.get("time", "")[-8:]     # HH:MM:SS

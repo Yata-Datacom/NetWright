@@ -67,7 +67,16 @@ def _is_private(ip: str) -> bool:
 
 
 def parse_arp(text: str) -> list[tuple[str, str]]:
-    """从任意厂商 ARP 输出提取 (IP, MAC)，容忍表格布局。"""
+    """从任意厂商 ARP 输出提取 (IP, MAC)，容忍表格布局。
+
+    解析策略（容错优先）：
+      * 每行找第一个 IPv4 地址（私网才收录，公网直接忽略）；
+      * MAC 依次尝试 华为横线 / 冒号 / 思科点分 三种格式；
+      * 同 IP 去重（保留首次出现的 MAC）。
+
+    :param text: ARP 命令的原始输出（可为多厂商混合）
+    :return: [(ip, mac)] 去重列表
+    """
     out: list[tuple[str, str]] = []
     seen: set[str] = set()
     for line in text.splitlines():
@@ -85,7 +94,12 @@ def parse_arp(text: str) -> list[tuple[str, str]]:
 
 
 def guess_vendor_from_text(text: str) -> str:
-    """从系统名/平台描述推测厂商。"""
+    """从系统名/平台描述推测厂商。
+
+    关键字规则按"具体在前"排序（如 MikroTik 的 hAP/RB 前缀比通用词更可信）。
+    :param text: LLDP System Name / 平台描述 / 主机名等任意文本
+    :return: 厂商 key（huawei/h3c/cisco/...），无法识别返回 ""
+    """
     low = (text or "").lower()
     rules = (
         ("huawei", ("huawei", "ce58", "s5735", "s5720", "s6730", "vrp")),
@@ -104,7 +118,12 @@ def guess_vendor_from_text(text: str) -> str:
 
 
 def probe_protocols(ip: str, timeout: float = 1.0) -> list[str]:
-    """探测管理协议端口（22/23/830）。"""
+    """探测管理协议端口（22=SSH / 23=Telnet / 830=NETCONF）。
+
+    :param ip: 目标 IPv4
+    :param timeout: 单端口 connect 超时秒数
+    :return: 开放的协议名列表，如 ["SSH", "NETCONF"]
+    """
     open_names = []
     for port, name in PROBE_PORTS.items():
         try:
@@ -116,7 +135,11 @@ def probe_protocols(ip: str, timeout: float = 1.0) -> list[str]:
 
 
 def correlate(assets: dict[str, Asset], inventory, topo: Topology | None) -> dict:
-    """关联分析：资产 vs 清单（已知/新增）+ 链路数 + 厂商分布。"""
+    """关联分析：资产与设备清单比对，判定 已知/新增。
+
+    匹配规则：资产 IP 在清单 host 中，或资产主机名在清单 hostname 中 → 已知。
+    :return: {"known", "new", "links", "by_vendor", "link_list"}
+    """
     inv_hosts = {d.host for d in inventory.devices}
     inv_names = {d.hostname for d in inventory.devices if d.hostname}
     known = new = 0

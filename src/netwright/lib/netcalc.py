@@ -83,7 +83,8 @@ def calc_subnet(cidr: str) -> SubnetInfo:
     if not isinstance(net, ipaddress.IPv4Network):
         raise ValueError("当前仅支持 IPv4")
 
-    # 可用主机范围：直接按整数计算，绝不物化地址列表（/8 有 1600 万个地址）
+    # 可用主机范围：直接按整数计算，绝不物化地址列表——
+    # /8 网段有 1600 万个地址，list(net.hosts()) 曾导致 OOM 级内存消耗（历史 bug）
     if net.prefixlen < 31:
         first = ipaddress.IPv4Address(int(net.network_address) + 1)
         last = ipaddress.IPv4Address(int(net.broadcast_address) - 1)

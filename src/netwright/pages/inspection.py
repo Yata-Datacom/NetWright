@@ -113,7 +113,6 @@ class InspectPage(Page):
             cb = ttk.Checkbutton(self.dev_list, text=f"{d.display_name} ({d.host}) · {VENDORS.get(d.vendor, d.vendor)}",
                                  variable=var, style="TCheckbutton")
             cb.pack(anchor="w", pady=1)
-            cb.configure(command=lambda k=key, v=var: None)
             self.dev_vars[key] = var
 
     def on_inventory_changed(self):

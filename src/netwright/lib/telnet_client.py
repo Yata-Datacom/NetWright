@@ -23,14 +23,18 @@ def _strip_iac(data: bytes) -> bytes:
                 out.append(IAC)       # 转义的双 0xFF = 字面 0xFF
                 i += 2
                 continue
-            i += 2                    # IAC + 命令（DO/DONT/WONT/WILL/SB）
-            # 跳过 SB 子协商直到 IAC SE
-            if i >= 2 and len(data) >= i and data[i - 1] in (250,):  # SB=250
+            if i + 1 >= len(data):
+                break
+            cmd = data[i + 1]
+            i += 2                    # 跳过 IAC + 命令
+            if cmd == 250:            # SB：子协商直到 IAC SE(240)
                 while i < len(data):
                     if data[i] == IAC and i + 1 < len(data) and data[i + 1] == 240:
                         i += 2
                         break
                     i += 1
+            elif 251 <= cmd <= 254:   # WILL/WONT/DO/DONT：还带 1 字节选项
+                i += 1
             continue
         out.append(b)
         i += 1

@@ -59,7 +59,17 @@ def _find_intf(line: str, mac: str) -> str:
 
 
 def parse_mac_table(text: str, device: str) -> list[MacRecord]:
-    """多厂商 MAC 表容错解析：每行取 MAC + 接口（VLAN 可选）。"""
+    """多厂商 MAC 表容错解析：每行取 MAC + 接口（VLAN 可选）。
+
+    解析策略：
+      * MAC 依次尝试 华为横线 / 思科点分 / 冒号 三种格式（广播 MAC 排除）；
+      * 接口 = 行内最后一个"字母开头且含数字"的 token（跳过 MAC 与纯数字 VLAN）；
+      * 同 (mac, device, intf) 去重。
+
+    :param text: MAC 表命令原始输出
+    :param device: 采集来源设备名（写入记录用于跨设备判定）
+    :return: MacRecord 列表
+    """
     out: list[MacRecord] = []
     seen: set[tuple[str, str, str]] = set()
     for line in text.splitlines():
@@ -88,6 +98,11 @@ def collect_records(device_outputs: list[tuple[str, str]]) -> list[MacRecord]:
 
 
 def find_loops(records: list[MacRecord]) -> list[LoopAlert]:
+    """环路判定：同机多口同一 MAC = critical；跨设备同 MAC = warning。
+
+    :param records: parse_mac_table 的输出（可来自多台设备）
+    :return: LoopAlert 列表（message 含设备/端口与处置建议）
+    """
     alerts: list[LoopAlert] = []
 
     # ① 同设备多端口同一 MAC（高危：典型环路）
@@ -119,7 +134,16 @@ def find_loops(records: list[MacRecord]) -> list[LoopAlert]:
 
 
 def diff_flapping(prev: list[MacRecord], curr: list[MacRecord]) -> list[LoopAlert]:
-    """两轮快照对比：同设备换口 / 跨设备迁移。"""
+    """两轮 MAC 快照对比：发现漂移。
+
+    两种形态分别告警：
+      * 同设备换口：prev[mac,dev]=intfA → curr[mac,dev]=intfB；
+      * 跨设备迁移：prev 在设备 A，curr 出现在设备 B。
+
+    :param prev: 上一轮记录列表
+    :param curr: 本轮记录列表
+    :return: LoopAlert 列表（kind=flap）
+    """
     prev_map = {(r.mac, r.device): r.intf for r in prev}
     curr_map = {(r.mac, r.device): r.intf for r in curr}
     alerts: list[LoopAlert] = []

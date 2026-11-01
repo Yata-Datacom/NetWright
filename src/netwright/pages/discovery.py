@@ -126,24 +126,27 @@ class DiscoveryPage(Page):
 
         def worker():
             outputs = []
+            raws = {}                       # 设备名 → MAC 表原始输出（供下轮 diff）
             for i, d in enumerate(devices, 1):
                 try:
                     from netwright.lib import ssh_client as _ssh
-                    outs = _ssh.ssh_client.run_commands(
+                    outs = _ssh.run_commands(
                         d, [loopdetect.MAC_COMMANDS[d.vendor]], timeout=15)
                     text = chr(10).join(o for _t, _c, o, _e in outs)
                     outputs.append((d.display_name, text))
+                    raws[d.display_name] = text
                 except Exception:
                     pass
                 self.app.after(0, lambda i=i, n=len(devices):
                                self.var_loop.set(f"采集 MAC 表… {i}/{n}"))
-            prev = hist.load_snapshot("mac").get("records", [])
+            prev_snap = hist.load_snapshot("mac")
+            prev = loopdetect.collect_records(
+                [(name, text) for name, text in prev_snap.get("raws", {}).items()])
             curr = loopdetect.collect_records(outputs)
             alerts = loopdetect.find_loops(curr)
-            alerts += loopdetect.diff_flapping(
-                loopdetect.collect_records([(r["device"], r["raw"]) for r in prev]),
-                curr) if prev else []
-            self.app.after(0, lambda: self._loop_done(curr, alerts))
+            if prev:
+                alerts += loopdetect.diff_flapping(prev, curr)
+            self.app.after(0, lambda: self._loop_done(curr, alerts, raws))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -180,7 +183,6 @@ class DiscoveryPage(Page):
             mb.showinfo(f"环路线索 · {a.mac}", msg)
 
     def _refresh_seeds(self):
-        self.app.inventory.devices and None
         seeds = [f"{d.display_name} ({d.host})" for d in self.app.inventory.devices]
         self.seed_map = {f"{d.display_name} ({d.host})": d
                          for d in self.app.inventory.devices}
