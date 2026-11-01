@@ -3,6 +3,29 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.7.0] - 2026-11-01
+
+### Changed（UI 换肤第 2 步：全局 Token + 壳层）
+- **theme.py 重写为云控制台规范令牌**：色彩语义化
+  （primary #2570F2 / success #10B981 / warning #F59E0B / danger #EF4444 /
+  text #1F2329 / text-secondary #646A73 / border #DEE0E3 / bg #F5F7FA /
+  surface #FFFFFF），明/暗双模式 + 4 主色可选（蓝/绿/紫/橙）；
+  间距常量 SPACE（8px 网格）；字阶（12/14/16/20/24px→pt 映射）。
+- **壳层扁平化**：56px 顶栏（☰ 折叠 + 品牌 + 页面标题 + 状态/时钟 + 主题/壁纸菜单，
+  纯 surface 底）；侧栏 240px 可折叠至 64px（图标模式），选中态 = soft 底 +
+  3px 主色指示条 + 主色文字，hover = panel_alt；装饰性渐变全部退役
+  （GradientFrame 组件保留不再使用）。
+- **表格行高 40px**（规范 40-44px）；主题菜单改为 ☀/🌙 模式切换 + 主色选择。
+
+### Added
+- widgets 新组件：Tag（状态标签，soft 底 + 强色字 + 文字标签）、Skeleton（骨架屏）、
+  Toast（右下角应用内通知）、Drawer（右侧抽屉 480/560px）、ScrollFrame（内部滚动）。
+- WButton 升级：primary/ghost 语义自动配色（accent_deep 底白字，WCAG AA 达标）。
+
+### Tests
+- 100 项 pytest（主题冒烟改为明暗×4主色遍历；对比度回归改为扁平顶栏
+  fg/header 与 white/accent_deep ≥4.5:1）。
+
 ## [3.6.0] - 2026-11-01
 
 ### Added

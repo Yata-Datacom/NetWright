@@ -29,9 +29,9 @@ from netwright.lib.inventory import Inventory  # noqa: E402
 from netwright.lib.settings import load_settings, save_settings  # noqa: E402
 from netwright.pages import PAGE_REGISTRY  # noqa: E402
 from netwright.theme import (  # noqa: E402
-    FONT_SMALL, THEMES, setup_ttk, theme,
+    FONT_SMALL, PRIMARY_HUES, setup_ttk, theme,
 )
-from netwright.widgets import GradientFrame, _lerp, draw_wallpaper  # noqa: E402
+from netwright.widgets import _lerp, draw_wallpaper  # noqa: E402
 
 
 class NetWrightApp(tk.Tk):
@@ -45,7 +45,8 @@ class NetWrightApp(tk.Tk):
 
         # ── 设置（含主题记忆）──
         self.settings = load_settings(BASE_DIR)
-        theme.use(self.settings.get("theme", theme.name))
+        theme.use_mode(self.settings.get("theme_mode", "light"),
+                       self.settings.get("theme_hue", "蓝"))
         self.configure(bg=theme.bg)
         self.option_add("*Font", ("Microsoft YaHei UI", 10))
         setup_ttk(self)
@@ -71,66 +72,58 @@ class NetWrightApp(tk.Tk):
         self._apply_wallpaper()
         self.show(self.settings.get("last_page", "dashboard"))
 
-    # ── 界面装配（主题切换时整体重建）───────────────────────────────
+    # ── 界面装配（56px 扁平顶栏 + ☰ 折叠 + 主题/主色/壁纸菜单）──────
     def _build_chrome(self):
-        """顶栏：品牌渐变画布，文字直接绘制在渐变上（无实底色块）。"""
-        self.top = GradientFrame(self, theme.header1, theme.header2, "h", height=58)
+        self.top = tk.Frame(self, bg=theme.header1, height=56)
         self.top.pack(fill=tk.X)
         self.top.pack_propagate(False)
-        self.top.bind("<Configure>", lambda e: self._paint_header())
 
         self.var_status = tk.StringVar(value="就绪")
         self.var_clock = tk.StringVar(value="")
-        self._paint_header()
+        self.var_ptitle = tk.StringVar(value="")
 
-        # 🎨 配色 / 🖼 壁纸：放在渐变最暗端（右侧），底色与渐变末端一致
-        self.mb_theme = tk.Menubutton(self.top, text="🎨 配色", bg=theme.header2,
-                                      fg="white", relief=tk.FLAT, font=FONT_SMALL,
-                                      activebackground=theme.accent, cursor="hand2")
+        tk.Button(self.top, text="☰", bg=theme.header1, fg=theme.muted,
+                  relief=tk.FLAT, font=("", 12), width=3, cursor="hand2",
+                  command=self.toggle_nav).pack(side=tk.LEFT, padx=(4, 0))
+        tk.Label(self.top, text="NetWright", bg=theme.header1, fg=theme.fg,
+                 font=("", 12, "bold")).pack(side=tk.LEFT)
+        tk.Label(self.top, textvariable=self.var_ptitle, bg=theme.header1,
+                 fg=theme.muted, font=FONT_SMALL).pack(side=tk.LEFT, padx=(12, 0))
+        tk.Label(self.top, textvariable=self.var_clock, bg=theme.header1,
+                 fg=theme.muted, font=FONT_SMALL).pack(side=tk.RIGHT, padx=12)
+        tk.Label(self.top, textvariable=self.var_status, bg=theme.header1,
+                 fg=theme.muted, font=FONT_SMALL).pack(side=tk.RIGHT, padx=12)
+
+        self.mb_theme = tk.Menubutton(self.top, text="🎨 主题", bg=theme.header1,
+                                      fg=theme.muted, relief=tk.FLAT, font=FONT_SMALL,
+                                      activebackground=theme.panel,
+                                      activeforeground=theme.fg, cursor="hand2")
         menu = tk.Menu(self.mb_theme, tearoff=0, font=FONT_SMALL)
-        for name in THEMES:
-            menu.add_command(label=name,
-                             command=lambda n=name: self.apply_theme(n))
+        mode_label = "🌙 深色模式" if theme.mode == "light" else "☀️ 浅色模式"
+        menu.add_command(label=mode_label,
+                         command=lambda: self.apply_theme(
+                             "dark" if theme.mode == "light" else "light", theme.hue))
         menu.add_separator()
-        menu.add_command(label=f"✓ 当前：{theme.name}", state=tk.DISABLED)
+        for hue in PRIMARY_HUES:
+            mark = "●" if hue == theme.hue else "○"
+            menu.add_command(label=f"{mark} {hue}色主色",
+                             command=lambda h=hue: self.apply_theme(theme.mode, h))
+        menu.add_separator()
+        menu.add_command(label=f"✓ 当前：{'深色' if theme.mode == 'dark' else '浅色'} · {theme.hue}色",
+                         state=tk.DISABLED)
         self.mb_theme["menu"] = menu
-        self.mb_theme.place(relx=1.0, x=-260, rely=0.5, anchor="e")
+        self.mb_theme.pack(side=tk.RIGHT, padx=(0, 10))
 
-        self.mb_wall = tk.Menubutton(self.top, text="🖼 壁纸", bg=theme.header2,
-                                     fg="white", relief=tk.FLAT, font=FONT_SMALL,
-                                     activebackground=theme.accent, cursor="hand2")
+        self.mb_wall = tk.Menubutton(self.top, text="🖼 壁纸", bg=theme.header1,
+                                     fg=theme.muted, relief=tk.FLAT, font=FONT_SMALL,
+                                     activebackground=theme.panel,
+                                     activeforeground=theme.fg, cursor="hand2")
         wall_menu = tk.Menu(self.mb_wall, tearoff=0, font=FONT_SMALL)
         wall_menu.add_command(label="上传壁纸…", command=self.upload_wallpaper)
-        wall_menu.add_command(label="清除壁纸（恢复渐变）", command=lambda: self.set_wallpaper(None))
+        wall_menu.add_command(label="清除壁纸（恢复纯色）",
+                              command=lambda: self.set_wallpaper(None))
         self.mb_wall["menu"] = wall_menu
-        self.mb_wall.place(relx=1.0, x=-150, rely=0.5, anchor="e")
-
-        # 状态/时钟文字变化时重绘头部文字层
-        self.var_status.trace_add("write", lambda *_: self._paint_header_text())
-        self.var_clock.trace_add("write", lambda *_: self._paint_header_text())
-        self._tick_clock()
-
-    def _paint_header(self):
-        """绘制顶栏静态部分（品牌区）。"""
-        c = self.top
-        c.delete("brand")
-        c.create_text(24, 29, text="⛏", fill="white", font=("", 15), tags="brand")
-        c.create_text(58, 29, text="NetWright", fill="white", anchor="w",
-                      font=("", 14, "bold"), tags="brand")
-        c.create_text(160, 30, text="网络工程师工作台", fill="#d7e2f5",
-                      font=FONT_SMALL, anchor="w", tags="brand")
-
-    def _paint_header_text(self):
-        """绘制/刷新顶栏右侧的状态与时钟文字。"""
-        if not self.top.winfo_exists():
-            return
-        self.top.delete("status")
-        w = max(self.top.winfo_width(), 400)
-        self.top.create_text(w - 300, 29, text=self.var_status.get(), fill="white",
-                             font=FONT_SMALL, anchor="e", tags="status")
-        self.top.create_text(w - 20, 29, text=self.var_clock.get(), fill="#c9d6ee",
-                             font=FONT_SMALL, anchor="e", tags="status")
-
+        self.mb_wall.pack(side=tk.RIGHT, padx=(0, 4))
 
     def upload_wallpaper(self):
         from tkinter import filedialog
@@ -145,7 +138,7 @@ class NetWrightApp(tk.Tk):
         main = tk.Frame(self, bg=theme.bg)
         self.main_frame = main
         main.pack(fill=tk.BOTH, expand=True)
-        self.rail = tk.Canvas(main, width=172, highlightthickness=0, bd=0,
+        self.rail = tk.Canvas(main, width=240, highlightthickness=0, bd=0,
                               bg=theme.nav1)
         self.rail.pack(side=tk.LEFT, fill=tk.Y)
         self.container = tk.Frame(main, bg=theme.bg)
@@ -170,7 +163,7 @@ class NetWrightApp(tk.Tk):
         rail = self.rail
         if not rail.winfo_exists():
             return
-        w = max(rail.winfo_width(), 172)
+        w = max(rail.winfo_width(), 240)
         h = max(rail.winfo_height(), 600)
         size = (w, h)
         wp = self.settings.get("wallpaper") if hasattr(self, "settings") else ""
@@ -189,36 +182,54 @@ class NetWrightApp(tk.Tk):
             self._nav_bg_size = size
             self._nav_bg_wp = wp
         rail.delete("items")
+        collapsed = getattr(self, "nav_collapsed", False)
         y = 12
-        rail.create_text(14, y, text="工 作 区", anchor="w", fill=theme.muted,
-                         font=FONT_SMALL, tags="items")
-        y += 34
+        if not collapsed:
+            rail.create_text(14, y, text="工 作 区", anchor="w", fill=theme.muted,
+                             font=FONT_SMALL, tags="items")
+            y += 34
         for key, (name, icon, _cls) in PAGE_REGISTRY.items():
             active = key == getattr(self, "_active_key", "")
             hover = key == getattr(self, "_hover_key", "")
             if active:
-                rail.create_rectangle(8, y - 4, w - 8, y + 30,
-                                      fill=theme.accent_deep, outline="", width=0,
+                rail.create_rectangle(8 if not collapsed else 10, y - 4,
+                                      w - 8 if not collapsed else w - 10, y + 34,
+                                      fill=theme.accent_soft, outline="", width=0,
+                                      tags="items")
+                rail.create_rectangle(0, y - 4, 3, y + 34,
+                                      fill=theme.accent, outline="", width=0,
                                       tags="items")
             elif hover:
-                rail.create_rectangle(8, y - 4, w - 8, y + 30,
-                                      fill=_lerp(theme.nav1, "#ffffff", 0.10),
-                                      outline="", width=0, tags="items")
-            fg = "#ffffff" if active or hover else theme.muted
-            rail.create_text(18, y + 12, text=f"{icon}  {name}", anchor="w",
-                             fill=fg,
-                             font=("Microsoft YaHei UI", 11,
-                                   "bold" if active else "normal"),
-                             tags=("items", f"nav:{key}"))
+                rail.create_rectangle(8 if not collapsed else 10, y - 4,
+                                      w - 8 if not collapsed else w - 10, y + 34,
+                                      fill=theme.panel_alt, outline="", width=0,
+                                      tags="items")
+            if collapsed:
+                rail.create_text(w / 2, y + 14, text=icon, fill=theme.fg if active
+                                 else theme.muted, font=("", 14),
+                                 tags=("items", f"nav:{key}"))
+            else:
+                fg = theme.accent if active else theme.muted
+                rail.create_text(18, y + 12, text=f"{icon}  {name}", anchor="w",
+                                 fill=fg,
+                                 font=("Microsoft YaHei UI", 11,
+                                       "bold" if active else "normal"),
+                                 tags=("items", f"nav:{key}"))
             self._nav_rects[key] = y
-            y += 38
+            y += 40
         rail.create_text(w / 2, h - 22, text=f"v{__version__}", fill=theme.muted,
                          font=FONT_SMALL, tags="items")
         rail.tag_lower("bg")
 
+    def toggle_nav(self):
+        """侧栏折叠 240 ↔ 64。"""
+        self.nav_collapsed = not getattr(self, "nav_collapsed", False)
+        self.rail.config(width=64 if self.nav_collapsed else 240)
+        self._repaint_nav(full=True)
+
     def _nav_hit(self, y: int) -> str | None:
         for key, top in self._nav_rects.items():
-            if top - 6 <= y <= top + 32:
+            if top - 6 <= y <= top + 38:
                 return key
         return None
 
@@ -250,9 +261,12 @@ class NetWrightApp(tk.Tk):
         self._active_key = key
         self._repaint_nav()
 
-    def apply_theme(self, name: str):
-        theme.use(name)
-        self.settings["theme"] = name
+    def apply_theme(self, mode_or_name: str, hue: str | None = None):
+        mode = mode_or_name if mode_or_name in ("light", "dark") else (
+            "light" if ("浅" in mode_or_name or "亮" in mode_or_name) else "dark")
+        theme.use_mode(mode, hue)
+        self.settings["theme_mode"] = theme.mode
+        self.settings["theme_hue"] = theme.hue
         save_settings(self.settings, BASE_DIR)
         setup_ttk(self)
         self.configure(bg=theme.bg)
@@ -279,7 +293,7 @@ class NetWrightApp(tk.Tk):
         if old_divider is not None:
             old_divider.destroy()
         self.show(self._active_key)
-        self.set_status(f"配色已切换：{name}")
+        self.set_status(f"配色已切换：{theme.mode} · {theme.hue}色")
 
     # ── 工作区切换 ─────────────────────────────────────────────────
     def show(self, key: str):

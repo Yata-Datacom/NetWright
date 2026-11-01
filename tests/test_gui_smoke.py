@@ -8,7 +8,7 @@ from netwright.pages import PAGE_REGISTRY
 
 def theme_current():
     from netwright.theme import theme
-    return theme.name
+    return theme.mode
 
 
 def test_smoke_pass1_all_pages_cycle(app):
@@ -91,15 +91,13 @@ def test_smoke_rest_api_lifecycle(app):
     assert not api.running
 
 def test_smoke_theme_switch_all_schemes(app):
-    """主题系统：6 套配色逐个切换（界面整体重建），令牌与模式正确。"""
-    from netwright.theme import THEMES
-
-    for name, tokens in THEMES.items():
-        app.apply_theme(name)
-        assert theme_current() == name
-        assert app.cget("bg") == tokens["bg"]
-        # 重建后页面字典恢复，可继续切换
-        assert len(app.pages) == len(PAGE_REGISTRY)
+    """主题冒烟：明暗双模式 + 4 主色逐个切换（界面重建不崩）。"""
+    for mode in ("light", "dark"):
+        for hue in ("蓝", "绿", "紫", "橙"):
+            app.apply_theme(mode, hue)
+            assert theme_current() == mode
+    for key in PAGE_REGISTRY:
+        app.show(key)
 
 
 def test_smoke_theme_switch_no_layout_leak(app):
@@ -114,10 +112,10 @@ def test_smoke_theme_switch_no_layout_leak(app):
 
 def test_smoke_theme_light_tokens(app):
     """亮色方案：切到亮色后 bg 为浅色（#f 开头）。"""
-    app.apply_theme("晴空 · 亮")
+    app.apply_theme("light", "蓝")
     from netwright.theme import theme as t
-    assert t.mode == "light" and t.bg.startswith("#f") and t.accent == "#0ea5e9"
-    app.apply_theme("深空蓝 · 暗")
+    assert t.mode == "light" and t.bg == "#F5F7FA" and t.accent == "#2570F2"
+    app.apply_theme("dark", "蓝")
     from netwright.theme import theme as t2
     assert t2.mode == "dark"
 
@@ -177,8 +175,7 @@ def test_smoke_controller_audit_viewer(app):
     assert "intent.apply" in text
 
 def test_header_contrast_all_themes():
-    """可读性回归：每个配色方案的顶栏渐变两端与白字对比度 ≥ 4.5:1。"""
-    from netwright.theme import THEMES
+    """可读性回归（扁平顶栏）：明暗两模式下 fg/header1 与 white/accent_deep ≥ 4.5:1。"""
 
     def luminance(hex_color: str) -> float:
         r, g, b = (int(hex_color[i:i+2], 16) / 255 for i in (1, 3, 5))
@@ -191,7 +188,10 @@ def test_header_contrast_all_themes():
         hi, lo = max(la, lb), min(la, lb)
         return (hi + 0.05) / (lo + 0.05)
 
-    for name, tokens in THEMES.items():
-        for key in ("header1", "header2", "accent_deep"):
-            ratio = contrast(tokens[key], "#ffffff")
-            assert ratio >= 4.5, f"{name}/{key} 白字对比度 {ratio:.2f} < 4.5"
+    from netwright.theme import Theme
+    for mode in ("light", "dark"):
+        tokens = Theme(mode).tokens
+        ratio_top = contrast(tokens["fg"], tokens["header1"])
+        assert ratio_top >= 4.5, f"{mode} 顶栏文字对比度 {ratio_top:.2f} < 4.5"
+        ratio_deep = contrast("#ffffff", tokens["accent_deep"])
+        assert ratio_deep >= 4.5, f"{mode}/accent_deep 白字对比度 {ratio_deep:.2f} < 4.5"

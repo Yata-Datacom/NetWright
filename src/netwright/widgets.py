@@ -156,6 +156,142 @@ class WButton(tk.Button):
         super().__init__(master, **kw)
 
 
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 云控制台规范组件（Tag / Skeleton / Toast / Drawer / ScrollFrame）
+# ══════════════════════════════════════════════════════════════════════
+
+class Tag(tk.Label):
+    """状态标签：soft 底 + 强色字 + 文字标签（不只靠颜色区分）。"""
+
+    KINDS = {
+        "ok": ("success_soft", "success", "✓ 正常"),
+        "success": ("success_soft", "success", "✓ 成功"),
+        "warn": ("warn_soft", "warn", "▲ 待复核"),
+        "error": ("err_soft", "err", "✖ 失败"),
+        "info": ("accent_soft", "accent", "ℹ 信息"),
+        "new": ("warn_soft", "warn", "★ 新增"),
+        "known": ("success_soft", "success", "✓ 已知"),
+        "online": ("success_soft", "success", "● 在线"),
+        "offline": ("neutral_soft", "muted", "○ 离线"),
+    }
+
+    def __init__(self, master, text: str = "", kind: str = "info", **kw):
+        soft = getattr(theme, f"{self.KINDS.get(kind, ('accent_soft',))[0]}",
+                       theme.accent_soft)
+        strong = getattr(theme, self.KINDS.get(kind, ("", "accent"))[1], theme.accent)
+        default_text = self.KINDS.get(kind, ("", "", text))[2]
+        super().__init__(master, text=text or default_text, bg=soft, fg=strong,
+                         padx=8, pady=2, font=FONT_SMALL, **kw)
+
+    def set_kind(self, text: str, kind: str):
+        soft = getattr(theme, f"{self.KINDS.get(kind, ('accent_soft',))[0]}",
+                       theme.accent_soft)
+        strong = getattr(theme, self.KINDS.get(kind, ("", "accent"))[1], theme.accent)
+        self.config(text=text, bg=soft, fg=strong)
+
+
+class Skeleton(tk.Frame):
+    """加载骨架屏：若干灰色占位条，模拟内容块。"""
+
+    def __init__(self, master, rows: int = 4, width: int = 0):
+        super().__init__(master, bg=theme.panel)
+        self._bars: list[tk.Frame] = []
+        for i in range(rows):
+            w = width or (260 - i * 30)
+            bar = tk.Frame(self, bg=theme.panel_alt, height=14)
+            bar.pack(anchor="w", padx=16, pady=8, fill=tk.X)
+            self._bars.append(bar)
+
+    @staticmethod
+    def attach(parent, rows: int = 4) -> "Skeleton":
+        sk = Skeleton(parent, rows=rows)
+        sk.pack(fill=tk.X, padx=10, pady=10)
+        return sk
+
+    def destroy(self):  # noqa: D102
+        super().destroy()
+
+
+class Toast(tk.Toplevel):
+    """应用内通知（右下角，自动消失）——替代成功/提示类 messagebox。"""
+
+    KIND_BG = {"ok": "success", "err": "danger", "warn": "warn", "info": "accent"}
+    KIND_ICON = {"ok": "✓", "err": "✖", "warn": "▲", "info": "ℹ"}
+
+    def __init__(self, app, text: str, kind: str = "info", ms: int = 2600):
+        super().__init__(app)
+        self.overrideredirect(True)
+        bg = getattr(theme, self.KIND_BG.get(kind, "accent"))
+        fg = "#ffffff" if kind != "warn" else "#1c1200"
+        tk.Label(self, text=f" {self.KIND_ICON.get(kind, '')} {text} ",
+                 bg=bg, fg=fg, font=FONT, padx=16, pady=10).pack()
+        self.update_idletasks()
+        x = app.winfo_x() + app.winfo_width() - self.winfo_width() - 24
+        y = app.winfo_y() + app.winfo_height() - self.winfo_height() - 44
+        self.geometry(f"+{x}+{y}")
+        self.after(ms, self.destroy)
+
+
+def toast(app, text: str, kind: str = "info", ms: int = 2600) -> None:
+    try:
+        Toast(app, text, kind, ms)
+    except tk.TclError:
+        pass
+
+
+class Drawer(tk.Toplevel):
+    """右侧抽屉（480/560px）：编辑表单/详情首选容器。
+
+    用法：Drawer(parent, title, width)；内容放 self.body；close() 关闭。
+    """
+
+    def __init__(self, parent, title: str, width: int = 480):
+        super().__init__(parent)
+        self.title(title)
+        self.configure(bg=theme.panel)
+        self.transient(parent)
+        parent_x = parent.winfo_x()
+        parent_w = parent.winfo_width()
+        parent_h = parent.winfo_height()
+        w = width if width in (480, 560) else 480
+        h = max(480, int(parent_h * 0.92))
+        x = parent_x + parent_w - w - 12
+        y = parent.winfo_y() + 30
+        self.geometry(f"{w}x{h}+{x}+{y}")
+        self.body = tk.Frame(self, bg=theme.panel)
+        self.body.pack(fill=tk.BOTH, expand=True, padx=16, pady=12)
+        self.protocol("WM_DELETE_WINDOW", self.close)
+        self.bind("<Escape>", lambda e: self.close())
+
+    def close(self):
+        self.destroy()
+
+
+class ScrollFrame(tk.Frame):
+    """纵向滚动容器：内容放 self.inner（业务控件包一层即可内部滚动）。"""
+
+    def __init__(self, master, **kw):
+        super().__init__(master, bg=theme.bg, **kw)
+        self.canvas = tk.Canvas(self, bg=theme.bg, highlightthickness=0)
+        self.vsb = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.vsb.set)
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.vsb.pack(side=tk.RIGHT, fill=tk.Y)
+        self.inner = tk.Frame(self.canvas, bg=theme.bg)
+        self._win = self.canvas.create_window((0, 0), window=self.inner, anchor="nw")
+        self.inner.bind("<Configure>", self._on_inner)
+        self.canvas.bind("<Configure>", self._on_canvas)
+
+    def _on_inner(self, _e):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _on_canvas(self, e):
+        self.canvas.itemconfigure(self._win, width=e.width)
+
+
+
 def stat_card(parent, title: str, desc: str, command=None) -> tk.Label:
     """总览统计卡：顶部强调条 + 大数字（返回数字 Label 供刷新）+ 打开按钮。"""
     card = tk.Frame(parent, bg=theme.panel,
