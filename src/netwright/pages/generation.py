@@ -49,14 +49,14 @@ class GeneratePage(Page):
         pane.add(left)
         tk.Label(left, text="设备参数表（CSV：首行 = 模板变量名）", bg=theme.panel, fg=theme.muted,
                  font=("", 9)).pack(anchor="w", padx=10, pady=(8, 2))
-        self.table_text = tk.Text(left, bg="#0a1526", fg=theme.fg, relief=tk.FLAT, font=FONT_MONO,
+        self.table_text = tk.Text(left, bg=theme.code_bg, fg=theme.fg, relief=tk.FLAT, font=FONT_MONO,
                                   insertbackground=theme.fg, wrap=tk.NONE)
         self.table_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
 
         right = tk.Frame(pane, bg=theme.panel)
         pane.add(right)
         tk.Label(right, text="模板预览", bg=theme.panel, fg=theme.muted, font=("", 9)).pack(anchor="w", padx=10, pady=(8, 2))
-        self.tpl_text = tk.Text(right, bg="#0a1526", fg=theme.muted, relief=tk.FLAT, font=FONT_MONO,
+        self.tpl_text = tk.Text(right, bg=theme.code_bg, fg=theme.muted, relief=tk.FLAT, font=FONT_MONO,
                                 insertbackground=theme.fg, wrap=tk.NONE)
         self.tpl_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         self._apply_vendor_filter()   # 控件就绪后再填充模板（顺序不能提前）

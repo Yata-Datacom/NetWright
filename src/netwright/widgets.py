@@ -199,9 +199,12 @@ class Skeleton(tk.Frame):
         super().__init__(master, bg=theme.panel)
         self._bars: list[tk.Frame] = []
         for i in range(rows):
-            w = width or (260 - i * 30)
             bar = tk.Frame(self, bg=theme.panel_alt, height=14)
-            bar.pack(anchor="w", padx=16, pady=8, fill=tk.X)
+            if width:
+                bar.configure(width=width)
+                bar.pack(anchor="w", padx=16, pady=8)
+            else:
+                bar.pack(anchor="w", padx=16, pady=8, fill=tk.X)
             self._bars.append(bar)
 
     @staticmethod

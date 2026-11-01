@@ -10,7 +10,7 @@ from netwright.lib import HAS_SSH, inspector
 from netwright.lib.inventory import VENDORS
 from netwright.theme import FONT_MONO, theme
 from netwright.lib import history as hist
-from netwright.widgets import (Page, page_header, WButton, draw_line_chart)
+from netwright.widgets import Page, page_header, WButton, toast, zebra, draw_line_chart
 
 
 def header(title, desc, page):
@@ -93,7 +93,7 @@ class InspectPage(Page):
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree.bind("<<TreeviewSelect>>", self._show_detail)
-        self.detail = tk.Text(right, bg="#0a1526", fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, height=12,
+        self.detail = tk.Text(right, bg=theme.code_bg, fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, height=12,
                               insertbackground=theme.fg)
         self.detail.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         self.results: list[inspector.DeviceResult] = []
@@ -153,9 +153,19 @@ class InspectPage(Page):
         self.btn_run.config(state=tk.NORMAL)
         self.results = results
         self._scheme_name = scheme_name
+        status_icon = {"OK": "✓ 正常", "WARNING": "▲ 告警", "FAILED": "✖ 失败",
+                       "UNREACHABLE": "○ 不可达"}
+        self.tree.tag_configure("st-ok", foreground=theme.ok)
+        self.tree.tag_configure("st-warn", foreground=theme.warn)
+        self.tree.tag_configure("st-fail", foreground=theme.err)
+        self.tree.tag_configure("st-un", foreground=theme.muted)
         for i, r in enumerate(results):
+            tag = {"OK": "st-ok", "WARNING": "st-warn", "FAILED": "st-fail",
+                   "UNREACHABLE": "st-un"}[r.status]
             self.tree.insert("", "end", iid=str(i), values=(
-                r.host, r.status, r.critical_count, len(r.anomalies), f"{r.cost_ms} ms"))
+                r.host, status_icon[r.status], r.critical_count, len(r.anomalies),
+                f"{r.cost_ms} ms"), tags=(tag,))
+            zebra(self.tree, str(i), i)
         summary = " ".join(f"{k}:{v}" for k, v in sorted(
             {s: sum(1 for r in results if r.status == s)
              for s in {r.status for r in results}}.items()))
@@ -165,6 +175,8 @@ class InspectPage(Page):
             self.app.set_status("已跳过: " + "、".join(skipped[:5]) + ("…" if len(skipped) > 5 else ""))
         if results:
             self.tree.selection_set("0")
+            toast(self.app, f"巡检完成：{summary}", "ok" if "WARNING" not in summary
+                  and "FAILED" not in summary else "warn")
         # 趋势数据落盘（每轮巡检一条摘要）
         hist.append_history("inspection", {
             "scheme": scheme_name,

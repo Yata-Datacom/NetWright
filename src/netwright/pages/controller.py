@@ -9,7 +9,7 @@ from netwright.lib.controller import deploy as deploy_mod
 from netwright.lib.controller import intents as intents_mod
 from netwright.lib.inventory import VENDORS
 from netwright.theme import FONT_MONO, theme
-from netwright.widgets import (Page, page_header, WButton)
+from netwright.widgets import (Page, page_header, WButton, toast)
 
 
 def header(title, desc, page):
@@ -45,7 +45,7 @@ class ControllerPage(Page):
         self.btn_discover.pack(side=tk.LEFT)
         self.var_topo = tk.StringVar(value="尚未发现")
         tk.Label(bar, textvariable=self.var_topo, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.LEFT, padx=10)
-        self.canvas = tk.Canvas(tab, bg="#0a1526", highlightthickness=0)
+        self.canvas = tk.Canvas(tab, bg=theme.code_bg, highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
         self.canvas.create_text(480, 300, text="点击上方按钮开始发现拓扑\n（需要设备已开启 LLDP/CDP 且可 SSH 登录）",
                                 fill=theme.muted, font=("", 11), tags="placeholder")
@@ -105,15 +105,15 @@ class ControllerPage(Page):
                for i, n in enumerate(nodes)}
         for a, ai, b, bi in topo.undirected_edges():
             if a in pos and b in pos:
-                self.canvas.create_line(*pos[a], *pos[b], fill="#3b5c8a", width=2)
+                self.canvas.create_line(*pos[a], *pos[b], fill=theme.muted, width=2, dash=(6, 3))
                 mx, my = (pos[a][0] + pos[b][0]) / 2, (pos[a][1] + pos[b][1]) / 2
                 self.canvas.create_text(mx, my, text=f"{ai}↔{bi}", fill=theme.muted, font=("", 8))
         inv = {d.host: d for d in self.app.inventory.devices}
         for n, (x, y) in pos.items():
             dev = next((d for d in inv.values()
                         if (d.hostname or d.host) == n or d.host == n), None)
-            color = {"huawei": "#e74c3c", "h3c": "#3498db", "cisco": "#2ecc71",
-                     "ruijie": "#f39c12"}.get(dev.vendor if dev else "", "#8aa0bd")
+            from netwright.theme import VENDOR_COLORS
+            color = VENDOR_COLORS.get(dev.vendor if dev else "", theme.faint)
             self.canvas.create_oval(x - 14, y - 14, x + 14, y + 14, fill=color, outline="white", width=2)
             self.canvas.create_text(x, y + 26, text=n, fill=theme.fg, font=("", 9))
 
@@ -151,7 +151,7 @@ class ControllerPage(Page):
         self.var_intent = tk.StringVar(value="")
         tk.Label(btns, textvariable=self.var_intent, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)
 
-        self.preview = tk.Text(tab, bg="#0a1526", fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, height=18,
+        self.preview = tk.Text(tab, bg=theme.code_bg, fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, height=18,
                                insertbackground=theme.fg)
         self.preview.pack(fill=tk.BOTH, expand=True)
         self.preview.tag_config("dev", foreground=theme.accent, font=("", 10, "bold"))
@@ -215,7 +215,9 @@ class ControllerPage(Page):
         try:
             plan = deploy_mod.dry_run(key, intent, devices)
         except ValueError as e:
-            messagebox.showwarning("参数有误", str(e))
+            self.preview.delete("1.0", tk.END)
+            self.preview.insert(tk.END, f"✖ 参数错误：{e}", "dev")
+            toast(self.app, f"参数错误：{e}", "err")
             return
         self._last_plan = (key, intent)
         self.btn_apply.config(state=tk.NORMAL if plan["plan"] else tk.DISABLED)
@@ -256,6 +258,8 @@ class ControllerPage(Page):
         warn = sum(1 for r in result["results"] if r["status"] == "WARNING")
         fail = sum(1 for r in result["results"] if r["status"] == "FAILED")
         self.var_intent.set(f"下发完成：OK {ok} · 警告 {warn} · 失败 {fail}")
+        toast(self.app, f"意图下发完成：成功 {ok} / 警告 {warn} / 失败 {fail}",
+              "ok" if fail == 0 and warn == 0 else "warn")
         self.preview.insert(tk.END, "\n── 下发结果 ──\n", "dev")
         for r in result["results"]:
             mark = {"OK": "✓", "WARNING": "⚠", "FAILED": "✗"}.get(r["status"], "·")

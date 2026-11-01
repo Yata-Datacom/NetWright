@@ -66,6 +66,7 @@ _MODE_BASE = {
         "header1": "#FFFFFF", "header2": "#DEE0E3",
         "grad1": "#FFFFFF", "grad2": "#F5F7FA",
         "zebra": "#F7F9FC",
+        "code_bg": "#0a1526",
     },
     "dark": {
         "bg": "#14161A", "panel": "#1C1F26", "panel_alt": "#17191F",
@@ -79,6 +80,7 @@ _MODE_BASE = {
         "header1": "#1C1F26", "header2": "#2A2E37",
         "grad1": "#1C1F26", "grad2": "#14161A",
         "zebra": "#17191F",
+        "code_bg": "#0a1526",
     },
 }
 
@@ -131,6 +133,13 @@ class Theme:
         except KeyError as e:
             raise AttributeError(f"未知设计令牌: {key}") from e
 
+
+# 拓扑图厂商节点色板（数据可视化色，非 UI 装饰）
+VENDOR_COLORS = {
+    "huawei": "#e74c3c", "h3c": "#3498db", "cisco": "#2ecc71",
+    "ruijie": "#f39c12", "mikrotik": "#2980b9", "vyos": "#9b59b6",
+    "sonic": "#1abc9c", "linux": "#7f8c8d",
+}
 
 theme = Theme("light", "蓝")
 

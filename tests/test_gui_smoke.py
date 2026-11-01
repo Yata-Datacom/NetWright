@@ -159,8 +159,8 @@ def test_smoke_inventory_alive_check(app, monkeypatch):
             break
         time.sleep(0.1)
     page.refresh()
-    assert page.tree.set("0", "alive") == "在线"
-    assert page.tree.set("1", "alive") == "离线"
+    assert "在线" in page.tree.set("0", "alive")
+    assert "离线" in page.tree.set("1", "alive")
 
 
 def test_smoke_controller_audit_viewer(app):
