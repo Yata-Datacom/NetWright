@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 import sys
 
+import tkinter as tk
+
 import pytest
 
 pytest.importorskip("tkinter")
@@ -17,10 +19,18 @@ if SRC not in sys.path:
 
 @pytest.fixture(scope="module")
 def app():
-    """模块级单实例：构建一次主窗口，所有冒烟用例共用（避免反复创建 Tk）。"""
-    from netwright.app import NetWrightApp
+    """模块级单实例：构建一次主窗口，所有冒烟用例共用（避免反复创建 Tk）。
 
-    app = NetWrightApp()
+    无显示环境（如 Linux CI 无 X server）自动跳过整个模块。
+    """
+    try:
+        from netwright.app import NetWrightApp
+    except tk.TclError as e:
+        pytest.skip(f"GUI 不可用（无显示环境）: {e}")
+    try:
+        app = NetWrightApp()
+    except tk.TclError as e:
+        pytest.skip(f"GUI 不可用（无显示环境）: {e}")
     app.withdraw()
     yield app
     app.destroy()

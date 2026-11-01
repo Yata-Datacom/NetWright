@@ -86,7 +86,8 @@ def apply(intent_key: str, intent: dict, devices: list, timeout: float = 15.0,
             continue
         out = {"device": entry["device"], "status": "OK", "outputs": [], "error": ""}
         try:
-            for title, cmd, output, err in run_commands(dev, entry["commands"], timeout=timeout):
+            for _title, cmd, output, err in run_commands(dev, entry["commands"],
+                                                         timeout=timeout):
                 out["outputs"].append({"command": cmd, "output": output[:2000],
                                        "error": err})
                 if err:
@@ -124,7 +125,8 @@ def discover_topology(devices: list, timeout: float = 12.0, progress=None) -> "o
             continue
         try:
             parts = []
-            for title, cmd, output, err in ssh_client.run_commands(dev, cmds, timeout=timeout):
+            for _title, _cmd, output, _err in ssh_client.run_commands(dev, cmds,
+                                                                     timeout=timeout):
                 parts.append(output)
             outputs.append((dev.display_name, dev.vendor, "\n".join(parts)))
         except Exception:

@@ -4,13 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netwright"
-version = "3.0.0"
-description = "NetWright — vendor-neutral network engineer workbench (subnet calc, port scan, alive sweep, CLI cheat sheet, tool launcher)"
+version = "3.8.2"
+description = "NetWright — 独立的网络工程师工作台：设备清单 / 一键资产盘点 / 意图控制器 / SSH 批量巡检 / 配置生成（116 模板）/ 环路与漂移告警 / 趋势图"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Yata-Datacom" }]
 dependencies = ["paramiko>=3.4"]
+
+[project.urls]
+Homepage = "https://github.com/Yata-Datacom/NetWright"
+Changelog = "https://github.com/Yata-Datacom/NetWright/blob/main/CHANGELOG.md"
 
 [project.scripts]
 netwright = "netwright.app:main"

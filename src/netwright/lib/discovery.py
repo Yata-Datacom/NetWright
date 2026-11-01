@@ -239,8 +239,9 @@ def discover_from_seeds(devices: list, inventory, depth: int = 1,
     if probe:
         ips = [a.ip for a in assets.values() if a.ip and _is_private(a.ip)]
         with futures.ThreadPoolExecutor(max_workers=60) as ex:
-            for fut, ip in ((f, ip) for ip in ips
-                            for f in [ex.submit(probe_protocols, ip)]):
+            fut_map = {ex.submit(probe_protocols, ip): ip for ip in ips}
+            for fut in futures.as_completed(fut_map):
+                ip = fut_map[fut]
                 protocols = fut.result()
                 if protocols:
                     assets[ip].protocols = protocols

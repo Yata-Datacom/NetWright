@@ -22,7 +22,5 @@ jobs:
           pip install paramiko pytest ruff
       - name: Lint (ruff, core rules)
         run: ruff check --select E4,E7,E9,F src tests main.py
-      - name: Tests (GUI smoke 仅在有显示环境运行)
-        env:
-          NETWRIGHT_DATA_DIR: ${{ runner.temp }}
+      - name: Tests (GUI 冒烟在无显示环境自动跳过)
         run: pytest tests/ -v -o faulthandler_timeout=60
