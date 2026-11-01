@@ -149,7 +149,6 @@ def scan_ports(host: str, ports: list[int], workers: int = 200,
 
 def ping_host(ip: str, timeout_ms: int = 1000) -> PingResult:
     """用系统 ping 探测（Windows: ping -n 1 -w）。跨平台兼容 Linux/macOS。"""
-    import sys
     if sys.platform == "win32":
         cmd = ["ping", "-n", "1", "-w", str(timeout_ms), ip]
     else:
