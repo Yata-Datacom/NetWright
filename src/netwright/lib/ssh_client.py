@@ -18,6 +18,9 @@ def run_commands(device, commands: list[str], timeout: float = 15.0,
     :return: [(title, command, output, error)]；error 非空表示该命令失败。
     :raises Exception: 连接/认证失败时抛出（调用方转成 DeviceResult.error）。
     """
+    if getattr(device, "protocol", "ssh") == "telnet":
+        from .telnet_client import telnet_run_commands
+        return telnet_run_commands(device, commands, timeout=timeout)
     import time
 
     import paramiko

@@ -3,6 +3,22 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.5.0] - 2026-11-01
+
+### Added
+- **一键内网资产盘点**（资产盘点工作区）：种子设备 → LLDP/CDP 邻居 + ARP/MAC 表 →
+  内网 IP 汇总 → 管理协议探测（SSH/Telnet/NETCONF）→ 与清单关联（已知/新增/厂商分布）；
+  支持按跳数递归（凭据沿用种子设备）；进度条 + 结果表（来源标签）+ 拓扑图
+  （新发现黄色/已知绿色）+ 原始输出页 + 新增资产一键入清单。
+- **Telnet 接入**：轻量 Telnet 客户端（标准库实现，IAC 剥离/登录/静默窗口读），
+  Device 增加 protocol 字段（ssh/telnet），run_commands 按协议分发。
+- **台账自动建拓扑**：CSV 新增 协议/本端接口/对端设备/对端接口 列，导入自动生成
+  台账链路并持久化；控制器拓扑合并 LLDP（实线）∪ 台账（虚线）。
+
+### Tests
+- 88 项 pytest（ARP 三厂商解析/关联分析/盘点流程 mock/Telnet IAC 剥离/
+  协议分发/台账建拓扑）。
+
 ## [3.4.0] - 2026-11-01
 
 ### Changed

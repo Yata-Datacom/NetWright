@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "devices": [
     {
       "host": "192.0.2.1",
@@ -8,6 +8,7 @@
       "username": "",
       "password": "",
       "hostname": "A",
+      "protocol": "ssh",
       "note": ""
     },
     {
@@ -17,7 +18,9 @@
       "username": "",
       "password": "",
       "hostname": "B",
+      "protocol": "ssh",
       "note": ""
     }
-  ]
+  ],
+  "links": []
 }

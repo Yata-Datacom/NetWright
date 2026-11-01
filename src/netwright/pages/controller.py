@@ -70,10 +70,24 @@ class ControllerPage(Page):
 
     def _topo_done(self, topo):
         self.btn_discover.config(state=tk.NORMAL)
-        self.app.controller_state.topology = topo
-        edges = topo.undirected_edges()
-        self.var_topo.set(f"{len(topo.nodes)} 台设备 · {len(edges)} 条链路")
-        self._draw_topology(topo)
+        # 合并台账链路（虚线）：从清单 links 生成
+        ledger = []
+        names = {d.host: (d.hostname or d.host) for d in self.app.inventory.devices}
+        for lk in self.app.inventory.links:
+            a = names.get(lk.device_host, lk.device_host)
+            b = names.get(lk.peer_host, lk.peer_host)
+            ledger.append((a, lk.local_intf, b, lk.peer_intf))
+        from netwright.lib.controller.topology import Topology, Link
+        merged = Topology(nodes=topo.nodes, links=topo.links)
+        for a, li, b, pi in ledger:
+            merged.nodes.update([a, b])
+            merged.links.append(Link(a, li, b, pi))
+        self.app.controller_state.topology = merged
+        edges = merged.undirected_edges()
+        ledger_keys = {tuple(sorted((a, b))) for a, _li, b, _pi in ledger}
+        self.var_topo.set(f"{len(merged.nodes)} 台设备 · {len(edges)} 条链路"
+                          f"（含台账 {len(ledger)} 条）")
+        self._draw_topology(merged, ledger_keys)
 
     def _draw_topology(self, topo):
         import math

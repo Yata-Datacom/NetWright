@@ -41,6 +41,7 @@ class Device:
     username: str = ""
     password: str = ""          # 内存中始终是明文；落盘时经 secrets.protect
     hostname: str = ""          # 显示名，可空
+    protocol: str = "ssh"       # 接入协议：ssh / telnet
     note: str = ""
 
     @property
@@ -65,12 +66,21 @@ class Device:
         )
 
 
+@dataclass
+class LedgerLink:
+    device_host: str        # 本端设备（host）
+    local_intf: str         # 本端接口
+    peer_host: str          # 对端设备名/host
+    peer_intf: str          # 对端接口
+
+
 class Inventory:
-    """设备清单（内存 + 磁盘）。"""
+    """设备清单（内存 + 磁盘）：设备 + 台账链路。"""
 
     def __init__(self, path: str | None = None):
         self.path = path or os.path.join(_base_dir(), FILENAME)
         self.devices: list[Device] = []
+        self.links: list[LedgerLink] = []
         self.load()
 
     # ── CRUD ──
@@ -110,7 +120,8 @@ class Inventory:
         return [d for d in self.devices if d.vendor == vendor]
 
     # ── 批量导入（CSV 文本：host,port,vendor,username,password,hostname,note）──
-    def import_csv(self, text: str, replace: bool = False) -> tuple[int, list[str]]:
+    def import_csv(self, text: str, replace: bool = False,
+                   build_links: bool = True) -> tuple[int, list[str]]:
         """返回 (导入数, 警告列表)。表头行自动识别（host 或 地址 开头）。"""
         import csv
         import io
@@ -143,16 +154,28 @@ class Inventory:
                 port = int(get("port") or 22)
             except ValueError:
                 port = 22
+            protocol = (get("protocol") or get("协议") or "ssh").strip().lower()
+            if protocol not in ("ssh", "telnet"):
+                protocol = "ssh"
             dev = Device(host=host, port=port, vendor=vendor,
                          username=get("username") or get("用户名"),
                          password=get("password") or get("密码"),
                          hostname=get("hostname") or get("名称"),
+                         protocol=protocol,
                          note=get("note") or get("备注"))
             if self.find(dev.host, dev.port):
                 warnings.append(f"第 {n} 行 {dev.host}:{dev.port} 已存在，跳过")
                 continue
             self.devices.append(dev)
             added += 1
+            # 台账拓扑：本端接口 + 对端设备/接口（可选列）
+            local_intf = get("local_intf") or get("本端接口")
+            peer_dev = get("peer_device") or get("对端设备")
+            peer_intf = get("peer_intf") or get("对端接口")
+            if local_intf and peer_dev and build_links:
+                self.links.append(LedgerLink(
+                    device_host=host, local_intf=local_intf,
+                    peer_host=peer_dev, peer_intf=peer_intf))
         if added:
             self.save()
         return added, warnings
@@ -162,14 +185,17 @@ class Inventory:
         import io
         buf = io.StringIO()
         w = csv.writer(buf, lineterminator="\n")
-        w.writerow(["host", "port", "vendor", "username", "password", "hostname", "note"])
+        w.writerow(["host", "port", "vendor", "protocol", "username", "password",
+                    "hostname", "note"])
         for d in self.devices:
-            w.writerow([d.host, d.port, d.vendor, d.username, d.password, d.hostname, d.note])
+            w.writerow([d.host, d.port, d.vendor, d.protocol, d.username,
+                        d.password, d.hostname, d.note])
         return buf.getvalue()
 
     # ── 持久化 ──
     def load(self):
         self.devices = []
+        self.links = []
         try:
             with open(self.path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -178,11 +204,22 @@ class Inventory:
                     self.devices.append(Device.from_storage(d))
                 except Exception:
                     continue
+            for lk in data.get("links", []):
+                try:
+                    self.links.append(LedgerLink(
+                        device_host=str(lk.get("device_host", "")),
+                        local_intf=str(lk.get("local_intf", "")),
+                        peer_host=str(lk.get("peer_host", "")),
+                        peer_intf=str(lk.get("peer_intf", ""))))
+                except Exception:
+                    continue
         except (OSError, ValueError):
             pass
 
     def save(self):
-        payload = {"version": 1, "devices": [d.to_storage() for d in self.devices]}
+        payload = {"version": 2,
+                   "devices": [d.to_storage() for d in self.devices],
+                   "links": [asdict(lk) for lk in self.links]}
         tmp = self.path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
