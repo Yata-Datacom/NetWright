@@ -130,7 +130,6 @@ class NetWrightApp(tk.Tk):
                              font=FONT_SMALL, anchor="e", tags="status")
         self.top.create_text(w - 20, 29, text=self.var_clock.get(), fill="#c9d6ee",
                              font=FONT_SMALL, anchor="e", tags="status")
-        self.top.tag_bind("status", "<Configure>", lambda e: self._paint_header_text())
 
 
     def upload_wallpaper(self):
