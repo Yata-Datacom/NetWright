@@ -102,6 +102,16 @@ def test_smoke_theme_switch_all_schemes(app):
         assert len(app.pages) == len(PAGE_REGISTRY)
 
 
+def test_smoke_theme_switch_no_layout_leak(app):
+    """回归：多次切换配色后，根级框架数量恒定（旧 main 不残留 → 页面不下沉）。"""
+    before = len(app.winfo_children())
+    for _ in range(3):
+        app.apply_theme("晴空 · 亮")
+        app.apply_theme("深空蓝 · 暗")
+    after = len(app.winfo_children())
+    assert before == after, f"根级框架泄漏: {before} → {after}"
+
+
 def test_smoke_theme_light_tokens(app):
     """亮色方案：切到亮色后 bg 为浅色（#f 开头）。"""
     app.apply_theme("晴空 · 亮")

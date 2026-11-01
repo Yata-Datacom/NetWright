@@ -3,6 +3,15 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.3.2] - 2026-11-01
+
+### Fixed
+- **主题切换页面下沉**：apply_theme 未销毁旧的外层 main 框架与顶栏分隔条，
+  每次切换残留空框架挤压布局（新增回归测试：切换 3 次根级框架数量恒定）。
+- **双击 exe 弹出 cmd 窗口**：spec 的 console 改为 False；
+  在线检测的 ping 子进程加 CREATE_NO_WINDOW（GUI 模式不再闪黑框）。
+- **顶部蓝白竖线可读性差**：移除顶栏左侧 3px 强调条，改为顶栏下方 1px 细分隔线。
+
 ## [3.3.1] - 2026-11-01
 
 ### Performance

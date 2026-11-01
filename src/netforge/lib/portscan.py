@@ -7,6 +7,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import socket
+import sys
 import subprocess
 from concurrent import futures
 from dataclasses import dataclass
@@ -153,8 +154,10 @@ def ping_host(ip: str, timeout_ms: int = 1000) -> PingResult:
         cmd = ["ping", "-n", "1", "-w", str(timeout_ms), ip]
     else:
         cmd = ["ping", "-c", "1", "-W", str(max(1, timeout_ms // 1000)), ip]
+    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_ms / 500 + 3)
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              timeout=timeout_ms / 500 + 3, creationflags=creationflags)
         out = proc.stdout or ""
         alive = proc.returncode == 0 and ("TTL" in out or "ttl=" in out or "=1" in out or "1 received" in out)
         delay = -1.0

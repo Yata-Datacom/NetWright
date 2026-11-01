@@ -65,6 +65,8 @@ class NetForgeApp(tk.Tk):
 
         self._active_key = "dashboard"
         self._build_chrome()
+        self.header_divider = tk.Frame(self, bg=theme.line, height=1)
+        self.header_divider.pack(fill=tk.X)
         self._build_main()
         self._apply_wallpaper()
         self.show(self.settings.get("last_page", "dashboard"))
@@ -122,6 +124,7 @@ class NetForgeApp(tk.Tk):
     def _build_main(self):
         """侧栏（渐变/壁纸自绘）+ 工作区容器 + 页面装配。"""
         main = tk.Frame(self, bg=theme.bg)
+        self.main_frame = main
         main.pack(fill=tk.BOTH, expand=True)
         self.rail = tk.Canvas(main, width=172, highlightthickness=0, bd=0,
                               bg=theme.nav1)
@@ -237,9 +240,13 @@ class NetForgeApp(tk.Tk):
 
         old_pages, old_top, old_rail, old_container = (
             self.pages, self.top, self.rail, self.container)
+        old_main = getattr(self, "main_frame", None)
+        old_divider = getattr(self, "header_divider", None)
         # 先建新界面
         self._active_key = "dashboard"
         self._build_chrome()
+        self.header_divider = tk.Frame(self, bg=theme.line, height=1)
+        self.header_divider.pack(fill=tk.X)
         self._build_main()
         self._highlight_nav(self._active_key)
         # 再销毁旧界面
@@ -248,6 +255,10 @@ class NetForgeApp(tk.Tk):
         old_top.destroy()
         old_rail.destroy()
         old_container.destroy()
+        if old_main is not None:
+            old_main.destroy()      # 否则空框架残留挤压布局 → 页面下沉
+        if old_divider is not None:
+            old_divider.destroy()
         self.show(self._active_key)
         self.set_status(f"配色已切换：{name}")
 
