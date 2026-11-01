@@ -1,0 +1,6 @@
+host,port,vendor,protocol,username,password,hostname,note,local_intf,peer_device,peer_intf
+192.0.2.1,22,huawei,ssh,admin,Demo@123,核心A,演示-核心层,GE0/0/24,核心B,GE0/0/24
+192.0.2.2,22,huawei,ssh,admin,Demo@123,核心B,演示-核心层,GE0/0/24,核心A,GE0/0/24
+192.0.2.3,22,h3c,ssh,admin,Demo@123,汇聚C,演示-汇聚层,GE1/0/48,核心A,GE0/0/1
+192.0.2.4,22,cisco,ssh,admin,Demo@123,接入D,演示-接入层,Gi0/24,汇聚C,GE1/0/1
+192.0.2.5,23,ruijie,telnet,admin,Demo@123,接入E,演示-Telnet接入,Gi0/24,接入D,Gi0/1
