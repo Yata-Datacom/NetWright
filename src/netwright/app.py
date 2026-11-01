@@ -192,6 +192,7 @@ class NetWrightApp(tk.Tk):
             active = key == getattr(self, "_active_key", "")
             hover = key == getattr(self, "_hover_key", "")
             if active:
+                # 选中：soft 底 + 3px 主色指示条 + 主色加粗文字
                 rail.create_rectangle(8 if not collapsed else 10, y - 4,
                                       w - 8 if not collapsed else w - 10, y + 34,
                                       fill=theme.accent_soft, outline="", width=0,
@@ -200,16 +201,17 @@ class NetWrightApp(tk.Tk):
                                       fill=theme.accent, outline="", width=0,
                                       tags="items")
             elif hover:
+                # 悬停：中性偏主色的浅底（比 panel_alt 明显）
                 rail.create_rectangle(8 if not collapsed else 10, y - 4,
                                       w - 8 if not collapsed else w - 10, y + 34,
-                                      fill=theme.panel_alt, outline="", width=0,
+                                      fill=theme.accent_soft, outline="", width=0,
                                       tags="items")
             if collapsed:
-                rail.create_text(w / 2, y + 14, text=icon, fill=theme.fg if active
-                                 else theme.muted, font=("", 14),
+                fg = theme.accent if active else (theme.accent if hover else theme.muted)
+                rail.create_text(w / 2, y + 14, text=icon, fill=fg, font=("", 14),
                                  tags=("items", f"nav:{key}"))
             else:
-                fg = theme.accent if active else theme.muted
+                fg = theme.accent if (active or hover) else theme.muted
                 rail.create_text(18, y + 12, text=f"{icon}  {name}", anchor="w",
                                  fill=fg,
                                  font=("Microsoft YaHei UI", 11,
@@ -304,6 +306,8 @@ class NetWrightApp(tk.Tk):
                 page.place(relx=0, rely=0, relwidth=1, relheight=1)
             else:
                 page.place_forget()
+        self._active_key = key        # 选中态移动（修复高亮不跟随）
+        self._hover_key = None
         self._repaint_nav()
         hooks = {"dashboard": "refresh", "inventory": "refresh",
                  "inspect": "refresh_devices", "discovery": "refresh"}

@@ -17,9 +17,10 @@ def theme_current():
 
 
 def test_smoke_pass1_all_pages_cycle(app):
-    """第 1 轮：七个工作区逐个进入。"""
+    """第 1 轮：七个工作区逐个进入（选中态必须跟随切换）。"""
     for key in PAGE_REGISTRY:
         app.show(key)
+        assert app._active_key == key, f"高亮未跟随切换: {key}"
 
 
 def test_smoke_pass2_all_pages_cycle_again(app):
