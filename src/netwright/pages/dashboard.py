@@ -23,10 +23,10 @@ class DashboardPage(Page):
         self.grid.pack(fill=tk.X)
         self.cards: dict[str, tk.Label] = {}
         cards = [
-            ("inventory", "设备清单", "inventory"),
-            ("inspect", "SSH 批量巡检", "inspect"),
-            ("generate", "配置生成", "generate"),
-            ("toolbox", "日常工具箱", "toolbox"),
+            ("设备清单", "集中管理主机与凭据", "inventory"),
+            ("SSH 批量巡检", "异常标记 + HTML 报告", "inspect"),
+            ("配置生成", "116 模板 × 设备表", "generate"),
+            ("日常工具箱", "子网 / 扫描 / 密码", "toolbox"),
         ]
         for i, (title_, desc, key) in enumerate(cards):
             card = tk.Frame(self.grid, bg=theme.panel, highlightbackground=theme.line, highlightthickness=1)

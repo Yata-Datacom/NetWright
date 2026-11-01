@@ -104,14 +104,18 @@ class Page(tk.Frame):
 
 
 def page_header(parent: tk.Frame, title: str, desc: str) -> None:
-    """页面标题区：品牌渐变带（accent 横向渐变）+ 白字标题/说明。"""
-    bar = GradientFrame(parent, theme.header1, theme.header2, direction="h", height=64)
+    """页面标题区：surface 扁平带 + 主色竖条 + 深色文字（明暗自适应，高对比）。"""
+    bar = tk.Frame(parent, bg=theme.surface, height=64,
+                   highlightbackground=theme.line, highlightthickness=1)
     bar.pack(fill=tk.X)
     bar.pack_propagate(False)
-    tk.Label(bar, text=title, bg=theme.header1, fg="#ffffff",
-             font=("Microsoft YaHei UI", 15, "bold")).pack(anchor="w", padx=20, pady=(10, 0))
-    tk.Label(bar, text=desc, bg=theme.header1, fg="#dbe7ff",
-             font=FONT_SMALL).pack(anchor="w", padx=20, pady=(2, 10))
+    tk.Frame(bar, bg=theme.accent, width=4).pack(side=tk.LEFT, fill=tk.Y)
+    text_zone = tk.Frame(bar, bg=theme.surface)
+    text_zone.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(12, 0))
+    tk.Label(text_zone, text=title, bg=theme.surface, fg=theme.fg,
+             font=("Microsoft YaHei UI", 14, "bold")).pack(anchor="w", pady=(8, 0))
+    tk.Label(text_zone, text=desc, bg=theme.surface, fg=theme.muted,
+             font=FONT_SMALL).pack(anchor="w", pady=(1, 8))
 
 
 class WButton(tk.Button):
