@@ -33,7 +33,7 @@ class ControllerState:
 
 def make_handler(state: ControllerState) -> type:
     class Handler(BaseHTTPRequestHandler):
-        server_version = "NetForgeController/1.0"
+        server_version = "NetwrightController/1.0"
 
         def _json(self, obj, status=200):
             body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
@@ -49,7 +49,7 @@ def make_handler(state: ControllerState) -> type:
         def do_GET(self):
             path = self.path.split("?")[0]
             if path == "/api/health":
-                return self._json({"ok": True, "service": "netforge-controller"})
+                return self._json({"ok": True, "service": "netwright-controller"})
             if path == "/api/devices":
                 devs = [{"hostname": d.display_name, "host": d.host, "port": d.port,
                          "vendor": d.vendor, "username": d.username,

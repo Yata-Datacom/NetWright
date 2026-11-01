@@ -3,6 +3,16 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.4.0] - 2026-11-01
+
+### Changed
+- **项目更名：NetForge → NetWright（网络工匠）**。
+  wright 意为工匠（shipwright/wheelwright 同源），贴合"工作台手工搓网络"的定位；
+  经查证 NetWright 在网络工具领域无占用（NetLoom 已被一款 Windows 监控工具使用）。
+- 包/文件/资产全量更名：src/netwright、netwright_settings.json、
+  netwright_audit.log、netwright_devices.json、NetWright.exe。
+- 图标重绘：经纬交织的"织网"图案（wright 意象），配色对齐薄荷清晨主题。
+
 ## [3.3.2] - 2026-11-01
 
 ### Fixed

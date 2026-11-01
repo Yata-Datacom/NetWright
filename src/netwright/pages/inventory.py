@@ -5,10 +5,10 @@ import tkinter as tk
 from datetime import datetime
 from tkinter import filedialog, messagebox, ttk
 
-from netforge.lib import portscan, secrets as sec
-from netforge.lib.inventory import VENDORS, Device
-from netforge.theme import theme
-from netforge.widgets import (Page, page_header)
+from netwright.lib import portscan, secrets as sec
+from netwright.lib.inventory import VENDORS, Device
+from netwright.theme import theme
+from netwright.widgets import (Page, page_header)
 
 
 def header(title, desc, page):

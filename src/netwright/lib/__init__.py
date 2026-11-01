@@ -1,4 +1,4 @@
-"""NetForge.lib — 业务库：清单 / 巡检 / 生成 / 控制器 / 网络计算。"""
+"""NetWright.lib — 业务库：清单 / 巡检 / 生成 / 控制器 / 网络计算。"""
 
 try:
     import paramiko  # noqa: F401

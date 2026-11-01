@@ -32,7 +32,7 @@ def _dpapi_call(data: bytes, protect: bool) -> bytes:
     blob_out = _DATA_BLOB()
     # CryptProtectData(pDataIn, szDataDescr, pOptionalEntropy, pvReserved, pPromptStruct, dwFlags, pDataOut)
     if protect:
-        ok = _CRYPT32.CryptProtectData(ctypes.byref(blob_in), "NetForge", None, None, None, 0,
+        ok = _CRYPT32.CryptProtectData(ctypes.byref(blob_in), "NetWright", None, None, None, 0,
                                        ctypes.byref(blob_out))
     else:
         ok = _CRYPT32.CryptUnprotectData(ctypes.byref(blob_in), None, None, None, None, 0,

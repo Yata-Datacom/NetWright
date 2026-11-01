@@ -1,4 +1,4 @@
-"""NetForge 控制器：意图编排（Intent）+ 拓扑发现 + 部署流水线 + REST 北向。
+"""NetWright 控制器：意图编排（Intent）+ 拓扑发现 + 部署流水线 + REST 北向。
 
 OpenDaylight 思路的极简实现：
   北向  REST API + GUI 表单（新手友好）

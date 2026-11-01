@@ -9,7 +9,7 @@ from datetime import datetime
 
 from . import intents as intents_mod
 
-AUDIT_FILE = "netforge_audit.log"
+AUDIT_FILE = "netwright_audit.log"
 _lock = threading.Lock()
 
 

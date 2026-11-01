@@ -13,9 +13,9 @@ if SRC not in sys.path:
     sys.path.insert(0, SRC)
 
 
-from netforge.lib import generator as gen
-from netforge.lib import inspector, secrets
-from netforge.lib.inventory import Device, Inventory
+from netwright.lib import generator as gen
+from netwright.lib import inspector, secrets
+from netwright.lib.inventory import Device, Inventory
 
 
 # ── 凭据保护 ────────────────────────────────────────────────────────

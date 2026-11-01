@@ -3,11 +3,11 @@
 
 from __future__ import annotations
 
-from netforge.pages import PAGE_REGISTRY
+from netwright.pages import PAGE_REGISTRY
 
 
 def theme_current():
-    from netforge.theme import theme
+    from netwright.theme import theme
     return theme.name
 
 
@@ -59,7 +59,7 @@ def test_smoke_toolbox_subnet_and_password(app):
 
 def test_smoke_controller_dry_run(app):
     """控制器：意图 Dry-Run 渲染预览（先加设备，不连任何真实主机）。"""
-    from netforge.lib.inventory import Device
+    from netwright.lib.inventory import Device
 
     app.inventory.devices = []
     app.inventory.add(Device(host="192.0.2.1", vendor="huawei", hostname="A"))
@@ -92,7 +92,7 @@ def test_smoke_rest_api_lifecycle(app):
 
 def test_smoke_theme_switch_all_schemes(app):
     """主题系统：6 套配色逐个切换（界面整体重建），令牌与模式正确。"""
-    from netforge.theme import THEMES
+    from netwright.theme import THEMES
 
     for name, tokens in THEMES.items():
         app.apply_theme(name)
@@ -115,16 +115,16 @@ def test_smoke_theme_switch_no_layout_leak(app):
 def test_smoke_theme_light_tokens(app):
     """亮色方案：切到亮色后 bg 为浅色（#f 开头）。"""
     app.apply_theme("晴空 · 亮")
-    from netforge.theme import theme as t
+    from netwright.theme import theme as t
     assert t.mode == "light" and t.bg.startswith("#f") and t.accent == "#0ea5e9"
     app.apply_theme("深空蓝 · 暗")
-    from netforge.theme import theme as t2
+    from netwright.theme import theme as t2
     assert t2.mode == "dark"
 
 
 def test_smoke_settings_persistence(app, tmp_path):
     """设置持久化：主题/last_page 写盘并可回读。"""
-    from netforge.lib.settings import load_settings, save_settings
+    from netwright.lib.settings import load_settings, save_settings
     data = {"theme": "暮光紫 · 暗", "rest_port": 8899, "last_page": "cheat"}
     assert save_settings(data, str(tmp_path))
     loaded = load_settings(str(tmp_path))
@@ -133,13 +133,13 @@ def test_smoke_settings_persistence(app, tmp_path):
 
 def test_smoke_inventory_alive_check(app, monkeypatch):
     """清单在线检测：mock ping，状态回填树表。"""
-    from netforge.lib.inventory import Device
+    from netwright.lib.inventory import Device
 
     app.inventory.devices = []
     app.inventory.add(Device(host="192.0.2.1", vendor="huawei", hostname="A"))
     app.inventory.add(Device(host="192.0.2.2", vendor="cisco", hostname="B"))
 
-    import netforge.pages.inventory as inv_page
+    import netwright.pages.inventory as inv_page
     calls = {"n": 0}
 
     class FakePing:
@@ -167,7 +167,7 @@ def test_smoke_inventory_alive_check(app, monkeypatch):
 
 def test_smoke_controller_audit_viewer(app):
     """控制器审计查看：写入审计后刷新展示。"""
-    from netforge.lib.controller import deploy
+    from netwright.lib.controller import deploy
 
     deploy._audit({"action": "intent.apply", "intent": "vlan_deploy",
                    "device": "192.0.2.1", "status": "OK"})

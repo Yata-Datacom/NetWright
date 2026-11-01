@@ -5,11 +5,11 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from netforge.lib.controller import deploy as deploy_mod
-from netforge.lib.controller import intents as intents_mod
-from netforge.lib.inventory import VENDORS
-from netforge.theme import FONT_MONO, theme
-from netforge.widgets import (Page, page_header)
+from netwright.lib.controller import deploy as deploy_mod
+from netwright.lib.controller import intents as intents_mod
+from netwright.lib.inventory import VENDORS
+from netwright.theme import FONT_MONO, theme
+from netwright.widgets import (Page, page_header)
 
 
 def header(title, desc, page):
@@ -256,7 +256,7 @@ class ControllerPage(Page):
         tab = tk.Frame(self.nb, bg=theme.bg)
         self.nb.add(tab, text=" REST API ")
         info = (
-            "把 NetForge 控制器开放成本机 REST 服务，供自动化脚本/CI 调用。\n\n"
+            "把 NetWright 控制器开放成本机 REST 服务，供自动化脚本/CI 调用。\n\n"
             "  GET  /api/health          健康检查\n"
             "  GET  /api/devices         设备清单（密码打码）\n"
             "  GET  /api/intents         意图目录与表单定义\n"

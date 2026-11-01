@@ -7,9 +7,9 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from netforge.lib import netcalc, portscan
-from netforge.theme import FONT_MONO, theme
-from netforge.widgets import (Page, page_header, make_table)
+from netwright.lib import netcalc, portscan
+from netwright.theme import FONT_MONO, theme
+from netwright.widgets import (Page, page_header, make_table)
 
 
 def header(title, desc, page):

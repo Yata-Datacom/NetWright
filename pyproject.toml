@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "netforge"
+name = "netwright"
 version = "3.0.0"
-description = "NetForge — vendor-neutral network engineer workbench (subnet calc, port scan, alive sweep, CLI cheat sheet, tool launcher)"
+description = "NetWright — vendor-neutral network engineer workbench (subnet calc, port scan, alive sweep, CLI cheat sheet, tool launcher)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -13,7 +13,7 @@ authors = [{ name = "Yata-Datacom" }]
 dependencies = ["paramiko>=3.4"]
 
 [project.scripts]
-netforge = "netforge.app:main"
+netwright = "netwright.app:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

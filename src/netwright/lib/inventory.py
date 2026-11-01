@@ -1,7 +1,7 @@
 """inventory.py — 设备清单中心：所有模块共用的一份设备数据（JSON 持久化）。
 
 字段：hostname(可选，默认 host) / host / port / vendor / username / password(受保护) / note
-存储文件：程序目录下 netforge_devices.json（exe 同目录 / 仓库根目录）。
+存储文件：程序目录下 netwright_devices.json（exe 同目录 / 仓库根目录）。
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from dataclasses import asdict, dataclass
 
 from . import secrets
 
-FILENAME = "netforge_devices.json"
+FILENAME = "netwright_devices.json"
 
 VENDORS = {
     "huawei": "华为 VRP",

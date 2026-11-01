@@ -4,9 +4,9 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
-from netforge.lib import cheatsheet
-from netforge.theme import FONT_MONO, theme
-from netforge.widgets import (Page, page_header)
+from netwright.lib import cheatsheet
+from netwright.theme import FONT_MONO, theme
+from netwright.widgets import (Page, page_header)
 
 
 def header(title, desc, page):

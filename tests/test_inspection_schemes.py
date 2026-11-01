@@ -15,8 +15,8 @@ if SRC not in sys.path:
     sys.path.insert(0, SRC)
 
 
-from netforge.lib import inspector  # noqa: E402
-from netforge.lib.inventory import Device  # noqa: E402
+from netwright.lib import inspector  # noqa: E402
+from netwright.lib.inventory import Device  # noqa: E402
 
 ADVANCED = ("VXLAN+EVPN", "MPLS/SR 骨干", "堆叠与M-LAG", "RoCEv2 无损", "IPv6 与过渡", "无线 WLAN")
 KEYWORDS = {

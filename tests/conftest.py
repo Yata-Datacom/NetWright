@@ -18,9 +18,9 @@ if SRC not in sys.path:
 @pytest.fixture(scope="module")
 def app():
     """模块级单实例：构建一次主窗口，所有冒烟用例共用（避免反复创建 Tk）。"""
-    from netforge.app import NetForgeApp
+    from netwright.app import NetWrightApp
 
-    app = NetForgeApp()
+    app = NetWrightApp()
     app.withdraw()
     yield app
     app.destroy()
@@ -29,5 +29,5 @@ def app():
 @pytest.fixture(autouse=True)
 def isolated_data(tmp_path, monkeypatch):
     """把清单/审计等数据目录重定向到 tmp，保证用例互不影响、不写仓库。"""
-    monkeypatch.setattr("netforge.lib.inventory._base_dir", lambda: str(tmp_path))
-    monkeypatch.setattr("netforge.lib.controller.deploy._base_dir", lambda: str(tmp_path))
+    monkeypatch.setattr("netwright.lib.inventory._base_dir", lambda: str(tmp_path))
+    monkeypatch.setattr("netwright.lib.controller.deploy._base_dir", lambda: str(tmp_path))

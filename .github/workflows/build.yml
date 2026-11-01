@@ -18,11 +18,11 @@ jobs:
       - name: Build icon (idempotent)
         run: python tools/make_icon.py
       - name: Build single-file exe
-        run: pyinstaller NetForge.spec --noconfirm
+        run: pyinstaller NetWright.spec --noconfirm
       - name: Smoke check exe exists
         shell: pwsh
-        run: Test-Path dist/NetForge.exe
+        run: Test-Path dist/NetWright.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: NetForge-windows
-          path: dist/NetForge.exe
+          name: NetWright-windows
+          path: dist/NetWright.exe

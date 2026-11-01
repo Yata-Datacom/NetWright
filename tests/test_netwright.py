@@ -1,4 +1,4 @@
-"""NetForge 纯逻辑模块测试：子网计算 / 端口与目标解析 / 模块发现。"""
+"""NetWright 纯逻辑模块测试：子网计算 / 端口与目标解析 / 模块发现。"""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ if SRC not in sys.path:
     sys.path.insert(0, SRC)
 
 
-from netforge.lib import netcalc, portscan
+from netwright.lib import netcalc, portscan
 
 
 # ── 子网计算 ────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
 """
-NetForge — 网络工程师工作台（应用壳）
+NetWright — 网络工程师工作台（应用壳）
 =====================================
 
 职责仅四件事：导航壳 / 主题系统（6 套配色，明暗 + 渐变）/ 页面装配 / 设置持久化。
-业务逻辑全部在 ``netforge.lib``（纯逻辑）与 ``netforge.pages``（工作区页面）。
+业务逻辑全部在 ``netwright.lib``（纯逻辑）与 ``netwright.pages``（工作区页面）。
 
 工作区（由 pages.PAGE_REGISTRY 驱动）：
   总览 / 设备清单 / 控制器 / 批量巡检 / 配置生成 / 工具箱 / 命令速查
@@ -23,23 +23,23 @@ else:
     if _SRC not in sys.path:
         sys.path.insert(0, _SRC)
 
-from netforge import __version__  # noqa: E402
-from netforge.lib.controller.restapi import ControllerAPI, ControllerState  # noqa: E402
-from netforge.lib.inventory import Inventory  # noqa: E402
-from netforge.lib.settings import load_settings, save_settings  # noqa: E402
-from netforge.pages import PAGE_REGISTRY  # noqa: E402
-from netforge.theme import (  # noqa: E402
+from netwright import __version__  # noqa: E402
+from netwright.lib.controller.restapi import ControllerAPI, ControllerState  # noqa: E402
+from netwright.lib.inventory import Inventory  # noqa: E402
+from netwright.lib.settings import load_settings, save_settings  # noqa: E402
+from netwright.pages import PAGE_REGISTRY  # noqa: E402
+from netwright.theme import (  # noqa: E402
     FONT_SMALL, THEMES, setup_ttk, theme,
 )
-from netforge.widgets import GradientFrame, _lerp, draw_wallpaper  # noqa: E402
+from netwright.widgets import GradientFrame, _lerp, draw_wallpaper  # noqa: E402
 
 
-class NetForgeApp(tk.Tk):
+class NetWrightApp(tk.Tk):
     """主窗口：渐变顶栏 + 渐变侧栏导航 + 工作区容器 + 主题系统。"""
 
     def __init__(self):
         super().__init__()
-        self.title(f"NetForge — 网络工程师工作台 v{__version__}")
+        self.title(f"NetWright — 网络工程师工作台 v{__version__}")
         self.geometry("1120x760")
         self.minsize(1000, 660)
 
@@ -79,7 +79,7 @@ class NetForgeApp(tk.Tk):
         self.top.pack_propagate(False)
         tk.Label(self.top, text="⛏", bg=theme.header1, fg="white",
                  font=("", 16)).pack(side=tk.LEFT, padx=(16, 8))
-        tk.Label(self.top, text="NetForge", bg=theme.header1, fg="white",
+        tk.Label(self.top, text="NetWright", bg=theme.header1, fg="white",
                  font=("", 14, "bold")).pack(side=tk.LEFT)
         tk.Label(self.top, text="网络工程师工作台", bg=theme.header1,
                  fg="#d7e2f5", font=FONT_SMALL).pack(side=tk.LEFT, padx=(10, 0))
@@ -301,7 +301,7 @@ class NetForgeApp(tk.Tk):
 
 
 def main() -> None:
-    app = NetForgeApp()
+    app = NetWrightApp()
     app.mainloop()
 
 

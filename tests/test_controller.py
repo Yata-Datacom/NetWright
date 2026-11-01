@@ -16,9 +16,9 @@ if SRC not in sys.path:
     sys.path.insert(0, SRC)
 
 
-from netforge.lib.controller import deploy, intents, topology  # noqa: E402
-from netforge.lib.controller.restapi import ControllerAPI, ControllerState  # noqa: E402
-from netforge.lib.inventory import Device, Inventory  # noqa: E402
+from netwright.lib.controller import deploy, intents, topology  # noqa: E402
+from netwright.lib.controller.restapi import ControllerAPI, ControllerState  # noqa: E402
+from netwright.lib.inventory import Device, Inventory  # noqa: E402
 
 
 # ── 意图渲染 ────────────────────────────────────────────────────────
@@ -157,7 +157,7 @@ def test_apply_records_audit(tmp_path, monkeypatch):
     def fake_run_commands(dev, cmds, timeout=15.0, port=None):
         return [(c, c, "ok", "") for c in cmds]
 
-    from netforge.lib import ssh_client
+    from netwright.lib import ssh_client
     with patch.object(ssh_client, "run_commands", fake_run_commands):
         result = deploy.apply("vlan_deploy", {"vlans": "10", "description": "Users"}, devices)
     assert result["results"][0]["status"] == "OK"

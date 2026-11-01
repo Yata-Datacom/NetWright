@@ -384,7 +384,7 @@ def build_html_report(results: list[DeviceResult], scheme_name: str = "") -> str
     summary = " · ".join(f"{k} {v}" for k, v in sorted(counts.items()))
 
     return f"""<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
-<title>NetForge 巡检报告</title><style>
+<title>NetWright 巡检报告</title><style>
 body{{font-family:"Microsoft YaHei UI",sans-serif;margin:24px;background:#f4f6fa;color:#1c2534}}
 table{{border-collapse:collapse;width:100%;background:#fff}}
 th,td{{border:1px solid #dde3ec;padding:7px 11px;text-align:left;font-size:13px}}
@@ -398,7 +398,7 @@ h3{{margin:26px 0 8px}} .badge{{color:#fff;font-size:11px;padding:2px 8px;border
 pre{{background:#0e1a2e;color:#d7e2f2;padding:10px;border-radius:6px;overflow-x:auto;
 font-family:Consolas,monospace;font-size:12px;max-height:340px;white-space:pre-wrap}}
 </style></head><body>
-<h2>NetForge 巡检报告{(' · ' + html.escape(scheme_name)) if scheme_name else ''}</h2>
+<h2>NetWright 巡检报告{(' · ' + html.escape(scheme_name)) if scheme_name else ''}</h2>
 <p>{summary}（生成时间见文件名）</p>
 <table><tr><th>设备</th><th>厂商</th><th>状态</th><th>严重</th><th>告警</th><th>耗时</th></tr>
 {''.join(dev_rows)}</table>

@@ -1,10 +1,10 @@
-"""settings.py — 应用设置持久化（netforge_settings.json，exe/仓库根目录）。"""
+"""settings.py — 应用设置持久化（netwright_settings.json，exe/仓库根目录）。"""
 from __future__ import annotations
 
 import json
 import os
 
-FILENAME = "netforge_settings.json"
+FILENAME = "netwright_settings.json"
 DEFAULTS = {"theme": "深空蓝 · 暗", "rest_port": 8899, "last_page": "dashboard"}
 
 

@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import tkinter as tk
 
-from netforge.lib import HAS_SSH
-from netforge.lib import generator as gen
-from netforge.theme import theme
-from netforge.widgets import (Page, page_header)
+from netwright.lib import HAS_SSH
+from netwright.lib import generator as gen
+from netwright.theme import theme
+from netwright.widgets import (Page, page_header)
 
 
 def header(title, desc, page):
@@ -16,7 +16,7 @@ def header(title, desc, page):
 class DashboardPage(Page):
     def __init__(self, master, app):
         super().__init__(master, app)
-        header("总览", "NetForge 把设备清单、巡检、配置生成和日常小工具收进同一个工作台", self)
+        header("总览", "NetWright 把设备清单、巡检、配置生成和日常小工具收进同一个工作台", self)
         body = tk.Frame(self, bg=theme.bg)
         body.pack(fill=tk.BOTH, expand=True, padx=16, pady=(0, 12))
         self.grid = tk.Frame(body, bg=theme.bg)

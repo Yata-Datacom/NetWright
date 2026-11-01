@@ -5,10 +5,10 @@ import os
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from netforge.lib import generator as gen
-from netforge.lib.inventory import safe_filename
-from netforge.theme import FONT_MONO, theme
-from netforge.widgets import (Page, page_header)
+from netwright.lib import generator as gen
+from netwright.lib.inventory import safe_filename
+from netwright.theme import FONT_MONO, theme
+from netwright.widgets import (Page, page_header)
 
 
 def header(title, desc, page):
