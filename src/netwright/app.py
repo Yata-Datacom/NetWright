@@ -73,28 +73,20 @@ class NetWrightApp(tk.Tk):
 
     # ── 界面装配（主题切换时整体重建）───────────────────────────────
     def _build_chrome(self):
-        # 顶栏：品牌横向渐变
+        """顶栏：品牌渐变画布，文字直接绘制在渐变上（无实底色块）。"""
         self.top = GradientFrame(self, theme.header1, theme.header2, "h", height=58)
         self.top.pack(fill=tk.X)
         self.top.pack_propagate(False)
-        tk.Label(self.top, text="⛏", bg=theme.header1, fg="white",
-                 font=("", 16)).pack(side=tk.LEFT, padx=(16, 8))
-        tk.Label(self.top, text="NetWright", bg=theme.header1, fg="white",
-                 font=("", 14, "bold")).pack(side=tk.LEFT)
-        tk.Label(self.top, text="网络工程师工作台", bg=theme.header1,
-                 fg="#d7e2f5", font=FONT_SMALL).pack(side=tk.LEFT, padx=(10, 0))
+        self.top.bind("<Configure>", lambda e: self._paint_header())
 
         self.var_status = tk.StringVar(value="就绪")
         self.var_clock = tk.StringVar(value="")
-        tk.Label(self.top, textvariable=self.var_clock, bg=theme.header1,
-                 fg="#c9d6ee", font=FONT_SMALL).pack(side=tk.RIGHT, padx=14)
-        tk.Label(self.top, textvariable=self.var_status, bg=theme.header1,
-                 fg="white", font=FONT_SMALL).pack(side=tk.RIGHT, padx=14)
+        self._paint_header()
 
-        # 主题选择：🎨 菜单（明暗 × 6 配色）
-        self.mb_theme = tk.Menubutton(self.top, text="🎨 配色", bg=theme.header1,
+        # 🎨 配色 / 🖼 壁纸：放在渐变最暗端（右侧），底色与渐变末端一致
+        self.mb_theme = tk.Menubutton(self.top, text="🎨 配色", bg=theme.header2,
                                       fg="white", relief=tk.FLAT, font=FONT_SMALL,
-                                      activebackground=theme.header2, cursor="hand2")
+                                      activebackground=theme.accent, cursor="hand2")
         menu = tk.Menu(self.mb_theme, tearoff=0, font=FONT_SMALL)
         for name in THEMES:
             menu.add_command(label=name,
@@ -102,16 +94,44 @@ class NetWrightApp(tk.Tk):
         menu.add_separator()
         menu.add_command(label=f"✓ 当前：{theme.name}", state=tk.DISABLED)
         self.mb_theme["menu"] = menu
-        self.mb_theme.pack(side=tk.RIGHT, padx=(0, 12))
+        self.mb_theme.place(relx=1.0, x=-260, rely=0.5, anchor="e")
 
-        self.mb_wall = tk.Menubutton(self.top, text="🖼 壁纸", bg=theme.header1,
+        self.mb_wall = tk.Menubutton(self.top, text="🖼 壁纸", bg=theme.header2,
                                      fg="white", relief=tk.FLAT, font=FONT_SMALL,
-                                     activebackground=theme.header2, cursor="hand2")
+                                     activebackground=theme.accent, cursor="hand2")
         wall_menu = tk.Menu(self.mb_wall, tearoff=0, font=FONT_SMALL)
         wall_menu.add_command(label="上传壁纸…", command=self.upload_wallpaper)
         wall_menu.add_command(label="清除壁纸（恢复渐变）", command=lambda: self.set_wallpaper(None))
         self.mb_wall["menu"] = wall_menu
-        self.mb_wall.pack(side=tk.RIGHT, padx=(0, 8))
+        self.mb_wall.place(relx=1.0, x=-150, rely=0.5, anchor="e")
+
+        # 状态/时钟文字变化时重绘头部文字层
+        self.var_status.trace_add("write", lambda *_: self._paint_header_text())
+        self.var_clock.trace_add("write", lambda *_: self._paint_header_text())
+        self._tick_clock()
+
+    def _paint_header(self):
+        """绘制顶栏静态部分（品牌区）。"""
+        c = self.top
+        c.delete("brand")
+        c.create_text(24, 29, text="⛏", fill="white", font=("", 15), tags="brand")
+        c.create_text(58, 29, text="NetWright", fill="white", anchor="w",
+                      font=("", 14, "bold"), tags="brand")
+        c.create_text(160, 30, text="网络工程师工作台", fill="#d7e2f5",
+                      font=FONT_SMALL, anchor="w", tags="brand")
+
+    def _paint_header_text(self):
+        """绘制/刷新顶栏右侧的状态与时钟文字。"""
+        if not self.top.winfo_exists():
+            return
+        self.top.delete("status")
+        w = max(self.top.winfo_width(), 400)
+        self.top.create_text(w - 300, 29, text=self.var_status.get(), fill="white",
+                             font=FONT_SMALL, anchor="e", tags="status")
+        self.top.create_text(w - 20, 29, text=self.var_clock.get(), fill="#c9d6ee",
+                             font=FONT_SMALL, anchor="e", tags="status")
+        self.top.tag_bind("status", "<Configure>", lambda e: self._paint_header_text())
+
 
     def upload_wallpaper(self):
         from tkinter import filedialog
@@ -179,7 +199,7 @@ class NetWrightApp(tk.Tk):
             hover = key == getattr(self, "_hover_key", "")
             if active:
                 rail.create_rectangle(8, y - 4, w - 8, y + 30,
-                                      fill=theme.accent, outline="", width=0,
+                                      fill=theme.accent_deep, outline="", width=0,
                                       tags="items")
             elif hover:
                 rail.create_rectangle(8, y - 4, w - 8, y + 30,

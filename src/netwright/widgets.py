@@ -14,7 +14,7 @@ import os
 import tkinter as tk
 from tkinter import ttk
 
-from .theme import FONT_BOLD, FONT_SMALL, theme
+from .theme import FONT, FONT_BOLD, FONT_SMALL, theme
 
 
 def _lerp(c1: str, c2: str, t: float) -> str:
@@ -110,6 +110,48 @@ def page_header(parent: tk.Frame, title: str, desc: str) -> None:
              font=("Microsoft YaHei UI", 15, "bold")).pack(anchor="w", padx=20, pady=(10, 0))
     tk.Label(bar, text=desc, bg=theme.header1, fg="#dbe7ff",
              font=FONT_SMALL).pack(anchor="w", padx=20, pady=(2, 10))
+
+
+class WButton(tk.Button):
+    """语义化按钮：按传入的语义色自动保证前景/背景对比度。
+
+    规则：
+      * bg 为 accent/ok/warn/err 等强色 → 白字、active 加深
+      * 其余（panel/accent_soft/未指定）→ ghost 样式：panel 底 + 边框 + 正常字色
+      * 明暗主题切换重建界面后自动跟随令牌
+    """
+
+    def __init__(self, master, **kw):
+        bg = kw.pop("bg", None)
+        fg = kw.pop("fg", None)
+        ab = kw.pop("activebackground", None)
+        af = kw.pop("activeforeground", None)
+        deep = getattr(theme, "accent_deep", theme.accent)
+        strong = {theme.accent: (deep, "#ffffff"),
+                  deep: (deep, "#ffffff"),
+                  theme.ok: (theme.ok, "#ffffff"),
+                  theme.warn: (theme.warn, "#1c1200"),
+                  theme.err: (theme.err, "#ffffff"),
+                  theme.header1: (theme.header1, "#ffffff"),
+                  theme.header2: (theme.header2, "#ffffff")}
+        if bg in strong:
+            use_bg, use_fg = strong[bg]
+            kw["activebackground"] = ab or theme.accent_soft
+            kw["activeforeground"] = af or use_fg
+            kw["disabledforeground"] = "#ffffff"
+        else:
+            use_bg = theme.panel
+            use_fg = fg or theme.fg
+            kw["highlightbackground"] = theme.line
+            kw["highlightthickness"] = 1
+            kw["activebackground"] = ab or theme.accent_soft
+            kw["activeforeground"] = af or theme.fg
+        kw["bg"] = use_bg
+        kw["fg"] = use_fg
+        kw.setdefault("relief", tk.FLAT)
+        kw.setdefault("cursor", "hand2")
+        kw.setdefault("font", FONT)
+        super().__init__(master, **kw)
 
 
 def stat_card(parent, title: str, desc: str, command=None) -> tk.Label:

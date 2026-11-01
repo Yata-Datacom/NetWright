@@ -8,7 +8,7 @@ from tkinter import filedialog, messagebox, ttk
 from netwright.lib import portscan, secrets as sec
 from netwright.lib.inventory import VENDORS, Device
 from netwright.theme import theme
-from netwright.widgets import (Page, page_header)
+from netwright.widgets import (Page, page_header, WButton)
 
 
 def header(title, desc, page):
@@ -27,7 +27,7 @@ class InventoryPage(Page):
         for text, cmd in (("＋ 添加设备", self.add_dialog), ("✎ 编辑", self.edit_dialog),
                           ("✖ 删除", self.remove_sel), ("导入 CSV…", self.import_csv),
                           ("导出 CSV", self.export_csv), ("⚡ 在线检测", self.alive_check)):
-            tk.Button(bar, text=text, bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
+            WButton(bar, text=text, bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
                       activebackground=theme.nav1, command=cmd).pack(side=tk.LEFT, padx=(0, 6))
         self.var_count = tk.StringVar()
         tk.Label(bar, textvariable=self.var_count, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)
@@ -131,8 +131,8 @@ class InventoryPage(Page):
 
         btns = tk.Frame(dlg, bg=theme.panel)
         btns.grid(row=len(fields), column=0, columnspan=2, sticky="e", padx=14, pady=14)
-        tk.Button(btns, text="取消", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT, command=dlg.destroy).pack(side=tk.LEFT, padx=6)
-        tk.Button(btns, text="保存", bg=theme.accent, fg="white", relief=tk.FLAT, command=ok).pack(side=tk.LEFT)
+        WButton(btns, text="取消", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT, command=dlg.destroy).pack(side=tk.LEFT, padx=6)
+        WButton(btns, text="保存", bg=theme.accent, fg="white", relief=tk.FLAT, command=ok).pack(side=tk.LEFT)
 
     def remove_sel(self):
         idx = self._selected_index()

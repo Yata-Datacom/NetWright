@@ -9,7 +9,7 @@ from netwright.lib.controller import deploy as deploy_mod
 from netwright.lib.controller import intents as intents_mod
 from netwright.lib.inventory import VENDORS
 from netwright.theme import FONT_MONO, theme
-from netwright.widgets import (Page, page_header)
+from netwright.widgets import (Page, page_header, WButton)
 
 
 def header(title, desc, page):
@@ -39,7 +39,7 @@ class ControllerPage(Page):
         self.nb.add(tab, text=" 拓扑发现 ")
         bar = tk.Frame(tab, bg=theme.bg)
         bar.pack(fill=tk.X, pady=(8, 4))
-        self.btn_discover = tk.Button(bar, text="从设备清单自动发现拓扑 (LLDP/CDP)",
+        self.btn_discover = WButton(bar, text="从设备清单自动发现拓扑 (LLDP/CDP)",
                                       bg=theme.accent, fg="white", relief=tk.FLAT,
                                       activebackground=theme.nav2, command=self.discover)
         self.btn_discover.pack(side=tk.LEFT)
@@ -143,9 +143,9 @@ class ControllerPage(Page):
 
         btns = tk.Frame(tab, bg=theme.bg)
         btns.pack(fill=tk.X, pady=(0, 6))
-        tk.Button(btns, text="① Dry-Run 预览（不连接设备）", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
+        WButton(btns, text="① Dry-Run 预览（不连接设备）", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
                   activebackground=theme.nav1, command=self.dry_run).pack(side=tk.LEFT)
-        self.btn_apply = tk.Button(btns, text="② 确认下发", bg=theme.warn, fg="#1c1200", relief=tk.FLAT,
+        self.btn_apply = WButton(btns, text="② 确认下发", bg=theme.warn, fg="#1c1200", relief=tk.FLAT,
                                    activebackground=theme.warn, state=tk.DISABLED, command=self.apply)
         self.btn_apply.pack(side=tk.LEFT, padx=(8, 0))
         self.var_intent = tk.StringVar(value="")
@@ -288,7 +288,7 @@ class ControllerPage(Page):
         row.pack(fill=tk.X, padx=14)
         self.var_api = tk.StringVar(value="API 服务未启动")
         tk.Label(row, textvariable=self.var_api, bg=theme.bg, fg=theme.muted, font=("", 10)).pack(side=tk.LEFT)
-        self.btn_api = tk.Button(row, text="启动 REST 服务 (127.0.0.1:8899)", bg=theme.accent, fg="white",
+        self.btn_api = WButton(row, text="启动 REST 服务 (127.0.0.1:8899)", bg=theme.accent, fg="white",
                                  relief=tk.FLAT, activebackground=theme.nav2, command=self.toggle_api)
         self.btn_api.pack(side=tk.LEFT, padx=(16, 0))
 

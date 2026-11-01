@@ -9,7 +9,7 @@ from tkinter import messagebox, ttk
 
 from netwright.lib import netcalc, portscan
 from netwright.theme import FONT_MONO, theme
-from netwright.widgets import (Page, page_header, make_table)
+from netwright.widgets import (Page, page_header, make_table, WButton)
 
 
 def header(title, desc, page):
@@ -37,12 +37,12 @@ class ToolboxPage(Page):
         self.ent = tk.Entry(row, bg=theme.panel, fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, width=30, insertbackground=theme.fg)
         self.ent.insert(0, "192.168.10.130 255.255.255.0")
         self.ent.pack(side=tk.LEFT, padx=(8, 6), ipady=4)
-        tk.Button(row, text="计算", bg=theme.accent, fg="white", relief=tk.FLAT, command=self.calc).pack(side=tk.LEFT, padx=(0, 6))
+        WButton(row, text="计算", bg=theme.accent, fg="white", relief=tk.FLAT, command=self.calc).pack(side=tk.LEFT, padx=(0, 6))
         tk.Label(row, text="VLSM 主机数:", bg=theme.bg, fg=theme.muted).pack(side=tk.LEFT, padx=(10, 4))
         self.ent_vlsm = tk.Entry(row, bg=theme.panel, fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, width=16, insertbackground=theme.fg)
         self.ent_vlsm.insert(0, "100, 50, 20, 5")
         self.ent_vlsm.pack(side=tk.LEFT)
-        tk.Button(row, text="VLSM 划分", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT, command=self.vlsm).pack(side=tk.LEFT, padx=(6, 0))
+        WButton(row, text="VLSM 划分", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT, command=self.vlsm).pack(side=tk.LEFT, padx=(6, 0))
         self.out = tk.Text(tab, bg=theme.panel, fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, height=15, insertbackground=theme.fg)
         self.out.pack(fill=tk.BOTH, expand=True)
         self.out.tag_config("k", foreground=theme.muted)
@@ -96,7 +96,7 @@ class ToolboxPage(Page):
         self.s_ports = tk.Entry(row, bg=theme.panel, fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, width=28, insertbackground=theme.fg)
         self.s_ports.insert(0, "22, 23, 80, 443, 830, 3389")
         self.s_ports.pack(side=tk.LEFT, padx=(6, 12), ipady=4)
-        self.s_btn = tk.Button(row, text="扫描", bg=theme.accent, fg="white", relief=tk.FLAT, command=self.scan)
+        self.s_btn = WButton(row, text="扫描", bg=theme.accent, fg="white", relief=tk.FLAT, command=self.scan)
         self.s_btn.pack(side=tk.LEFT)
         self.s_count = tk.StringVar()
         tk.Label(row, textvariable=self.s_count, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)
@@ -139,7 +139,7 @@ class ToolboxPage(Page):
         self.p_target = tk.Entry(row, bg=theme.panel, fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, width=32, insertbackground=theme.fg)
         self.p_target.insert(0, "192.168.1.0/24")
         self.p_target.pack(side=tk.LEFT, padx=(6, 12), ipady=4)
-        self.p_btn = tk.Button(row, text="检测", bg=theme.accent, fg="white", relief=tk.FLAT, command=self.ping)
+        self.p_btn = WButton(row, text="检测", bg=theme.accent, fg="white", relief=tk.FLAT, command=self.ping)
         self.p_btn.pack(side=tk.LEFT)
         self.p_count = tk.StringVar()
         tk.Label(row, textvariable=self.p_count, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)
@@ -191,7 +191,7 @@ class ToolboxPage(Page):
         for text, var in (("大写", self.w_upper), ("小写", self.w_lower),
                           ("数字", self.w_digit), ("符号", self.w_symbol)):
             ttk.Checkbutton(row, text=text, variable=var, style="TCheckbutton").pack(side=tk.LEFT, padx=(0, 8))
-        tk.Button(row, text="生成", bg=theme.accent, fg="white", relief=tk.FLAT, command=self.gen_pwd).pack(side=tk.LEFT)
+        WButton(row, text="生成", bg=theme.accent, fg="white", relief=tk.FLAT, command=self.gen_pwd).pack(side=tk.LEFT)
         self.w_out = tk.Entry(row, bg=theme.panel, fg=theme.ok, relief=tk.FLAT, font=FONT_MONO, width=34,
                               insertbackground=theme.fg, justify="center")
         self.w_out.pack(side=tk.LEFT, padx=(12, 0), ipady=5)

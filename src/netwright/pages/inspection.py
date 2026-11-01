@@ -9,7 +9,7 @@ from tkinter import filedialog, messagebox, ttk
 from netwright.lib import HAS_SSH, inspector
 from netwright.lib.inventory import VENDORS
 from netwright.theme import FONT_MONO, theme
-from netwright.widgets import (Page, page_header)
+from netwright.widgets import (Page, page_header, WButton)
 
 
 def header(title, desc, page):
@@ -35,10 +35,10 @@ class InspectPage(Page):
                                         values=("5", "10", "20", "50"), )
         self.cmb_workers.current(2)
         self.cmb_workers.pack(side=tk.LEFT, padx=(6, 14))
-        self.btn_run = tk.Button(top, text="开始巡检", bg=theme.accent, fg="white", relief=tk.FLAT,
+        self.btn_run = WButton(top, text="开始巡检", bg=theme.accent, fg="white", relief=tk.FLAT,
                                  activebackground=theme.nav2, command=self.start)
         self.btn_run.pack(side=tk.LEFT)
-        tk.Button(top, text="导出报告", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
+        WButton(top, text="导出报告", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
                   activebackground=theme.nav1, command=self.export_report).pack(side=tk.LEFT, padx=(6, 0))
         self.var_count = tk.StringVar(value="")
         tk.Label(top, textvariable=self.var_count, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)

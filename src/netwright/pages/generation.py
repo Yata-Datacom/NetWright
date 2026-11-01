@@ -8,7 +8,7 @@ from tkinter import filedialog, messagebox, ttk
 from netwright.lib import generator as gen
 from netwright.lib.inventory import safe_filename
 from netwright.theme import FONT_MONO, theme
-from netwright.widgets import (Page, page_header)
+from netwright.widgets import (Page, page_header, WButton)
 
 
 def header(title, desc, page):
@@ -35,9 +35,9 @@ class GeneratePage(Page):
         self.cmb_tpl = ttk.Combobox(bar, state="readonly", width=52)
         self.cmb_tpl.pack(side=tk.LEFT, padx=(6, 10))
         self.cmb_tpl.bind("<<ComboboxSelected>>", lambda e: self._load_template())
-        tk.Button(bar, text="生成到目录…", bg=theme.accent, fg="white", relief=tk.FLAT,
+        WButton(bar, text="生成到目录…", bg=theme.accent, fg="white", relief=tk.FLAT,
                   activebackground=theme.nav2, command=self.generate).pack(side=tk.LEFT, padx=(0, 6))
-        tk.Button(bar, text="载入清单设备", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
+        WButton(bar, text="载入清单设备", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
                   activebackground=theme.nav1, command=self.load_inventory).pack(side=tk.LEFT)
         self.var_info = tk.StringVar(value="")
         tk.Label(bar, textvariable=self.var_info, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)

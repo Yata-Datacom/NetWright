@@ -6,7 +6,7 @@ import tkinter as tk
 from netwright.lib import HAS_SSH
 from netwright.lib import generator as gen
 from netwright.theme import theme
-from netwright.widgets import (Page, page_header)
+from netwright.widgets import (Page, page_header, WButton)
 
 
 def header(title, desc, page):
@@ -37,7 +37,7 @@ class DashboardPage(Page):
             stat.pack(anchor="w", padx=14)
             self.cards[key] = stat
             tk.Label(card, text=desc, bg=theme.panel, fg=theme.muted, font=("", 9)).pack(anchor="w", padx=14)
-            tk.Button(card, text="打开 →", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
+            WButton(card, text="打开 →", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
                       activebackground=theme.nav1, cursor="hand2",
                       command=lambda k=key: self.app.show(k)).pack(anchor="w", padx=14, pady=(4, 12))
         self.refresh()

@@ -175,3 +175,23 @@ def test_smoke_controller_audit_viewer(app):
     page.refresh_audit()
     text = page.audit_text.get("1.0", "end")
     assert "intent.apply" in text
+
+def test_header_contrast_all_themes():
+    """可读性回归：每个配色方案的顶栏渐变两端与白字对比度 ≥ 4.5:1。"""
+    from netwright.theme import THEMES
+
+    def luminance(hex_color: str) -> float:
+        r, g, b = (int(hex_color[i:i+2], 16) / 255 for i in (1, 3, 5))
+        lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+               for c in (r, g, b)]
+        return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+    def contrast(a: str, b: str) -> float:
+        la, lb = luminance(a), luminance(b)
+        hi, lo = max(la, lb), min(la, lb)
+        return (hi + 0.05) / (lo + 0.05)
+
+    for name, tokens in THEMES.items():
+        for key in ("header1", "header2", "accent_deep"):
+            ratio = contrast(tokens[key], "#ffffff")
+            assert ratio >= 4.5, f"{name}/{key} 白字对比度 {ratio:.2f} < 4.5"

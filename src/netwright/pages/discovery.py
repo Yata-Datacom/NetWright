@@ -7,10 +7,8 @@ import tkinter as tk
 from tkinter import ttk
 
 from netwright.lib import discovery
-from netwright.theme import (
-    FONT, FONT_SMALL, FONT_MONO, theme,
-)
-from netwright.widgets import Page, make_table, page_header, zebra
+from netwright.theme import FONT, FONT_SMALL, FONT_MONO, theme
+from netwright.widgets import (Page, page_header, make_table, zebra, WButton)
 
 
 class DiscoveryPage(Page):
@@ -41,11 +39,11 @@ class DiscoveryPage(Page):
         self.var_probe = tk.BooleanVar(value=True)
         ttk.Checkbutton(bar, text="协议端口探测 (22/23/830)", variable=self.var_probe,
                         style="TCheckbutton").pack(side=tk.LEFT, padx=(0, 12))
-        self.btn_run = tk.Button(bar, text="🚀 一键盘点", bg=theme.accent, fg="white",
+        self.btn_run = WButton(bar, text="🚀 一键盘点", bg=theme.accent, fg="white",
                                  relief=tk.FLAT, activebackground=theme.nav2,
                                  font=FONT, command=self.start)
         self.btn_run.pack(side=tk.LEFT, padx=(0, 12))
-        tk.Button(bar, text="导入清单（新增设备）", bg=theme.ok, fg="white",
+        WButton(bar, text="导入清单（新增设备）", bg=theme.ok, fg="white",
                   relief=tk.FLAT, activebackground=theme.nav2,
                   command=self.import_new).pack(side=tk.LEFT)
         self.var_prog = tk.StringVar(value="选择种子设备后开始")
