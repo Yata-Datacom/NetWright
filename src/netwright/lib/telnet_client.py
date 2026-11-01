@@ -57,7 +57,7 @@ def _recv_until(sock, patterns: list[str], timeout: float, quiet: float = 0.6) -
                 text = buf.decode("utf-8", "replace")
                 if any(c.search(text) for c in compiled):
                     break
-        except socket.timeout:
+        except TimeoutError:
             pass
         except OSError:
             break
@@ -78,7 +78,7 @@ def _read_quiet(sock, timeout: float, quiet: float = 0.7) -> str:
             if chunk:
                 buf += _strip_iac(chunk)
                 last = time.monotonic()
-        except socket.timeout:
+        except TimeoutError:
             pass
         except OSError:
             break

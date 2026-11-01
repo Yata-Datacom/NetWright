@@ -317,7 +317,7 @@ class InventoryPage(Page):
                                                      ("文本", "*.txt"), ("全部", "*.*")])
         if not path:
             return
-        with open(path, "r", encoding="utf-8-sig", errors="replace") as f:
+        with open(path, encoding="utf-8-sig", errors="replace") as f:
             text = f.read()
         added, warns = self.app.inventory.import_csv(text)
         self.refresh()

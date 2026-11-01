@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """环路/漂移检测 + 巡检历史 + 趋势提取测试。"""
 
 from __future__ import annotations

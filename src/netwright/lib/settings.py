@@ -15,7 +15,7 @@ def settings_path(base_dir: str) -> str:
 def load_settings(base_dir: str) -> dict:
     data = dict(DEFAULTS)
     try:
-        with open(settings_path(base_dir), "r", encoding="utf-8") as f:
+        with open(settings_path(base_dir), encoding="utf-8") as f:
             data.update(json.load(f))
     except (OSError, ValueError):
         pass

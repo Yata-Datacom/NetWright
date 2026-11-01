@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """资产盘点 / 台账链路 / Telnet 测试。"""
 
 from __future__ import annotations

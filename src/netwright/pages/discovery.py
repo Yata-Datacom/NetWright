@@ -137,7 +137,8 @@ class DiscoveryPage(Page):
                     raws[d.display_name] = text
                 except Exception:
                     pass
-                self.app.after(0, lambda i=i, n=len(devices):
+                n_devices = len(devices)
+                self.app.after(0, lambda i=i, n=n_devices:
                                self.var_loop.set(f"采集 MAC 表… {i}/{n}"))
             prev_snap = hist.load_snapshot("mac")
             prev = loopdetect.collect_records(

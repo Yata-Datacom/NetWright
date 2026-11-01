@@ -62,7 +62,7 @@ def parse_device_table(text: str) -> tuple[list[str], list[dict[str, str]]]:
     if not all(header):
         raise ValueError("表头存在空列名")
     devices = []
-    for n, row in enumerate(rows[1:], start=2):
+    for row in rows[1:]:
         dev = {}
         for i, key in enumerate(header):
             dev[key] = str(row[i]).strip() if i < len(row) else ""
@@ -128,7 +128,7 @@ def list_builtin_templates(base_dir: str | None = None) -> list[dict]:
     out: list[dict] = []
     try:
         import json
-        with open(manifest_path, "r", encoding="utf-8") as f:
+        with open(manifest_path, encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, ValueError):
         data = {}
@@ -140,7 +140,7 @@ def list_builtin_templates(base_dir: str | None = None) -> list[dict]:
         if not os.path.isfile(full):
             continue
         try:
-            with open(full, "r", encoding="utf-8") as f:
+            with open(full, encoding="utf-8") as f:
                 text = f.read()
         except OSError:
             continue

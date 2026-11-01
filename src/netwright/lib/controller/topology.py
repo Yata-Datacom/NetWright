@@ -20,7 +20,7 @@ class Link:
     peer_device: str
     peer_intf: str
 
-    def normalized(self) -> "Link":
+    def normalized(self) -> Link:
         """接口名归一化，减少同链路两种写法（Gi/GE vs GigabitEthernet）导致的重复边。"""
         def norm(name: str) -> str:
             m = re.match(r"^(Gig|Gi|GE)(\d.*)$", name, re.I)

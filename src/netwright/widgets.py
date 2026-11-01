@@ -23,8 +23,7 @@ def _lerp(c1: str, c2: str, t: float) -> str:
     """两个 #rrggbb 颜色之间线性插值。"""
     r1, g1, b1 = int(c1[1:3], 16), int(c1[3:5], 16), int(c1[5:7], 16)
     r2, g2, b2 = int(c2[1:3], 16), int(c2[3:5], 16), int(c2[5:7], 16)
-    return "#{:02x}{:02x}{:02x}".format(
-        int(r1 + (r2 - r1) * t), int(g1 + (g2 - g1) * t), int(b1 + (b2 - b1) * t))
+    return f"#{int(r1 + (r2 - r1) * t):02x}{int(g1 + (g2 - g1) * t):02x}{int(b1 + (b2 - b1) * t):02x}"
 
 
 class GradientFrame(tk.Canvas):
@@ -245,7 +244,7 @@ class Skeleton(tk.Frame):
             self._bars.append(bar)
 
     @staticmethod
-    def attach(parent, rows: int = 4) -> "Skeleton":
+    def attach(parent, rows: int = 4) -> Skeleton:
         sk = Skeleton(parent, rows=rows)
         sk.pack(fill=tk.X, padx=10, pady=10)
         return sk
@@ -353,7 +352,7 @@ def stat_card(parent, title: str, desc: str, command=None) -> tk.Label:
 StatCard = stat_card  # 类名别名（历史接口）
 
 
-_wall_cache: dict[tuple, "tk.PhotoImage"] = {}
+_wall_cache: dict[tuple, tk.PhotoImage] = {}
 _WALL_CACHE_MAX = 3      # resize 时只保留最近几个尺寸的壁纸
 
 

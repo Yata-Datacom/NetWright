@@ -26,7 +26,7 @@ def run_commands(device, commands: list[str], timeout: float = 15.0,
     import paramiko
 
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507  内网工具定位；严格校验见 SECURITY.md
     port = port or device.port or 22
     client.connect(device.host, port=port, username=device.username,
                    password=device.password, timeout=10, allow_agent=False,

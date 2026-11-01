@@ -49,7 +49,7 @@ class Asset:
     known: bool = False
     links: int = 0
 
-    def merge(self, other: "Asset") -> None:
+    def merge(self, other: Asset) -> None:
         self.ip = self.ip or other.ip
         self.hostname = self.hostname or other.hostname
         self.vendor_guess = self.vendor_guess or other.vendor_guess

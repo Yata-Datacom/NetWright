@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """GUI 冒烟共享夹具：单 App 实例 + 数据目录隔离（不污染仓库）。"""
 from __future__ import annotations
 

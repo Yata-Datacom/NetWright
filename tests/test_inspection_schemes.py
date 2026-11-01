@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """高级巡检方案测试：VXLAN+EVPN / MPLS·SR / 堆叠M-LAG / RoCEv2 + 过滤逻辑。"""
 
 from __future__ import annotations

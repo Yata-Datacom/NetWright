@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """控制器测试：意图渲染 / LLDP 解析 / 拓扑 / 部署流水线 / REST 北向。"""
 
 from __future__ import annotations

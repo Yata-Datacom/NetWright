@@ -36,7 +36,7 @@ def _audit(entry: dict):
 def audit_tail(limit: int = 100) -> list[dict]:
     try:
         with _lock:
-            with open(audit_path(), "r", encoding="utf-8") as f:
+            with open(audit_path(), encoding="utf-8") as f:
                 lines = f.readlines()
     except OSError:
         return []
@@ -107,7 +107,7 @@ def apply(intent_key: str, intent: dict, devices: list, timeout: float = 15.0,
     return {"results": results, "skipped": plan["skipped"]}
 
 
-def discover_topology(devices: list, timeout: float = 12.0, progress=None) -> "object":
+def discover_topology(devices: list, timeout: float = 12.0, progress=None) -> object:
     """SSH 采集各设备 LLDP/CDP 邻居 → 构建拓扑（阻塞；调用方放线程）。
 
     不支持拓扑发现命令的厂商（linux/generic）自动跳过。

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """GUI 冒烟测试（多轮）：全页循环 ×2 + 各业务路径 + REST 生命周期。"""
 
 from __future__ import annotations

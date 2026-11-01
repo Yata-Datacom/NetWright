@@ -197,13 +197,13 @@ class Inventory:
         self.devices = []
         self.links = []
         try:
-            with open(self.path, "r", encoding="utf-8") as f:
+            with open(self.path, encoding="utf-8") as f:
                 data = json.load(f)
             for d in data.get("devices", []):
                 try:
                     self.devices.append(Device.from_storage(d))
                 except Exception:
-                    continue
+                    continue  # noqa: S112  单条坏数据跳过，不中断导入
             for lk in data.get("links", []):
                 try:
                     self.links.append(LedgerLink(

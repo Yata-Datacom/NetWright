@@ -38,7 +38,7 @@ def load_history(kind: str, limit: int = 60) -> list[dict]:
     """读取最近 limit 条记录（旧的在前）。损坏行静默跳过。"""
     try:
         with _lock:
-            with open(history_path(kind), "r", encoding="utf-8") as f:
+            with open(history_path(kind), encoding="utf-8") as f:
                 lines = f.readlines()
     except OSError:
         return []
@@ -86,7 +86,7 @@ def save_snapshot(kind: str, data: dict) -> bool:
 def load_snapshot(kind: str) -> dict:
     path = os.path.join(_base_dir(), f"netwright_snapshot_{kind}.json")
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except (OSError, ValueError):
         return {}
