@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
+import os
+
 from netwright.pages import PAGE_REGISTRY
+
+
+from netwright.theme import theme
 
 
 def theme_current():
@@ -195,3 +200,50 @@ def test_header_contrast_all_themes():
         assert ratio_top >= 4.5, f"{mode} 顶栏文字对比度 {ratio_top:.2f} < 4.5"
         ratio_deep = contrast("#ffffff", tokens["accent_deep"])
         assert ratio_deep >= 4.5, f"{mode}/accent_deep 白字对比度 {ratio_deep:.2f} < 4.5"
+
+
+def test_smoke_wbutton_press_feedback(app):
+    """按钮反馈逻辑：hover/press 色预计算正确、_feedback 生效、绑定已注册。"""
+    from netwright.widgets import WButton
+
+    btn = WButton(app, text="测试", bg=theme.accent)
+    normal = btn.cget("bg")
+    assert btn._c_hover != normal and btn._c_press != normal
+    assert btn._c_press != btn._c_hover
+    assert btn.bind("<ButtonPress-1>") and btn.bind("<Enter>") and btn.bind("<Leave>")
+    # 状态机：_feedback 真实改变底色，Leave 恢复
+    btn._feedback(btn._c_press, btn._fg_press)
+    assert btn.cget("bg") == btn._c_press
+    btn._feedback(btn._c_normal, btn._fg_normal)
+    assert btn.cget("bg") == normal
+    btn.destroy()
+
+
+def test_smoke_wbutton_ghost_press(app):
+    """ghost 按钮同样具备按压反馈逻辑与绑定。"""
+    from netwright.widgets import WButton
+
+    btn = WButton(app, text="ghost")
+    normal = btn.cget("bg")
+    assert btn._c_hover != normal and btn._c_press != normal
+    assert btn.bind("<ButtonPress-1>")
+    btn._feedback(btn._c_press, btn._fg_press)
+    assert btn.cget("bg") == btn._c_press
+    btn._feedback(btn._c_normal, btn._fg_normal)
+    btn.destroy()
+
+
+def test_smoke_export_all_templates(app, tmp_path):
+    """批量模板导出：116 个 .cfg 按目录结构落盘。"""
+    from netwright.lib import generator as gen
+
+    out = tmp_path / "tpl-export"
+    tpls = gen.list_builtin_templates()
+    for t in tpls:
+        rel = t["file"].replace("/", os.sep)
+        dest = out / "templates" / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(t["text"], encoding="utf-8")
+    cfgs = list(out.rglob("*.cfg"))
+    assert len(cfgs) >= 105
+    assert (out / "templates" / "cli" / "vxlan_evpn" / "huawei.cfg").is_file()

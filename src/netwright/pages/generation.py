@@ -79,6 +79,33 @@ class GeneratePage(Page):
             self.tpl_text.insert(tk.END, t["text"])
             self.var_info.set(f"变量: {', '.join(t['vars'])}")
 
+    def export_all_templates(self):
+        """批量导出：把内置模板库全部 .cfg 按目录结构写入用户选择目录。"""
+        from netwright.widgets import toast
+        tpls = gen.list_builtin_templates()
+        if not tpls:
+            toast(self.app, "模板库为空", "warn")
+            return
+        out = filedialog.askdirectory(title="选择模板导出目录")
+        if not out:
+            return
+        n = 0
+        for t in tpls:
+            rel = t["file"].replace("/", os.sep)
+            dest = os.path.join(out, "templates", rel)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with open(dest, "w", encoding="utf-8", newline=chr(10)) as f:
+                f.write(t["text"])
+            n += 1
+        # 清单文件也一并导出（NADT 兼容格式）
+        import shutil
+        src_manifest = os.path.join(os.path.dirname(__file__), "..", "..",
+                                    "templates", "library.json")
+        if os.path.isfile(src_manifest):
+            shutil.copy(src_manifest, os.path.join(out, "templates", "library.json"))
+        toast(self.app, f"已导出 {n} 个模板 → {out}", "ok")
+        self.app.set_status(f"已导出 {n} 个模板 → {out}")
+
     def load_inventory(self):
         rows = []
         tpl = self.tpl_map.get(self.cmb_tpl.get())

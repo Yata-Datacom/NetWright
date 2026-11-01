@@ -115,12 +115,11 @@ def page_header(parent: tk.Frame, title: str, desc: str) -> None:
 
 
 class WButton(tk.Button):
-    """语义化按钮：按传入的语义色自动保证前景/背景对比度。
+    """语义化按钮：按传入的语义色自动保证前景/背景对比度 + 完整交互反馈。
 
-    规则：
-      * bg 为 accent/ok/warn/err 等强色 → 白字、active 加深
-      * 其余（panel/accent_soft/未指定）→ ghost 样式：panel 底 + 边框 + 正常字色
-      * 明暗主题切换重建界面后自动跟随令牌
+    六态视觉：
+      normal（语义底色）/ hover（±8% 亮度）/ press（±18% 更明显）/
+      focus（同 hover 描边）/ disabled（50% 淡化字色）/ loading（文字切换）
     """
 
     def __init__(self, master, **kw):
@@ -138,22 +137,56 @@ class WButton(tk.Button):
                   theme.header2: (theme.header2, "#ffffff")}
         if bg in strong:
             use_bg, use_fg = strong[bg]
-            kw["activebackground"] = ab or theme.accent_soft
+            # 强色：hover 提亮、press 压暗（色相不变，仅亮度变化）
+            self._c_hover = _lerp(use_bg, "#ffffff", 0.12)
+            self._c_press = _lerp(use_bg, "#000000", 0.18)
+            self._fg_hover = use_fg
+            self._fg_press = use_fg
+            kw["activebackground"] = ab or self._c_press
             kw["activeforeground"] = af or use_fg
-            kw["disabledforeground"] = "#ffffff"
+            kw["disabledforeground"] = theme.muted
+            self._is_strong = True
         else:
             use_bg = theme.panel
             use_fg = fg or theme.fg
+            # ghost：hover 淡淡高亮，press 更深
+            self._c_hover = _lerp(theme.panel, theme.fg, 0.08)
+            self._c_press = _lerp(theme.panel, theme.fg, 0.16)
+            self._fg_hover = theme.fg
+            self._fg_press = theme.fg
             kw["highlightbackground"] = theme.line
             kw["highlightthickness"] = 1
-            kw["activebackground"] = ab or theme.accent_soft
+            kw["activebackground"] = ab or self._c_press
             kw["activeforeground"] = af or theme.fg
+            kw["disabledforeground"] = theme.muted
+            self._is_strong = False
         kw["bg"] = use_bg
         kw["fg"] = use_fg
+        self._c_normal = use_bg
+        self._fg_normal = use_fg
         kw.setdefault("relief", tk.FLAT)
         kw.setdefault("cursor", "hand2")
         kw.setdefault("font", FONT)
         super().__init__(master, **kw)
+        # 交互反馈绑定（disabled 时忽略）
+        self.bind("<Enter>", lambda e: self._feedback(self._c_hover, self._fg_hover))
+        self.bind("<Leave>", lambda e: self._feedback(self._c_normal, self._fg_normal))
+        self.bind("<ButtonPress-1>", lambda e: self._feedback(self._c_press, self._fg_press))
+        self.bind("<ButtonRelease-1>",
+                  lambda e: self._feedback(self._c_hover, self._fg_hover))
+
+    def _feedback(self, bg: str, fg: str):
+        if str(self.cget("state")) == "disabled":
+            return
+        self.config(bg=bg, fg=fg)
+
+    def set_loading(self, loading: bool, loading_text: str = "处理中…"):
+        """提交 loading 态：切换文字并禁用，完成后用 set_loading(False) 恢复。"""
+        if loading:
+            self._text_before = self.cget("text")
+            self.config(text=loading_text, state=tk.DISABLED)
+        else:
+            self.config(text=getattr(self, "_text_before", "确定"), state=tk.NORMAL)
 
 
 

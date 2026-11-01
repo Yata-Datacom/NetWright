@@ -37,8 +37,14 @@
 - **巡检趋势图**：每轮批量巡检自动落盘摘要（netwright_history_inspection.jsonl），
   巡检页底部 📈 趋势折线图（Canvas 纯实现）：告警总数/失败台数/警告台数/平均耗时。
 
+### Added
+- **WButton 交互反馈**：hover 提亮 / press 压暗 / Leave 恢复（强色与 ghost 双样式），
+  `set_loading()` 提交 loading 态。
+- **批量模板导出**：配置生成页「📦 导出全部模板」——116 个模板按目录结构
+  写入用户选择目录（含 library.json，NADT 兼容）。
+
 ### Tests
-- 100 项 pytest（MAC 表三厂商+MikroTik 解析、环路/漂移判定、历史序列提取）。
+- 103 项 pytest（按压反馈逻辑/ghost 反馈/批量导出冒烟）。
 
 ## [3.5.0] - 2026-11-01
 
