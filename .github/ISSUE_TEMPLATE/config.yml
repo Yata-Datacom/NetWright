@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 用户指南（先看这里）
+    url: https://github.com/Yata-Datacom/NetWright/blob/main/docs/USER_GUIDE.zh-CN.md
+    about: 安装、界面、拓扑、意图下发、批量巡检、REST API 全都有
+  - name: 🚀 快速上手（5 分钟 Demo）
+    url: https://github.com/Yata-Datacom/NetWright#5-分钟上手新手路线
+    about: 不知道从哪开始？跟着五步走一遍
+  - name: 🔒 安全问题
+    url: https://github.com/Yata-Datacom/NetWright/security/advisories/new
+    about: 请勿在公开 Issue 中披露漏洞细节

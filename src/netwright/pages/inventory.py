@@ -1,6 +1,7 @@
 """设备清单工作区页面（资源列表标杆：Drawer 编辑 + 状态 Tag + 批量操作浮层）。"""
 from __future__ import annotations
 
+import threading
 import tkinter as tk
 from datetime import datetime
 from tkinter import filedialog, messagebox, ttk
@@ -9,7 +10,7 @@ from netwright.lib import portscan, secrets as sec
 from netwright.lib.inventory import VENDORS, Device
 from netwright.theme import FONT_SMALL, theme
 from netwright.widgets import (
-    Drawer, Page, WButton, empty_state, make_table, page_header, toast, zebra,
+    Drawer, Page, WButton, make_table, page_header, toast, zebra,
 )
 
 
@@ -29,7 +30,8 @@ class InventoryPage(Page):
         bar.pack(fill=tk.X, pady=(0, 8))
         for text, cmd in (("＋ 添加设备", self.add_dialog), ("✎ 编辑", self.edit_dialog),
                           ("✖ 删除", self.remove_sel), ("导入 CSV…", self.import_csv),
-                          ("导出 CSV", self.export_csv), ("⚡ 在线检测", self.alive_check)):
+                          ("导出 CSV", self.export_csv), ("⚡ 在线检测", self.alive_check),
+                          ("🔌 测试连接", self.test_connections)):
             WButton(bar, text=text, command=cmd).pack(side=tk.LEFT, padx=(0, 8))
         self.var_count = tk.StringVar()
         tk.Label(bar, textvariable=self.var_count, bg=theme.bg, fg=theme.muted,
@@ -54,8 +56,23 @@ class InventoryPage(Page):
         self.tree.bind("<Double-1>", lambda e: self.edit_dialog())
         self.tree.bind("<<TreeviewSelect>>", lambda e: self._update_batchbar())
 
-        # ── 空状态 ──
-        self.empty = empty_state(body, "还没有设备。点击「＋ 添加设备」或「导入 CSV…」开始。")
+        # ── 空状态：给三条最短路径，而不是只留一句话 ──
+        self.empty = tk.Frame(body, bg=theme.bg)
+        box = tk.Frame(self.empty, bg=theme.panel, highlightbackground=theme.line,
+                       highlightthickness=1)
+        box.pack(expand=True)
+        tk.Label(box, text="还没有设备", bg=theme.panel, fg=theme.fg,
+                 font=("Microsoft YaHei UI", 14, "bold")).pack(pady=(28, 4))
+        tk.Label(box, text="三条路，选一条开始：", bg=theme.panel, fg=theme.muted,
+                 font=FONT_SMALL).pack()
+        row = tk.Frame(box, bg=theme.panel)
+        row.pack(pady=(14, 6))
+        WButton(row, text="① 载入演示数据", bg=theme.accent_soft,
+                command=self._load_demo).pack(side=tk.LEFT, padx=6)
+        WButton(row, text="② 手动添加设备", command=self.add_dialog).pack(side=tk.LEFT, padx=6)
+        WButton(row, text="③ 导入 CSV 台账", command=self.import_csv).pack(side=tk.LEFT, padx=6)
+        tk.Label(box, text="演示数据使用 192.0.2.x 文档网段，不会连到任何真实地址",
+                 bg=theme.panel, fg=theme.faint, font=FONT_SMALL).pack(pady=(0, 24))
 
         # ── 批量操作浮层（多选时出现）──
         self.batchbar = tk.Frame(body, bg=theme.accent_soft,
@@ -76,6 +93,8 @@ class InventoryPage(Page):
 
     # ── 渲染 ──
     def refresh(self):
+        # 自动刷新每 10 秒跑一次：先记住选中行，刷新后还原（否则用户勾选会被"吞掉"）
+        keep = self._selected_indices()
         self.tree.delete(*self.tree.get_children())
         devices = self.app.inventory.devices
         for i, d in enumerate(devices):
@@ -87,6 +106,9 @@ class InventoryPage(Page):
                 d.username, sec.mask(d.password) if d.password else "", d.note),
                 tags=("ok",) if alive is True else ("warn",) if alive is False else ())
             zebra(self.tree, str(i), i)
+        for index in keep:
+            if index < len(devices):
+                self.tree.selection_add(str(index))
         self.tree.tag_configure("ok", foreground=theme.ok)
         self.tree.tag_configure("warn", foreground=theme.warn)
         self.var_count.set(f"{len(devices)} 台设备")
@@ -104,6 +126,10 @@ class InventoryPage(Page):
     # ── 选择/批量 ──
     def _selected_indices(self) -> list[int]:
         return sorted(int(s) for s in self.tree.selection())
+
+    def _selected_devices(self) -> list:
+        devices = self.app.inventory.devices
+        return [devices[i] for i in self._selected_indices() if 0 <= i < len(devices)]
 
     def _selected_index(self):
         idx = self._selected_indices()
@@ -336,4 +362,56 @@ class InventoryPage(Page):
             return
         with open(path, "w", encoding="utf-8-sig", newline="") as f:
             f.write(self.app.inventory.export_csv())
-        toast(self.app, f"已导出到 {path}", "ok")
+        toast(self.app, f"已导出到 {path}（不含密码）", "ok")
+
+    # ── 连接测试（小白最容易卡住的一步：地址/端口/凭据到底通不通）──
+    def _load_demo(self):
+        """空状态里的「载入演示数据」：一键把界面填满，先看见再理解。"""
+        from netwright import demo
+
+        devices, links = demo.seed(self.app.inventory)
+        self.app.controller_store.graph.clear()
+        self.app.controller_store.sync_inventory()
+        self.refresh()
+        self.app.refresh_dashboard()
+        self.app.event_bus.publish("demo.loaded",
+                                   f"已载入演示数据：{devices} 台设备 / {links} 条链路",
+                                   source="inventory")
+        toast(self.app, f"演示数据就绪：{devices} 台设备 / {links} 条链路", "ok")
+        self.app.set_status("演示数据已载入，可去「拓扑」看看效果")
+
+    def test_connections(self):
+        devices = self._selected_devices() or list(self.app.inventory.devices)
+        if not devices:
+            messagebox.showinfo("提示", "请先添加设备，或载入演示数据")
+            return
+        results: list[str] = []
+
+        def worker():
+            from netwright.sdn.southbound import default_registry
+            registry = default_registry()
+            for device in devices:
+                adapter = registry.for_device(device)
+                if adapter is None:
+                    results.append(f"✖ {device.display_name}: 不支持的接入协议 {device.protocol}")
+                    continue
+                port = device.port or (23 if device.protocol == "telnet" else 22)
+                try:
+                    import socket
+                    with socket.create_connection((device.host, port), timeout=2.5):
+                        results.append(f"✓ {device.display_name}: {device.host}:{port} 端口可达"
+                                       f"（{device.protocol.upper()}）")
+                except OSError as exc:
+                    results.append(f"✖ {device.display_name}: {device.host}:{port} 不可达（{exc}）")
+            self.app.after(0, self._test_done, results)
+
+        self.app.set_status(f"正在测试 {len(devices)} 台设备的连通性…")
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _test_done(self, results: list):
+        ok = sum(1 for r in results if r.startswith("✓"))
+        self.app.set_status(f"连通性测试完成：{ok}/{len(results)} 台端口可达")
+        messagebox.showinfo("连接测试结果",
+                            "\n".join(results[:20]) +
+                            ("\n…" if len(results) > 20 else "") +
+                            "\n\n端口可达只代表网络通；登录是否成功还要看用户名/密码。")

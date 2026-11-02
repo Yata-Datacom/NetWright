@@ -14,6 +14,7 @@ from dataclasses import asdict, dataclass
 from . import secrets
 
 FILENAME = "netwright_devices.json"
+LEGACY_FILENAME = "netforge_devices.json"     # 3.4 更名前的旧文件，首次启动自动迁移
 
 VENDORS = {
     "huawei": "华为 VRP",
@@ -62,6 +63,7 @@ class Device:
             username=str(data.get("username", "")),
             password=secrets.unprotect(str(data.get("password", ""))),
             hostname=str(data.get("hostname", "")),
+            protocol=str(data.get("protocol") or "ssh"),
             note=str(data.get("note", "")),
         )
 
@@ -163,16 +165,21 @@ class Inventory:
                          hostname=get("hostname") or get("名称"),
                          protocol=protocol,
                          note=get("note") or get("备注"))
-            if self.find(dev.host, dev.port):
-                warnings.append(f"第 {n} 行 {dev.host}:{dev.port} 已存在，跳过")
-                continue
-            self.devices.append(dev)
-            added += 1
             # 台账拓扑：本端接口 + 对端设备/接口（可选列）
             local_intf = get("local_intf") or get("本端接口")
             peer_dev = get("peer_device") or get("对端设备")
             peer_intf = get("peer_intf") or get("对端接口")
-            if local_intf and peer_dev and build_links:
+            has_link = bool(local_intf and peer_dev) and build_links
+            if self.find(dev.host, dev.port):
+                # 同一台设备在 CSV 里多次出现很常见（每行描述一条链路）：
+                # 带链路信息就静默用于建拓扑，纯重复行才提示
+                if not has_link:
+                    warnings.append(f"第 {n} 行 {dev.host}:{dev.port} 已存在，跳过")
+                    continue
+            else:
+                self.devices.append(dev)
+                added += 1
+            if has_link:
                 self.links.append(LedgerLink(
                     device_host=host, local_intf=local_intf,
                     peer_host=peer_dev, peer_intf=peer_intf))
@@ -180,7 +187,12 @@ class Inventory:
             self.save()
         return added, warnings
 
-    def export_csv(self) -> str:
+    def export_csv(self, include_secrets: bool = False) -> str:
+        """导出台账 CSV。
+
+        :param include_secrets: 默认 **不导出密码**（导出物常被随手发到群里）；
+                                只有明确要备份凭据时才置 True。
+        """
         import csv
         import io
         buf = io.StringIO()
@@ -189,15 +201,23 @@ class Inventory:
                     "hostname", "note"])
         for d in self.devices:
             w.writerow([d.host, d.port, d.vendor, d.protocol, d.username,
-                        d.password, d.hostname, d.note])
+                        d.password if include_secrets else "",
+                        d.hostname, d.note])
         return buf.getvalue()
 
     # ── 持久化 ──
     def load(self):
         self.devices = []
         self.links = []
+        path = self.path
+        migrated = False
+        if not os.path.exists(path):
+            legacy = os.path.join(os.path.dirname(path), LEGACY_FILENAME)
+            if os.path.isfile(legacy):
+                path = legacy
+                migrated = True
         try:
-            with open(self.path, encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             for d in data.get("devices", []):
                 try:
@@ -215,6 +235,11 @@ class Inventory:
                     continue
         except (OSError, ValueError):
             pass
+        if migrated and self.devices:      # 一次性迁移：旧文件保留，新格式落盘
+            try:
+                self.save()
+            except OSError:
+                pass
 
     def save(self):
         payload = {"version": 2,

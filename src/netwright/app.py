@@ -34,12 +34,25 @@ from netwright.lib.controller.restapi import ControllerAPI, ControllerState  # n
 from netwright.lib.inventory import Inventory  # noqa: E402
 from netwright.lib.settings import load_settings, save_settings  # noqa: E402
 from netwright.pages import NAV_GROUPS, PAGE_REGISTRY  # noqa: E402
+from netwright.pages.help import show_help  # noqa: E402
 from netwright.sdn import ControllerStore, EventBus  # noqa: E402
 from netwright.theme import (  # noqa: E402
     FONT_SMALL, PRIMARY_HUES, SIDEBAR_COLLAPSED_W, SIDEBAR_W, TOPBAR_H,
     setup_ttk, theme,
 )
 from netwright.widgets import StatusDot  # noqa: E402
+
+# 各工作区的"刷新入口"：自动刷新与 F5 走同一套，避免每个页面各写一套
+PAGE_REFRESH = {
+    "dashboard": "refresh",
+    "topology": "refresh",
+    "events": "refresh",
+    "inventory": "refresh",
+    "inspect": "refresh_devices",
+    "discovery": "refresh",
+}
+
+AUTO_REFRESH_MS = 10_000       # 10 秒自动刷新（可在顶栏关掉）
 
 
 class NetWrightApp(tk.Tk):
@@ -77,10 +90,15 @@ class NetWrightApp(tk.Tk):
         # ── 外壳 ──
         self._active_key = self.settings.get("last_page", "dashboard")
         self.nav_collapsed = bool(self.settings.get("nav_collapsed", False))
+        self.auto_refresh = bool(self.settings.get("auto_refresh", True))
+        self._auto_job = None
+        self._help_dialog = None
         self._nav_items: dict[str, tk.Frame] = {}
         self._build_shell()
         self.show(self._active_key if self._active_key in PAGE_REGISTRY else "dashboard")
         self._tick_clock()
+        self._bind_shortcuts()
+        self._schedule_auto_refresh()
         self.event_bus.publish("controller.started",
                                f"控制器已启动 · REST v2 就绪于 127.0.0.1:{self.controller_api.port}",
                                source="app", version=__version__)
@@ -101,6 +119,7 @@ class NetWrightApp(tk.Tk):
         self.var_status = tk.StringVar(value="就绪")
         self.var_clock = tk.StringVar(value="")
         self.var_ptitle = tk.StringVar(value="")
+        self.var_updated = tk.StringVar(value="")
 
         # 折叠按钮
         tk.Button(self.top, text="☰", bg=theme.chrome, fg=theme.chrome_muted,
@@ -129,6 +148,8 @@ class NetWrightApp(tk.Tk):
         # 右侧：时钟 / 状态 / 集群 / 主题
         tk.Label(self.top, textvariable=self.var_clock, bg=theme.chrome,
                  fg=theme.chrome_muted, font=FONT_SMALL).pack(side=tk.RIGHT, padx=(0, 14))
+        tk.Label(self.top, textvariable=self.var_updated, bg=theme.chrome,
+                 fg=theme.chrome_muted, font=FONT_SMALL).pack(side=tk.RIGHT, padx=(0, 8))
         self.status_dot = StatusDot(self.top, text="控制器在线", tone="ok",
                                     bg=theme.chrome)
         self.status_dot.pack(side=tk.RIGHT, padx=(0, 12))
@@ -155,18 +176,41 @@ class NetWrightApp(tk.Tk):
                                   command=self.toggle_mode)
         self.btn_mode.pack(side=tk.RIGHT, padx=(0, 6))
 
+        tk.Button(self.top, text="?  引导", bg=theme.chrome, fg=theme.chrome_muted,
+                  relief=tk.FLAT, bd=0, activebackground=theme.chrome_alt,
+                  activeforeground=theme.chrome_fg, font=FONT_SMALL, cursor="hand2",
+                  command=self.open_help).pack(side=tk.RIGHT, padx=(0, 10))
+
+        self.var_auto = tk.BooleanVar(value=self.auto_refresh)
+        tk.Checkbutton(self.top, text="自动 10s", variable=self.var_auto,
+                       command=self.toggle_auto_refresh,
+                       bg=theme.chrome, fg=theme.chrome_muted,
+                       selectcolor=theme.chrome_alt,
+                       activebackground=theme.chrome, activeforeground=theme.chrome_fg,
+                       highlightthickness=0, bd=0, font=FONT_SMALL,
+                       cursor="hand2").pack(side=tk.RIGHT, padx=(0, 10))
+
     def _draw_logo(self):
-        """品牌标记：六边形轮廓 + 三个互联节点（"控制器"意象，纯 Canvas 直绘）。"""
+        """品牌标记：控制器枢纽 + 三个环绕节点（与 assets/logo.png 同一套造型）。"""
         c = self._logo
         c.delete("all")
         accent = theme.chrome_accent
-        c.create_polygon(11, 1, 21, 6.5, 21, 15.5, 11, 21, 1, 15.5, 1, 6.5,
-                         outline=accent, fill="", width=1.6)
-        for x, y in ((7.5, 8.5), (14.5, 8.5), (11, 15)):
-            c.create_oval(x - 2, y - 2, x + 2, y + 2, fill=accent, outline="")
-        c.create_line(7.5, 8.5, 14.5, 8.5, fill=accent)
-        c.create_line(7.5, 8.5, 11, 15, fill=accent)
-        c.create_line(14.5, 8.5, 11, 15, fill=accent)
+        cx = cy = 11
+        orbit = 6.6
+        nodes = [(cx, cy - orbit), (cx - orbit * 0.92, cy + orbit * 0.7),
+                 (cx + orbit * 0.92, cy + orbit * 0.7)]
+        for nx, ny in nodes:
+            c.create_line(cx, cy, nx, ny, fill=accent, width=1.4)
+        c.create_line(*nodes[0], *nodes[1], fill=theme.chrome_line, width=1)
+        c.create_line(*nodes[1], *nodes[2], fill=theme.chrome_line, width=1)
+        c.create_line(*nodes[2], *nodes[0], fill=theme.chrome_line, width=1)
+        for nx, ny in nodes:
+            c.create_oval(nx - 2.6, ny - 2.6, nx + 2.6, ny + 2.6,
+                          fill=accent, outline="")
+            c.create_oval(nx - 1.1, ny - 1.1, nx + 1.1, ny + 1.1,
+                          fill=theme.chrome, outline="")
+        c.create_oval(cx - 3.6, cy - 3.6, cx + 3.6, cy + 3.6, fill=accent, outline="")
+        c.create_oval(cx - 1.4, cy - 1.4, cx + 1.4, cy + 1.4, fill="#FFFFFF", outline="")
 
     def _build_main(self):
         main = tk.Frame(self, bg=theme.bg)
@@ -315,10 +359,7 @@ class NetWrightApp(tk.Tk):
         self._active_key = key
         self.var_ptitle.set(PAGE_REGISTRY[key][0] if key in PAGE_REGISTRY else "")
         self._paint_active()
-        hooks = {"dashboard": "refresh", "inventory": "refresh",
-                 "inspect": "refresh_devices", "discovery": "refresh",
-                 "topology": "refresh", "events": "refresh"}
-        hook = hooks.get(key)
+        hook = PAGE_REFRESH.get(key)
         if hook and hasattr(self.pages[key], hook):
             try:
                 getattr(self.pages[key], hook)()
@@ -333,6 +374,71 @@ class NetWrightApp(tk.Tk):
         if page is not None and hasattr(page, "refresh"):
             page.refresh()
 
+    # ── 刷新（手动 F5 / 自动 10s 共用同一入口）────────────────────
+    def refresh_current(self, silent: bool = True):
+        """刷新当前工作区；刷新失败不打断用户操作。"""
+        page = self.pages.get(self._active_key)
+        if page is None:
+            return False
+        hook = PAGE_REFRESH.get(self._active_key)
+        fn = getattr(page, hook, None) if hook else None
+        if fn is None:
+            return False
+        if getattr(page, "_busy", False):
+            return False
+        try:
+            fn()
+        except Exception:      # noqa: BLE001  自动刷新绝不能把界面带崩
+            return False
+        self.var_updated.set(datetime.now().strftime("%H:%M:%S"))
+        if not silent:
+            self.set_status(f"已刷新 · {self.var_updated.get()}")
+        return True
+
+    def toggle_auto_refresh(self):
+        self.auto_refresh = bool(self.var_auto.get())
+        self.settings["auto_refresh"] = self.auto_refresh
+        save_settings(self.settings, BASE_DIR)
+        if self.auto_refresh:
+            self._schedule_auto_refresh()
+            self.set_status("已开启自动刷新（10 秒）")
+        else:
+            self._cancel_auto_refresh()
+            self.set_status("已关闭自动刷新，可用 F5 手动刷新")
+
+    def _schedule_auto_refresh(self):
+        self._cancel_auto_refresh()
+        if self.auto_refresh:
+            self._auto_job = self.after(AUTO_REFRESH_MS, self._auto_tick)
+
+    def _cancel_auto_refresh(self):
+        if self._auto_job is not None:
+            try:
+                self.after_cancel(self._auto_job)
+            except tk.TclError:
+                pass
+            self._auto_job = None
+
+    def _auto_tick(self):
+        self._auto_job = None
+        try:
+            self.refresh_current(silent=True)
+        finally:
+            if self.auto_refresh:
+                self._schedule_auto_refresh()
+
+    # ── 帮助 / 快捷键 ─────────────────────────────────────────────
+    def open_help(self):
+        return show_help(self)
+
+    def _bind_shortcuts(self):
+        self.bind("<F5>", lambda _e: self.refresh_current(silent=False))
+        self.bind("<Control-h>", lambda _e: self.open_help())
+        self.bind("<Control-H>", lambda _e: self.open_help())
+        keys = list(PAGE_REGISTRY)
+        for i, key in enumerate(keys[:9], start=1):
+            self.bind(f"<Control-Key-{i}>", lambda _e, k=key: self.show(k))
+
     def set_status(self, text: str):
         self.var_status.set(text)
 
@@ -341,6 +447,13 @@ class NetWrightApp(tk.Tk):
         self.after(30_000, self._tick_clock)
 
     def _on_close(self):
+        self._cancel_auto_refresh()
+        dialog = getattr(self, "_help_dialog", None)
+        if dialog is not None:
+            try:
+                dialog.destroy()
+            except tk.TclError:
+                pass
         try:
             self.controller_api.stop()
         except Exception:

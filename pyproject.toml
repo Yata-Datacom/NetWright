@@ -4,17 +4,38 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netwright"
-version = "3.9.0"
-description = "NetWright — 网络工程师工作台 + SDN 控制器控制台：拓扑/意图策略/南向适配/事件总线/REST v2"
+version = "3.10.0"
+description = "NetWright — 网络工程师工作台 + SDN 控制器控制台：拓扑 / 意图策略 / 南向适配 / 事件总线 / REST v2"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Yata-Datacom" }]
+keywords = ["sdn", "network", "controller", "netops", "ssh", "netconf", "openflow",
+            "topology", "huawei", "cisco", "h3c", "tkinter"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: Telecommunications Industry",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Networking",
+    "Topic :: System :: Systems Administration",
+]
 dependencies = ["paramiko>=3.4"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "pillow>=10", "pyinstaller>=6"]
 
 [project.urls]
 Homepage = "https://github.com/Yata-Datacom/NetWright"
+Documentation = "https://github.com/Yata-Datacom/NetWright/blob/main/docs/USER_GUIDE.zh-CN.md"
 Changelog = "https://github.com/Yata-Datacom/NetWright/blob/main/CHANGELOG.md"
+"Issue Tracker" = "https://github.com/Yata-Datacom/NetWright/issues"
 
 [project.scripts]
 netwright = "netwright.app:main"
@@ -25,13 +46,17 @@ package-dir = { "" = "src" }
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+netwright = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q -p no:cacheprovider"
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py310"
+exclude = ["build", "dist", ".venv"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]

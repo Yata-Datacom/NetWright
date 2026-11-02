@@ -126,12 +126,17 @@ def test_smoke_theme_light_tokens(app):
 
 
 def test_smoke_settings_persistence(app, tmp_path):
-    """设置持久化：主题/last_page 写盘并可回读。"""
+    """设置持久化：主题/last_page 写盘并可回读；旧 key 'theme' 自动迁移。"""
     from netwright.lib.settings import load_settings, save_settings
-    data = {"theme": "暮光紫 · 暗", "rest_port": 8899, "last_page": "cheat"}
+    data = {"theme_mode": "dark", "theme_hue": "紫", "last_page": "cheat"}
     assert save_settings(data, str(tmp_path))
     loaded = load_settings(str(tmp_path))
-    assert loaded["theme"] == "暮光紫 · 暗" and loaded["last_page"] == "cheat"
+    assert loaded["theme_mode"] == "dark" and loaded["theme_hue"] == "紫"
+    assert loaded["last_page"] == "cheat"
+    # 旧版本遗留的 theme 字段 → 迁移成 theme_mode，且不再出现在结果里
+    assert save_settings({"theme": "浅色 · 亮", "rest_port": 8899}, str(tmp_path))
+    migrated = load_settings(str(tmp_path))
+    assert "theme" not in migrated and migrated["theme_mode"] == "light"
 
 
 def test_smoke_inventory_alive_check(app, monkeypatch):
@@ -247,3 +252,37 @@ def test_smoke_export_all_templates(app, tmp_path):
     cfgs = list(out.rglob("*.cfg"))
     assert len(cfgs) >= 105
     assert (out / "templates" / "cli" / "vxlan_evpn" / "huawei.cfg").is_file()
+
+
+def test_smoke_auto_refresh_toggle(app):
+    """自动刷新：开/关都要能改状态并留下/取消定时任务；手动 F5 走同一入口。"""
+    app.show("dashboard")
+    assert app.refresh_current(silent=False) is True
+    assert app.var_updated.get(), "刷新后应记录上次刷新时间"
+
+    app.var_auto.set(False)
+    app.toggle_auto_refresh()
+    assert app.auto_refresh is False and app._auto_job is None
+
+    app.var_auto.set(True)
+    app.toggle_auto_refresh()
+    assert app.auto_refresh is True and app._auto_job is not None
+
+
+def test_smoke_help_dialog_and_demo_data(app):
+    """引导面板可打开，一键演示数据能填满清单并跳到拓扑。"""
+    from netwright.pages.help import show_help
+
+    dialog = show_help(app)
+    assert dialog.winfo_exists()
+    dialog._load_demo()
+    assert len(app.inventory.devices) >= 7
+    assert app._active_key == "topology"
+    assert app.controller_store.graph.stats()["nodes"] >= 7
+
+    # 清干净，避免污染后面的用例
+    dialog2 = show_help(app)
+    dialog2._clear_demo()
+    assert not any(d.note.startswith("演示数据") for d in app.inventory.devices)
+    dialog2.close()
+

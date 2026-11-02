@@ -120,6 +120,12 @@ class NetworkGraph:
             self.add_edge(edge.a, edge.b, edge.a_port, edge.b_port, edge.kind)
         return self
 
+    def clear(self) -> None:
+        """清空全部节点与链路（演示数据切换 / 重新盘点时用）。"""
+        self.nodes.clear()
+        self.edges.clear()
+        self._edge_keys.clear()
+
     # ── 查询 ──
     def neighbors(self, name: str) -> list[tuple[str, str]]:
         """返回 [(邻居名, 本端端口)]。"""

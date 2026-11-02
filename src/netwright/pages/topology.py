@@ -32,16 +32,6 @@ class TopologyPage(Page):
                           "控制器 / 拓扑")
         self.btn_discover = WButton(hdr.actions, text="⟳ 从设备发现", command=self.discover)
         self.btn_discover.pack(side=tk.LEFT, padx=(0, 6))
-        self.cmb_layout = tk.StringVar(value="力导向")
-        layout_menu = tk.OptionMenu(hdr.actions, self.cmb_layout, "力导向", "环形", "分层",
-                                    command=lambda _v: self.relayout())
-        layout_menu.config(bg=theme.panel, fg=theme.fg, relief=tk.FLAT, bd=0,
-                           highlightthickness=1, highlightbackground=theme.line,
-                           activebackground=theme.panel_alt, font=FONT_SMALL,
-                           cursor="hand2", padx=8, pady=4)
-        layout_menu["menu"].config(font=FONT_SMALL)
-        layout_menu.pack(side=tk.LEFT, padx=(0, 6))
-        WButton(hdr.actions, text="⤢ 适配窗口", command=self.fit).pack(side=tk.LEFT, padx=(0, 6))
         WButton(hdr.actions, text="刷新", command=self.refresh).pack(side=tk.LEFT)
 
         self.var_stat = tk.StringVar(value="加载中…")
@@ -54,6 +44,42 @@ class TopologyPage(Page):
 
         card = SectionCard(body, title="拓扑画布", desc="滚轮缩放 · 拖拽平移 · 单击节点查看详情")
         card.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+
+        # 视图控件放在卡片头部，避免和页面级动作挤在一行
+        bar = card.actions
+        self.cmb_layout = tk.StringVar(value="力导向")
+        layout_menu = tk.OptionMenu(bar, self.cmb_layout, "力导向", "环形", "分层",
+                                    command=lambda _v: self.relayout())
+        layout_menu.config(bg=theme.panel, fg=theme.fg, relief=tk.FLAT, bd=0,
+                           highlightthickness=1, highlightbackground=theme.line,
+                           activebackground=theme.panel_alt, font=FONT_SMALL,
+                           cursor="hand2", padx=8, pady=3)
+        layout_menu["menu"].config(font=FONT_SMALL)
+        layout_menu.pack(side=tk.LEFT, padx=(0, 6))
+        fit_btn = WButton(bar, text="⤢ 适配", command=self.fit)
+        fit_btn.pack(side=tk.LEFT)
+
+        # 过滤条单独一行（卡片内），避免和布局控件挤在同一行被裁切
+        filters = tk.Frame(card.body, bg=theme.panel)
+        filters.pack(fill=tk.X, pady=(0, 8))
+        self.var_search = tk.StringVar(value="")
+        tk.Label(filters, text="搜索", bg=theme.panel, fg=theme.faint,
+                 font=FONT_SMALL).pack(side=tk.LEFT, padx=(0, 6))
+        entry = tk.Entry(filters, textvariable=self.var_search, width=18,
+                         bg=theme.panel, fg=theme.fg, relief=tk.FLAT,
+                         insertbackground=theme.fg, highlightthickness=1,
+                         highlightbackground=theme.line, highlightcolor=theme.accent)
+        entry.pack(side=tk.LEFT, ipady=3, padx=(0, 14))
+        self.var_search.trace_add("write", lambda *_: self._draw())
+        self.var_managed = tk.BooleanVar(value=False)
+        tk.Checkbutton(filters, text="仅显示纳管设备", variable=self.var_managed,
+                       command=self._draw, bg=theme.panel, fg=theme.muted,
+                       selectcolor=theme.panel, activebackground=theme.panel,
+                       activeforeground=theme.fg, highlightthickness=0, bd=0,
+                       font=FONT_SMALL, cursor="hand2").pack(side=tk.LEFT)
+        tk.Label(filters, text="（搜索支持节点名与厂商）", bg=theme.panel,
+                 fg=theme.faint, font=FONT_SMALL).pack(side=tk.RIGHT)
+
         self.canvas = tk.Canvas(card.body, bg=theme.topo_bg, highlightthickness=0, bd=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
         self.canvas.bind("<Configure>", lambda _e: self._draw())
@@ -102,7 +128,7 @@ class TopologyPage(Page):
         self.after(50, self.refresh)
 
     def refresh(self):
-        """同步清单 → 图，然后重算布局并重绘。"""
+        """同步清单 → 图；节点集合没变就沿用现有布局（自动刷新不跳动）。"""
         store = getattr(self.app, "controller_store", None)
         if store is None:
             return
@@ -113,7 +139,10 @@ class TopologyPage(Page):
             f"纳管：{stats['managed']}    孤立：{stats['isolated']}\n"
             f"链路来源：LLDP {stats['by_source'].get('lldp', 0)} / "
             f"台账 {stats['by_source'].get('ledger', 0)}")
-        self._relayout_silent()
+        layout_key = (frozenset(store.graph.nodes), self.cmb_layout.get())
+        if layout_key != getattr(self, "_layout_key", None):
+            self._relayout_silent()
+            self._layout_key = layout_key
         self._draw()
         self._render_legend()
         self._render_inspector()
@@ -202,9 +231,24 @@ class TopologyPage(Page):
         return (w / 2 + (x - cx) * base + self._pan[0],
                 h / 2 + (y - cy) * base + self._pan[1])
 
+    def _visible(self, name: str) -> bool:
+        """搜索 / 仅纳管 过滤：不隐藏布局位置，只决定画不画。"""
+        graph = self.app.controller_store.graph
+        node = graph.nodes.get(name)
+        if node is None:
+            return False
+        query = (self.var_search.get() or "").strip().lower()
+        if query and query not in name.lower() and query not in (node.vendor or "").lower():
+            return False
+        if self.var_managed.get() and not node.managed:
+            return False
+        return True
+
     def _hit(self, sx: float, sy: float) -> str | None:
         best, best_d = None, 18.0
         for name in self._pos:
+            if not self._visible(name):
+                continue
             px, py = self._screen(name)
             d = math.hypot(px - sx, py - sy)
             if d < best_d:
@@ -234,6 +278,8 @@ class TopologyPage(Page):
         for edge in graph.edges:
             if edge.a not in self._pos or edge.b not in self._pos:
                 continue
+            if not (self._visible(edge.a) and self._visible(edge.b)):
+                continue
             x1, y1 = self._screen(edge.a)
             x2, y2 = self._screen(edge.b)
             hot = self._selected in (edge.a, edge.b)
@@ -249,6 +295,8 @@ class TopologyPage(Page):
                               fill=theme.muted, font=("Consolas", 8))
         # 节点
         for name in sorted(self._pos):
+            if not self._visible(name):
+                continue
             node = graph.nodes.get(name)
             vendor = getattr(node, "vendor", "") or "generic"
             color = VENDOR_COLORS.get(vendor, VENDOR_COLORS["generic"])
@@ -371,6 +419,7 @@ class TopologyPage(Page):
         if not devices:
             self.app.set_status("没有可发现拓扑的设备（需要华为/思科/H3C/锐捷）")
             return
+        self._busy = True
         self.btn_discover.set_loading(True, "发现中…")
         self.app.set_status(f"正在从 {len(devices)} 台设备采集邻居…")
 
@@ -385,6 +434,7 @@ class TopologyPage(Page):
         threading.Thread(target=worker, daemon=True).start()
 
     def _discover_done(self, topo, error):
+        self._busy = False
         self.btn_discover.set_loading(False)
         if error is not None:
             self.app.set_status(f"发现失败：{error}")

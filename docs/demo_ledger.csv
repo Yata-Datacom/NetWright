@@ -1,6 +1,10 @@
 host,port,vendor,protocol,username,password,hostname,note,local_intf,peer_device,peer_intf
-192.0.2.1,22,huawei,ssh,admin,Demo@123,核心A,演示-核心层,GE0/0/24,核心B,GE0/0/24
-192.0.2.2,22,huawei,ssh,admin,Demo@123,核心B,演示-核心层,GE0/0/24,核心A,GE0/0/24
-192.0.2.3,22,h3c,ssh,admin,Demo@123,汇聚C,演示-汇聚层,GE1/0/48,核心A,GE0/0/1
-192.0.2.4,22,cisco,ssh,admin,Demo@123,接入D,演示-接入层,Gi0/24,汇聚C,GE1/0/1
-192.0.2.5,23,ruijie,telnet,admin,Demo@123,接入E,演示-Telnet接入,Gi0/24,接入D,Gi0/1
+192.0.2.11,22,huawei,ssh,demo,Demo@123,Core-SW-01,演示-核心层,GE0/0/1,Core-SW-02,GE0/0/1
+192.0.2.11,22,huawei,ssh,demo,Demo@123,Core-SW-01,演示-核心层,GE0/0/23,Agg-SW-01,GE1/0/48
+192.0.2.12,22,huawei,ssh,demo,Demo@123,Core-SW-02,演示-核心层,GE0/0/23,Agg-SW-02,Gi1/0/48
+192.0.2.21,22,h3c,ssh,demo,Demo@123,Agg-SW-01,演示-汇聚层,GE1/0/1,Acc-SW-01,Gi0/24
+192.0.2.21,22,h3c,ssh,demo,Demo@123,Agg-SW-01,演示-汇聚层,GE1/0/2,Monitor-01,eth0
+192.0.2.22,22,cisco,ssh,demo,Demo@123,Agg-SW-02,演示-汇聚层,Gi1/0/1,Acc-SW-02,GE0/0/24
+192.0.2.31,22,ruijie,ssh,demo,Demo@123,Acc-SW-01,演示-接入层,,,
+192.0.2.32,23,huawei,telnet,demo,Demo@123,Acc-SW-02,演示-Telnet 接入,,,
+192.0.2.41,22,linux,ssh,demo,Demo@123,Monitor-01,演示-监控服务器,,,

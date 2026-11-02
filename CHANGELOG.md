@@ -3,6 +3,50 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.10.0] - 2026-11-02
+
+### Added（小白易用性）
+- **一键演示数据**（`netwright.demo`）：7 台 192.0.2.x 假设备 + 6 条台账链路，
+  不覆盖现有数据、按备注识别可一键清除；引导面板、设备清单空状态、帮助入口都能触发。
+- **新手引导面板**（`? 引导` / `Ctrl+H`）：4 步直达（演示数据 → 拓扑 → Dry-Run → 巡检）
+  + 快捷键说明 + 打开用户指南。
+- **设备清单空状态改为三选一**：载入演示数据 / 手动添加 / 导入 CSV，不再只给一句提示。
+- **连接测试**（`🔌 测试连接`）：对选中（或全部）设备做 TCP 端口探测，几秒出结果，
+  区分"网络不通"与"账号问题"。
+- **拓扑搜索 + 仅纳管过滤**：按节点名/厂商过滤，布局不变只影响绘制。
+- **自动刷新 10s**：顶栏勾选框（默认开，设置持久化），并与 `F5` 手动刷新共用同一入口；
+  顶栏显示上次刷新时间；发现/巡检进行中自动暂停。
+- 快捷键：`F5` 刷新、`Ctrl+H` 引导、`Ctrl+1…9` 切换工作区。
+
+### Changed
+- **图标重做**（`tools/make_icon.py`）：控制器枢纽 + 三节点拓扑标记，深海军蓝底、
+  16px 仍可辨；侧栏品牌标记同步为同一造型。
+- **README 重写**（原文件自 v3.2 起损坏：597 KB 重复短句污染，正文只剩 5 KB）：
+  现在是可读的普通 Markdown，含截图、功能地图、内核架构图、REST v2、路线图。
+- 用户指南：新增"方式零：一键演示数据"、2.4 小白友好设计、连接测试、导出 CSV 说明、
+  自动刷新手势与 4 条新 FAQ；示例台账扩到 7 行含 6 条链路。
+- `settings.DEFAULTS` 清理陈旧键 `theme`，改为 `theme_mode/theme_hue/auto_refresh/nav_collapsed`；
+  旧键会在加载时迁移成 `theme_mode`。
+
+### Fixed
+- **Telnet 协议重启后丢失**：`Device.from_storage` 漏读 `protocol` 字段（回归测试已补）。
+- **CSV 导出明文密码**：默认不再导出密码（`export_csv(include_secrets=False)`）。
+- **`netforge_*.json` 无迁移路径**：首次启动自动读取旧文件名并写入新格式（清单与设置都支持）。
+- **CSV 同一设备多行**（每行一条链路）会被当成重复而丢弃链路：现在带链路信息的重复行静默用于建拓扑。
+- `NetworkGraph` 新增 `clear()`，演示数据切换与重新盘点不再手工清私有字段。
+
+### CI / 工程化
+- `pyproject.toml`：补 `[project.optional-dependencies].dev`（pytest/ruff/pillow/pyinstaller）、
+  classifiers、keywords、Documentation/Issue Tracker 链接、`ruff` 排除构建产物。
+- CI 改为 **Windows + Ubuntu × Python 3.10/3.12** 矩阵，加"文档体检"作业
+  （README 体积/单行长度、版本号三处一致、CHANGELOG 有对应条目）。
+- Build 工作流：tag 与包版本号一致性校验、SHA256SUMS、自动发布 Release。
+- 新增 `pull_request_template.md`、Issue 模板 `config.yml`、`dependabot.yml`。
+
+### Tests
+- 新增 `tests/test_ux.py`（演示数据 / 清单迁移 / CSV 脱敏 / 多行链路 / 协议持久化 / 设置迁移）。
+- 全量 **141 项 pytest 通过**。
+
 ## [3.9.0] - 2026-11-02
 
 ### Changed（UI 重做为 DLUX 控制台）
