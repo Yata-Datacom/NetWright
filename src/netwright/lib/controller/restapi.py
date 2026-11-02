@@ -19,11 +19,12 @@ from . import deploy, intents as intents_mod
 
 
 class ControllerState:
-    """控制器共享状态：清单 + 拓扑缓存。"""
+    """控制器共享状态：清单 + 拓扑缓存 + （v2）控制器仓库。"""
 
-    def __init__(self, inventory):
+    def __init__(self, inventory, store=None):
         self.inventory = inventory
         self.topology = None  # 最近一次发现的 Topology
+        self.store = store    # netwright.sdn.ControllerStore（/api/v2 使用）
 
     def devices_by_hosts(self, hosts: list[str] | None) -> list[Device]:
         if not hosts:
@@ -46,8 +47,20 @@ def make_handler(state: ControllerState) -> type:
         def log_message(self, fmt, *args):  # 静默
             pass
 
+        def _v2(self, method: str, payload: dict | None = None):
+            """v2 路由委托给 netwright.sdn.nbapi（控制器语义接口）。"""
+            store = getattr(state, "store", None)
+            if store is None:
+                return self._json({"ok": False,
+                                   "message": "控制器内核未启用：未注入 ControllerStore"}, 503)
+            from ...sdn import nbapi as nbapi_mod
+            status, body = nbapi_mod.dispatch(store, method, self.path, payload)
+            return self._json(body, status)
+
         def do_GET(self):
             path = self.path.split("?")[0]
+            if path.startswith("/api/v2"):
+                return self._v2("GET")
             if path == "/api/health":
                 return self._json({"ok": True, "service": "netwright-controller"})
             if path == "/api/devices":
@@ -76,6 +89,9 @@ def make_handler(state: ControllerState) -> type:
                 payload = json.loads(self.rfile.read(length) or b"{}")
             except ValueError:
                 return self._json({"ok": False, "message": "JSON 解析失败"}, 400)
+
+            if path.startswith("/api/v2"):
+                return self._v2("POST", payload)
 
             if path == "/api/dry-run":
                 try:

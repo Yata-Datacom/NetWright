@@ -1,3 +1,3 @@
-"""NetWright — 网络工程师工作台 / 轻量意图控制器。"""
-__version__ = "3.8.4"
+"""NetWright — 网络工程师工作台 / SDN 控制器控制台。"""
+__version__ = "3.9.0"
 APP_NAME = "NetWright"

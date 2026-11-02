@@ -15,9 +15,11 @@ from netwright.widgets import (Page, page_header, make_table, zebra, WButton)
 class DiscoveryPage(Page):
     def __init__(self, master, app):
         super().__init__(master, app)
-        page_header(self, "资产盘点", "从种子设备一键发现内网资产：LLDP/CDP 邻居 → ARP/MAC → IP 汇总 → 协议探测 → 关联分析")
+        page_header(self, "资产盘点",
+                    "从种子设备一键发现内网资产：LLDP/CDP 邻居 → ARP/MAC → IP 汇总 → 协议探测 → 关联分析",
+                    "资源 / 资产盘点")
         self.nb = ttk.Notebook(self)
-        self.nb.pack(fill=tk.BOTH, expand=True, padx=16, pady=(0, 12))
+        self.nb.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 16))
         self._scan_tab()
         self._result_tab()
         self._topo_tab()

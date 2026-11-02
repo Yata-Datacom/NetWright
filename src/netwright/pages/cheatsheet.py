@@ -10,7 +10,7 @@ from netwright.widgets import (Page, page_header)
 
 
 def header(title, desc, page):
-    page_header(page, title, desc)
+    page_header(page, title, desc, "运维 / 命令速查")
 
 
 class CheatPage(Page):

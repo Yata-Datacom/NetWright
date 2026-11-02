@@ -16,7 +16,7 @@ import math
 import tkinter as tk
 from tkinter import ttk
 
-from .theme import FONT, FONT_BOLD, FONT_SMALL, theme
+from .theme import FONT, FONT_BOLD, FONT_SMALL, CONTENT_PAD, theme
 
 
 def _lerp(c1: str, c2: str, t: float) -> str:
@@ -102,19 +102,36 @@ class Page(tk.Frame):
         self.app = app
 
 
-def page_header(parent: tk.Frame, title: str, desc: str) -> None:
-    """页面标题区：surface 扁平带 + 主色竖条 + 深色文字（明暗自适应，高对比）。"""
-    bar = tk.Frame(parent, bg=theme.surface, height=64,
-                   highlightbackground=theme.line, highlightthickness=1)
-    bar.pack(fill=tk.X)
-    bar.pack_propagate(False)
-    tk.Frame(bar, bg=theme.accent, width=4).pack(side=tk.LEFT, fill=tk.Y)
-    text_zone = tk.Frame(bar, bg=theme.surface)
-    text_zone.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(12, 0))
-    tk.Label(text_zone, text=title, bg=theme.surface, fg=theme.fg,
-             font=("Microsoft YaHei UI", 14, "bold")).pack(anchor="w", pady=(8, 0))
-    tk.Label(text_zone, text=desc, bg=theme.surface, fg=theme.muted,
-             font=FONT_SMALL).pack(anchor="w", pady=(1, 8))
+class PageHeader(tk.Frame):
+    """控制台页面头：面包屑 + 标题 + 说明 + 右侧动作槽（DLUX 风格）。
+
+    用法：``hdr = PageHeader(self, "拓扑", "实时链路视图", "控制器 / 拓扑")``；
+    动作按钮塞进 ``hdr.actions``。
+    """
+
+    def __init__(self, parent, title: str, desc: str = "", crumb: str = ""):
+        super().__init__(parent, bg=theme.bg)
+        row = tk.Frame(self, bg=theme.bg)
+        row.pack(fill=tk.X, pady=(0, 10))
+        left = tk.Frame(row, bg=theme.bg)
+        left.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        if crumb:
+            tk.Label(left, text=crumb, bg=theme.bg, fg=theme.faint,
+                     font=FONT_SMALL).pack(anchor="w")
+        tk.Label(left, text=title, bg=theme.bg, fg=theme.fg,
+                 font=("Microsoft YaHei UI", 16, "bold")).pack(anchor="w")
+        if desc:
+            tk.Label(left, text=desc, bg=theme.bg, fg=theme.muted,
+                     font=FONT_SMALL).pack(anchor="w", pady=(2, 0))
+        self.actions = tk.Frame(row, bg=theme.bg)
+        self.actions.pack(side=tk.RIGHT, anchor="e")
+
+
+def page_header(parent: tk.Frame, title: str, desc: str = "", crumb: str = "") -> PageHeader:
+    """页面标题区（控制台风格）。返回 PageHeader，可用 .actions 追加动作按钮。"""
+    hdr = PageHeader(parent, title, desc, crumb)
+    hdr.pack(fill=tk.X, padx=CONTENT_PAD, pady=(CONTENT_PAD, 8))
+    return hdr
 
 
 class WButton(tk.Button):
@@ -476,3 +493,107 @@ def draw_line_chart(canvas: tk.Canvas, series: list[tuple[str, float]],
                                font=FONT_SMALL, angle=-30)
     if title:
         canvas.create_text(w / 2, 12, text=title, fill=fg, font=FONT_BOLD)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# DLUX 控制台组件（SectionCard / StatTile / StatusDot / KeyValue）
+# ══════════════════════════════════════════════════════════════════════
+
+class SectionCard(tk.Frame):
+    """白卡片：可选标题行（标题 + 说明 + 右侧动作槽）+ 内容区 ``body``。"""
+
+    def __init__(self, master, title: str = "", desc: str = "", padding: int = 16, **kw):
+        super().__init__(master, bg=theme.panel, highlightbackground=theme.line,
+                         highlightthickness=1, **kw)
+        self.header = tk.Frame(self, bg=theme.panel)
+        self.body = tk.Frame(self, bg=theme.panel)
+        self.actions = tk.Frame(self.header, bg=theme.panel)
+        if title:
+            self.header.pack(fill=tk.X, padx=padding, pady=(padding, 0))
+            text = tk.Frame(self.header, bg=theme.panel)
+            text.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            tk.Label(text, text=title, bg=theme.panel, fg=theme.fg,
+                     font=FONT_BOLD).pack(anchor="w")
+            if desc:
+                tk.Label(text, text=desc, bg=theme.panel, fg=theme.muted,
+                         font=FONT_SMALL).pack(anchor="w", pady=(2, 0))
+            self.actions.pack(side=tk.RIGHT, anchor="ne")
+            self.body.pack(fill=tk.BOTH, expand=True, padx=padding,
+                           pady=(10, padding))
+        else:
+            self.body.pack(fill=tk.BOTH, expand=True, padx=padding, pady=padding)
+
+
+class StatTile(tk.Frame):
+    """KPI 磁贴：小标签 + 大数字 + 说明，左侧语义色竖条。"""
+
+    def __init__(self, master, label: str, value: str = "—", hint: str = "",
+                 tone: str = "accent", **kw):
+        super().__init__(master, bg=theme.panel, highlightbackground=theme.line,
+                         highlightthickness=1, **kw)
+        self.stripe = tk.Frame(self, bg=getattr(theme, tone, theme.accent), width=3)
+        self.stripe.pack(side=tk.LEFT, fill=tk.Y)
+        inner = tk.Frame(self, bg=theme.panel)
+        inner.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=14, pady=12)
+        tk.Label(inner, text=label, bg=theme.panel, fg=theme.muted,
+                 font=FONT_SMALL).pack(anchor="w")
+        self.value_lbl = tk.Label(inner, text=value, bg=theme.panel, fg=theme.fg,
+                                  font=("Microsoft YaHei UI", 20, "bold"))
+        self.value_lbl.pack(anchor="w")
+        self.hint_lbl = tk.Label(inner, text=hint, bg=theme.panel, fg=theme.faint,
+                                 font=FONT_SMALL)
+        self.hint_lbl.pack(anchor="w")
+
+    def set(self, value=None, hint=None, tone=None):
+        if value is not None:
+            self.value_lbl.config(text=str(value))
+        if hint is not None:
+            self.hint_lbl.config(text=hint)
+        if tone is not None:
+            self.stripe.config(bg=getattr(theme, tone, theme.accent))
+
+
+class StatusDot(tk.Frame):
+    """状态点 + 文字（控制器在线/离线这类常驻状态）。"""
+
+    TONES = {"ok": "ok", "warn": "warn", "err": "err", "info": "accent", "idle": "faint"}
+
+    def __init__(self, master, text: str = "", tone: str = "ok", bg: str | None = None, **kw):
+        bg = bg or theme.panel
+        super().__init__(master, bg=bg, **kw)
+        self.dot = tk.Canvas(self, width=10, height=10, bg=bg, highlightthickness=0)
+        self.dot.pack(side=tk.LEFT, padx=(0, 6))
+        self.label = tk.Label(self, text=text, bg=bg, fg=theme.muted, font=FONT_SMALL)
+        self.label.pack(side=tk.LEFT)
+        self.set(text, tone)
+
+    def set(self, text: str, tone: str = "ok"):
+        color = getattr(theme, self.TONES.get(tone, "accent"), theme.accent)
+        self.dot.delete("all")
+        self.dot.create_oval(1, 1, 9, 9, fill=color, outline="")
+        self.label.config(text=text, fg=color)
+
+
+class KeyValue(tk.Frame):
+    """详情面板里的键值行：左灰标签 + 右值。"""
+
+    def __init__(self, master, key: str, value: str = "", width: int = 9, **kw):
+        super().__init__(master, bg=theme.panel, **kw)
+        tk.Label(self, text=key, width=width, anchor="w", bg=theme.panel,
+                 fg=theme.muted, font=FONT_SMALL).pack(side=tk.LEFT)
+        self.value = tk.Label(self, text=value, anchor="w", bg=theme.panel,
+                              fg=theme.fg, font=FONT_SMALL, justify=tk.LEFT)
+        self.value.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+    def set(self, value):
+        self.value.config(text=str(value))
+
+
+def empty_state_hint(parent, text: str, icon: str = "◌") -> tk.Frame:
+    """带图标的空状态块（卡片正文里用）。"""
+    box = tk.Frame(parent, bg=theme.panel)
+    tk.Label(box, text=icon, bg=theme.panel, fg=theme.faint,
+             font=("Microsoft YaHei UI", 24)).pack(pady=(18, 4))
+    tk.Label(box, text=text, bg=theme.panel, fg=theme.muted,
+             font=FONT_SMALL).pack(pady=(0, 18))
+    return box

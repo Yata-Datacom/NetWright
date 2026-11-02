@@ -3,6 +3,62 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.9.0] - 2026-11-02
+
+### Changed（UI 重做为 DLUX 控制台）
+- **外壳换成控制器控制台三点式布局**：52px 深色顶栏（品牌 / 页面标题 / 状态 / 时钟 / 主色 /
+  明暗切换）+ 224px 深色分组侧栏（控制器・资源・运维，可折叠为 64px 图标条）+
+  浅色内容区（白卡片 + 8px 网格留白）。顶栏与侧栏在明暗模式下都保持深色，
+  主色只用于交互与状态。
+- **`theme.py` 重写为控制台令牌**：新增 `chrome*`（外壳）与 `topo_bg/topo_grid`（画布）令牌；
+  保留 `bg/panel/fg/muted/accent/nav1/nav2/header1…` 全部旧名，8 个既有业务页零改动换肤。
+- **页面头统一**：面包屑 + 标题 + 说明 + 右侧动作槽（`widgets.PageHeader`），
+  8 个既有页面的标题区补上面包屑。
+
+### Added（控制器内核 `netwright.sdn`）
+- **事件总线**（`sdn/events.py`）：线程安全发布/订阅、topic 前缀过滤、500 条环形历史、
+  严重度分级、坏订阅者隔离。
+- **图模型**（`sdn/model.py`）：Node/Edge/NetworkGraph，接口名归一化、
+  同链路去重、LLDP 自动「升级」台账链路（虚线→实线）、邻居/度数/孤立点统计、JSON 往返。
+- **策略编译**（`sdn/policy.py`）：意图 → 每设备策略（命令 + 风险等级），
+  区分「厂商不支持（跳过）」与「参数错误（报错）」，编译不发包、不连设备。
+- **状态仓库**（`sdn/store.py`）：拓扑图 + 策略 + 统计的唯一事实来源，可持久化到
+  `netwright_controller.json`（重启保留拓扑上下文）。
+- **南向适配层**（`sdn/southbound/`）：`SouthboundAdapter` 契约 + 能力位
+  （config_read / config_write / state_read / event_stream / flow_program）+ 注册表。
+  CLI（SSH/Telnet）为完整实装；NETCONF / OpenFlow 1.3 / RESTCONF 为可插拔骨架
+  （声明能力、缺依赖时如实标记，调用即抛 `UnsupportedOperation`，绝不假装成功）。
+- **北向 REST v2**（`sdn/nbapi.py`）：`/api/v2/{health,snapshot,topology,events,policies,intents,southbound}` +
+  `POST /api/v2/policies/compile`、`POST /api/v2/topology/sync`；与 v1 并存。
+- **拓扑工作区**（新）：DLUX 式画布 —— 力导向/环形/分层三种布局、滚轮缩放、拖拽平移、
+  节点点选 + 检查器（厂商/纳管/度数/邻居端口）、画布下沿图例、LLDP 实线 vs 台账虚线。
+- **事件工作区**（新）：事件流表格（级别过滤/着色）+ 南向通道就绪状态 + 下发审计。
+- **概览工作区重写**：5 个 KPI 磁贴、最近事件、控制器状态（REST/南向/运行时长/拓扑来源）、
+  厂商分布条、快捷入口。
+- 组件库新增 `PageHeader / SectionCard / StatTile / StatusDot / KeyValue`。
+
+### Fixed
+- `ControllerStore` 传入空 `EventBus` 时会被 `bus or EventBus()` 换成另一条总线，
+  导致页面与内核看不到彼此的事件（已改为显式 `is None` 判断）。
+- 顶栏时钟此前定义了 `_tick_clock` 但从未启动，界面永远空白。
+
+### Tests
+- 新增 `tests/test_sdn.py`（24 项）：事件总线、图模型、策略编译、南向注册表、
+  状态仓库、REST v2 路由。
+- 全量 **127 项 pytest 通过**（原 103 项 + 新增 24 项）。
+
+## [3.8.0 – 3.8.4] - 2026-11-01
+
+### Added
+- 3.8.0：按钮按压/hover 反馈、批量模板导出（116 个 .cfg 按目录结构落盘）。
+- 3.8.2：代码评审修复 + 使用文档 + 注释补全。
+- 3.8.3：GitHub 就绪（CONTRIBUTING / SECURITY / Issue 模板 / CI 修正 / 数据文件出库）。
+
+### Fixed
+- 3.8.2：侧栏选中态不跟随切换（`show` 丢失 `_active_key`）。
+- 3.8.2：页头白底白字不可读（扁平带 + 主色竖条 + 深色文字）。
+- 3.8.4：版本号对齐。
+
 ## [3.7.0] - 2026-11-01
 
 ### Changed（UI 换肤第 2 步：全局 Token + 壳层）

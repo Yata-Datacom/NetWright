@@ -13,7 +13,7 @@ from netwright.widgets import (Page, page_header, make_table, WButton)
 
 
 def header(title, desc, page):
-    page_header(page, title, desc)
+    page_header(page, title, desc, "运维 / 工具箱")
 
 
 class ToolboxPage(Page):

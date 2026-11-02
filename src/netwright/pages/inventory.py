@@ -14,7 +14,7 @@ from netwright.widgets import (
 
 
 def header(title, desc, page):
-    page_header(page, title, desc)
+    page_header(page, title, desc, "资源 / 设备清单")
 
 
 class InventoryPage(Page):

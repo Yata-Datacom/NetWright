@@ -14,7 +14,7 @@ from netwright.widgets import Page, page_header, WButton, toast, zebra, draw_lin
 
 
 def header(title, desc, page):
-    page_header(page, title, desc)
+    page_header(page, title, desc, "运维 / 批量巡检")
 
 
 class InspectPage(Page):

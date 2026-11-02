@@ -13,6 +13,7 @@ netwright_settings.json
 netwright_audit.log
 netwright_history_*.jsonl
 netwright_snapshot_*.json
+netwright_controller.json
 netforge_devices.json
 netforge_settings.json
 netforge_audit.log

@@ -12,7 +12,7 @@ from netwright.widgets import (Page, page_header, WButton)
 
 
 def header(title, desc, page):
-    page_header(page, title, desc)
+    page_header(page, title, desc, "运维 / 配置生成")
 
 
 class GeneratePage(Page):

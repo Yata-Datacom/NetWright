@@ -8,12 +8,12 @@ from tkinter import messagebox, ttk
 from netwright.lib.controller import deploy as deploy_mod
 from netwright.lib.controller import intents as intents_mod
 from netwright.lib.inventory import VENDORS
-from netwright.theme import FONT_MONO, theme
-from netwright.widgets import (Page, page_header, WButton, toast)
+from netwright.theme import FONT_MONO, FONT_SMALL, theme
+from netwright.widgets import (Page, SectionCard, page_header, WButton, toast)
 
 
 def header(title, desc, page):
-    page_header(page, title, desc)
+    page_header(page, title, desc, "控制器 / 意图与策略")
 
 
 class ControllerPage(Page):
@@ -26,9 +26,9 @@ class ControllerPage(Page):
 
     def __init__(self, master, app):
         super().__init__(master, app)
-        header("控制器中心", "声明意图，控制器翻译成各厂商命令：默认 Dry-Run，确认后才下发（全程审计）", self)
+        header("意图与策略", "声明意图，控制器翻译成各厂商命令：默认 Dry-Run，确认后才下发（全程审计）", self)
         self.nb = ttk.Notebook(self)
-        self.nb.pack(fill=tk.BOTH, expand=True, padx=16, pady=(0, 12))
+        self.nb.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 16))
         self._topo_tab()
         self._intent_tab()
         self._api_tab()
@@ -37,85 +37,27 @@ class ControllerPage(Page):
     def _topo_tab(self):
         tab = tk.Frame(self.nb, bg=theme.bg)
         self.nb.add(tab, text=" 拓扑发现 ")
-        bar = tk.Frame(tab, bg=theme.bg)
-        bar.pack(fill=tk.X, pady=(8, 4))
-        self.btn_discover = WButton(bar, text="从设备清单自动发现拓扑 (LLDP/CDP)",
-                                      bg=theme.accent, fg="white", relief=tk.FLAT,
-                                      activebackground=theme.nav2, command=self.discover)
-        self.btn_discover.pack(side=tk.LEFT)
-        self.var_topo = tk.StringVar(value="尚未发现")
-        tk.Label(bar, textvariable=self.var_topo, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.LEFT, padx=10)
-        self.canvas = tk.Canvas(tab, bg=theme.code_bg, highlightthickness=0)
-        self.canvas.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
-        self.canvas.create_text(480, 300, text="点击上方按钮开始发现拓扑\n（需要设备已开启 LLDP/CDP 且可 SSH 登录）",
-                                fill=theme.muted, font=("", 11), tags="placeholder")
+        card = SectionCard(tab, title="拓扑已迁移到独立工作区",
+                           desc="画布支持缩放/拖拽/节点检查器，链路区分 LLDP 实测与台账来源")
+        card.pack(fill=tk.X, pady=(12, 8))
+        row = tk.Frame(card.body, bg=theme.panel)
+        row.pack(fill=tk.X)
+        WButton(row, text="◈ 打开拓扑工作区",
+                command=lambda: self.app.show("topology")).pack(side=tk.LEFT)
+        WButton(row, text="⟳ 立即发现", command=self.discover).pack(side=tk.LEFT, padx=(8, 0))
+        self.var_topo = tk.StringVar(value="")
+        tk.Label(card.body, textvariable=self.var_topo, bg=theme.panel,
+                 fg=theme.muted, font=("", 9)).pack(anchor="w", pady=(8, 0))
 
     def discover(self):
-        devices = [d for d in self.app.inventory.devices
-                   if d.vendor in ("huawei", "h3c", "cisco", "ruijie")]
-        if not devices:
-            messagebox.showinfo("提示", "设备清单里没有可发现拓扑的设备（需要 huawei/h3c/cisco/ruijie）")
+        """委托给拓扑工作区（发现逻辑与渲染只有一处实现）。"""
+        topo_page = self.app.pages.get("topology")
+        if topo_page is None:
             return
-        self.btn_discover.config(state=tk.DISABLED)
-        self.var_topo.set(f"发现中… 0/{len(devices)}")
-
-        def worker():
-            topo = deploy_mod.discover_topology(devices, progress=self._topo_progress)
-            self.app.after(0, lambda: self._topo_done(topo))
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def _topo_progress(self, done, total):
-        self.app.after(0, lambda: self.var_topo.set(f"发现中… {done}/{total}"))
-
-    def _topo_done(self, topo):
-        self.btn_discover.config(state=tk.NORMAL)
-        # 合并台账链路（虚线）：从清单 links 生成
-        ledger = []
-        names = {d.host: (d.hostname or d.host) for d in self.app.inventory.devices}
-        for lk in self.app.inventory.links:
-            a = names.get(lk.device_host, lk.device_host)
-            b = names.get(lk.peer_host, lk.peer_host)
-            ledger.append((a, lk.local_intf, b, lk.peer_intf))
-        from netwright.lib.controller.topology import Topology, Link
-        merged = Topology(nodes=topo.nodes, links=topo.links)
-        for a, li, b, pi in ledger:
-            merged.nodes.update([a, b])
-            merged.links.append(Link(a, li, b, pi))
-        self.app.controller_state.topology = merged
-        edges = merged.undirected_edges()
-        ledger_keys = {tuple(sorted((a, b))) for a, _li, b, _pi in ledger}
-        self.var_topo.set(f"{len(merged.nodes)} 台设备 · {len(edges)} 条链路"
-                          f"（含台账 {len(ledger)} 条）")
-        self._draw_topology(merged, ledger_keys)
-
-    def _draw_topology(self, topo):
-        import math
-        self.canvas.delete("all")
-        nodes = sorted(topo.nodes)
-        if not nodes:
-            self.canvas.create_text(480, 300, text="未发现任何邻居（检查 LLDP 是否开启）",
-                                    fill=theme.muted, font=("", 11))
-            return
-        w = max(self.canvas.winfo_width(), 900)
-        h = max(self.canvas.winfo_height(), 600)
-        cx, cy, r = w / 2, h / 2, min(w, h) * 0.36
-        pos = {n: (cx + r * math.cos(2 * math.pi * i / len(nodes)),
-                   cy + r * math.sin(2 * math.pi * i / len(nodes)))
-               for i, n in enumerate(nodes)}
-        for a, ai, b, bi in topo.undirected_edges():
-            if a in pos and b in pos:
-                self.canvas.create_line(*pos[a], *pos[b], fill=theme.muted, width=2, dash=(6, 3))
-                mx, my = (pos[a][0] + pos[b][0]) / 2, (pos[a][1] + pos[b][1]) / 2
-                self.canvas.create_text(mx, my, text=f"{ai}↔{bi}", fill=theme.muted, font=("", 8))
-        inv = {d.host: d for d in self.app.inventory.devices}
-        for n, (x, y) in pos.items():
-            dev = next((d for d in inv.values()
-                        if (d.hostname or d.host) == n or d.host == n), None)
-            from netwright.theme import VENDOR_COLORS
-            color = VENDOR_COLORS.get(dev.vendor if dev else "", theme.faint)
-            self.canvas.create_oval(x - 14, y - 14, x + 14, y + 14, fill=color, outline="white", width=2)
-            self.canvas.create_text(x, y + 26, text=n, fill=theme.fg, font=("", 9))
+        self.app.show("topology")
+        if hasattr(topo_page, "discover"):
+            topo_page.discover()
+        self.var_topo.set("已切到拓扑工作区，发现进度见该页状态栏")
 
     # ────────── 意图下发 ──────────
     def _intent_tab(self):
@@ -123,38 +65,45 @@ class ControllerPage(Page):
         self.nb.add(tab, text=" 意图下发 ")
         self.intent_items = intents_mod.list_intents()
 
-        bar = tk.Frame(tab, bg=theme.bg)
-        bar.pack(fill=tk.X, pady=(8, 4))
-        ttk.Label(bar, text="意图类型:", style="H2.TLabel").pack(side=tk.LEFT)
-        self.cmb_intent = ttk.Combobox(bar, state="readonly", width=24,
+        top = SectionCard(tab, title="声明意图", desc="意图目录驱动表单；控制器负责翻译成各厂商命令")
+        top.pack(fill=tk.X, pady=(12, 10))
+        bar = tk.Frame(top.body, bg=theme.panel)
+        bar.pack(fill=tk.X)
+        tk.Label(bar, text="意图类型", bg=theme.panel, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.LEFT)
+        self.cmb_intent = ttk.Combobox(bar, state="readonly", width=22,
                                        values=[i["title"] for i in self.intent_items])
         self.cmb_intent.current(0)
-        self.cmb_intent.pack(side=tk.LEFT, padx=(6, 14))
+        self.cmb_intent.pack(side=tk.LEFT, padx=(6, 18))
         self.cmb_intent.bind("<<ComboboxSelected>>", lambda e: self._render_fields())
 
-        ttk.Label(bar, text="目标设备:", style="H2.TLabel").pack(side=tk.LEFT)
-        self.cmb_target = ttk.Combobox(bar, state="readonly", width=24)
+        tk.Label(bar, text="目标设备", bg=theme.panel, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.LEFT)
+        self.cmb_target = ttk.Combobox(bar, state="readonly", width=26)
         self.cmb_target.pack(side=tk.LEFT, padx=(6, 0))
 
-        frm = tk.Frame(tab, bg=theme.bg)
-        frm.pack(fill=tk.X, pady=(4, 6))
-        self.fields_frame = tk.Frame(frm, bg=theme.bg)
-        self.fields_frame.pack(fill=tk.X)
+        self.fields_frame = tk.Frame(top.body, bg=theme.panel)
+        self.fields_frame.pack(fill=tk.X, pady=(10, 0))
 
-        btns = tk.Frame(tab, bg=theme.bg)
-        btns.pack(fill=tk.X, pady=(0, 6))
-        WButton(btns, text="① Dry-Run 预览（不连接设备）", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
-                  activebackground=theme.nav1, command=self.dry_run).pack(side=tk.LEFT)
-        self.btn_apply = WButton(btns, text="② 确认下发", bg=theme.warn, fg="#1c1200", relief=tk.FLAT,
-                                   activebackground=theme.warn, state=tk.DISABLED, command=self.apply)
+        bottom = SectionCard(tab, title="Dry-Run 计划", desc="预览绝不连接设备；确认后才真实下发并审计")
+        bottom.pack(fill=tk.BOTH, expand=True)
+        btns = tk.Frame(bottom.body, bg=theme.panel)
+        btns.pack(fill=tk.X, pady=(0, 8))
+        WButton(btns, text="① Dry-Run 预览", bg=theme.accent,
+                command=self.dry_run).pack(side=tk.LEFT)
+        self.btn_apply = WButton(btns, text="② 确认下发", bg=theme.warn, fg="#1c1200",
+                                 state=tk.DISABLED, command=self.apply)
         self.btn_apply.pack(side=tk.LEFT, padx=(8, 0))
         self.var_intent = tk.StringVar(value="")
-        tk.Label(btns, textvariable=self.var_intent, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)
+        tk.Label(btns, textvariable=self.var_intent, bg=theme.panel, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.RIGHT)
 
-        self.preview = tk.Text(tab, bg=theme.code_bg, fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, height=18,
-                               insertbackground=theme.fg)
+        self.preview = tk.Text(bottom.body, bg=theme.code_bg, fg="#D7E2F2", relief=tk.FLAT,
+                               font=FONT_MONO, height=14, insertbackground=theme.fg,
+                               highlightthickness=0, bd=0, padx=10, pady=8)
         self.preview.pack(fill=tk.BOTH, expand=True)
-        self.preview.tag_config("dev", foreground=theme.accent, font=("", 10, "bold"))
+        self.preview.tag_config("dev", foreground=theme.chrome_accent,
+                                font=("", 10, "bold"))
         self._render_fields()
 
     def _current_intent(self):
@@ -167,11 +116,11 @@ class ControllerPage(Page):
         spec = self._current_intent()
         self.field_vars: dict[str, tk.StringVar] = {}
         for f in spec["fields"]:
-            row = tk.Frame(self.fields_frame, bg=theme.bg)
+            row = tk.Frame(self.fields_frame, bg=theme.panel)
             row.pack(fill=tk.X, pady=2)
             mark = "*" if f["required"] else ""
-            tk.Label(row, text=f"{f['label']}{mark}:", bg=theme.bg, fg=theme.muted, width=22,
-                     anchor="w").pack(side=tk.LEFT)
+            tk.Label(row, text=f"{f['label']}{mark}", bg=theme.panel, fg=theme.muted,
+                     width=16, anchor="w", font=FONT_SMALL).pack(side=tk.LEFT)
             var = tk.StringVar(value=f["default"] or "")
             self.field_vars[f["name"]] = var
             if f["type"] == "choice":
@@ -180,11 +129,14 @@ class ControllerPage(Page):
                 if f["choices"]:
                     w.current(0)
             else:
-                w = tk.Entry(row, textvariable=var, bg=theme.panel, fg=theme.fg, relief=tk.FLAT,
-                             width=34, insertbackground=theme.fg)
-            w.pack(side=tk.LEFT, ipady=3)
+                w = tk.Entry(row, textvariable=var, bg=theme.panel, fg=theme.fg,
+                             relief=tk.FLAT, width=32, insertbackground=theme.fg,
+                             highlightthickness=1, highlightbackground=theme.line,
+                             highlightcolor=theme.accent)
+            w.pack(side=tk.LEFT, ipady=3, padx=(4, 0))
             if f["hint"]:
-                tk.Label(row, text=f"  {f['hint']}", bg=theme.bg, fg=theme.muted, font=("", 8)).pack(side=tk.LEFT)
+                tk.Label(row, text=f["hint"], bg=theme.panel, fg=theme.faint,
+                         font=("Microsoft YaHei UI", 8)).pack(side=tk.LEFT, padx=(10, 0))
         # 目标设备下拉
         self.target_map = {f"{d.display_name} ({d.host}) · {VENDORS.get(d.vendor, d.vendor)}": d
                            for d in self.app.inventory.devices}
@@ -273,54 +225,65 @@ class ControllerPage(Page):
     def _api_tab(self):
         tab = tk.Frame(self.nb, bg=theme.bg)
         self.nb.add(tab, text=" REST API ")
+
+        card = SectionCard(tab, title="北向接口",
+                           desc="v1 面向脚本化既有功能，v2 是控制器语义接口（拓扑/事件/策略）")
+        card.pack(fill=tk.BOTH, expand=True, pady=(12, 10))
         info = (
-            "把 NetWright 控制器开放成本机 REST 服务，供自动化脚本/CI 调用。\n\n"
-            "  GET  /api/health          健康检查\n"
-            "  GET  /api/devices         设备清单（密码打码）\n"
-            "  GET  /api/intents         意图目录与表单定义\n"
-            "  GET  /api/topology        最近一次发现的拓扑\n"
-            "  POST /api/dry-run         意图 → 命令计划（不连设备）\n"
-            "  POST /api/apply           真实下发（必须带 \"confirm\": true）\n\n"
-            "示例：\n"
-            "  curl http://127.0.0.1:8899/api/devices\n"
-            "  curl -X POST http://127.0.0.1:8899/api/dry-run -H \"Content-Type: application/json\" \\\n"
-            "       -d '{\"intent_key\":\"vlan_deploy\",\"intent\":{\"vlans\":\"10,20\"},"
-            "\"device_hosts\":[\"192.0.2.1\"]}'\n")
-        tk.Label(tab, text=info, bg=theme.bg, fg=theme.fg, font=FONT_MONO, justify="left").pack(
-            anchor="w", padx=14, pady=(12, 8))
-        row = tk.Frame(tab, bg=theme.bg)
-        row.pack(fill=tk.X, padx=14)
+            "v2 控制器接口\n"
+            "  GET  /api/v2/health              健康与统计\n"
+            "  GET  /api/v2/topology            控制器图（节点/链路）\n"
+            "  GET  /api/v2/events?limit=50     事件流\n"
+            "  GET  /api/v2/policies            已编译策略\n"
+            "  GET  /api/v2/southbound          南向适配器与能力位\n"
+            "  POST /api/v2/policies/compile    意图 → 策略（不连设备）\n"
+            "  POST /api/v2/topology/sync       设备清单 → 图\n\n"
+            "v1 兼容接口\n"
+            "  GET  /api/devices · /api/intents · /api/topology\n"
+            "  POST /api/dry-run · /api/apply（需 \"confirm\": true）\n\n"
+            "示例\n"
+            "  curl http://127.0.0.1:8899/api/v2/snapshot\n"
+            "  curl -X POST http://127.0.0.1:8899/api/v2/policies/compile \\\n"
+            "       -H \"Content-Type: application/json\" \\\n"
+            "       -d '{\"intent_key\":\"vlan_deploy\",\"params\":{\"vlans\":\"10,20\"}}'\n")
+        tk.Label(card.body, text=info, bg=theme.panel, fg=theme.fg, font=FONT_MONO,
+                 justify="left").pack(anchor="w")
+        row = tk.Frame(card.body, bg=theme.panel)
+        row.pack(fill=tk.X, pady=(10, 0))
         self.var_api = tk.StringVar(value="API 服务未启动")
-        tk.Label(row, textvariable=self.var_api, bg=theme.bg, fg=theme.muted, font=("", 10)).pack(side=tk.LEFT)
-        self.btn_api = WButton(row, text="启动 REST 服务 (127.0.0.1:8899)", bg=theme.accent, fg="white",
-                                 relief=tk.FLAT, activebackground=theme.nav2, command=self.toggle_api)
-        self.btn_api.pack(side=tk.LEFT, padx=(16, 0))
+        tk.Label(row, textvariable=self.var_api, bg=theme.panel, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.LEFT)
+        self.btn_api = WButton(row, text="启动 REST 服务", bg=theme.accent,
+                               command=self.toggle_api)
+        self.btn_api.pack(side=tk.RIGHT)
+
+        audit = SectionCard(tab, title="下发审计", desc="最近 30 条，新在上（不含密码）")
+        audit.pack(fill=tk.X)
+        self.audit_text = tk.Text(audit.body, bg=theme.panel_alt, fg=theme.muted,
+                                  relief=tk.FLAT, font=FONT_MONO, height=6,
+                                  highlightthickness=0, bd=0, padx=8, pady=6)
+        self.audit_text.pack(fill=tk.X)
 
     def toggle_api(self):
         if self.app.controller_api.running:
             self.app.controller_api.stop()
             self.var_api.set("API 服务未启动")
-            self.btn_api.config(text="启动 REST 服务 (127.0.0.1:8899)", bg=theme.accent)
+            self.btn_api.config(text="启动 REST 服务", bg=theme.accent)
         else:
             self.app.controller_api.start()
-            self.var_api.set("API 服务运行中: http://127.0.0.1:8899")
-            self.btn_api.config(text="停止 REST 服务", bg=theme.err, fg="white")
-
-
+            self.var_api.set(f"API 运行中：http://127.0.0.1:{self.app.controller_api.port}")
+            self.btn_api.config(text="停止 REST 服务", bg=theme.err)
 
     def refresh_audit(self):
         """把最近审计记录展示（最新 30 条，新在上）。"""
         entries = deploy_mod.audit_tail(30)
         box = getattr(self, "audit_text", None)
         if box is None:
-            box = tk.Text(self, bg=theme.panel_alt, fg=theme.muted, relief=tk.FLAT,
-                          font=FONT_MONO, height=6, insertbackground=theme.fg)
-            self.audit_text = box
-            box.pack(fill=tk.X, side=tk.BOTTOM)
+            return
         box.delete("1.0", tk.END)
         for e in reversed(entries):
             box.insert(tk.END,
-                       f"{e.get('time','')}  {e.get('action','')}  {e.get('intent','')}  "
-                       f"{e.get('device', e.get('skipped',''))}  → {e.get('status','')}")
+                       f"{e.get('time', '')}  {e.get('action', '')}  {e.get('intent', '')}  "
+                       f"{e.get('device', e.get('skipped', ''))}  → {e.get('status', '')}\n")
         if not entries:
             box.insert(tk.END, "（暂无审计记录）")
