@@ -603,6 +603,54 @@ def test_smoke_restore_backup_dialog_requires_selection(app, tmp_path, monkeypat
         app.controller_store.backups = original
 
 
+def test_smoke_inspect_cancel_button_states(app, monkeypatch):
+    """R7 GUI：巡检中「取消」可用、开始按钮变灰；取消后可再次开始。"""
+    import time
+
+    import netwright.lib.inspector as insp
+    from netwright.lib.inventory import Device
+
+    def slow_run(device, scheme_commands, timeout=15.0, port=None):
+        time.sleep(0.05)
+        cmds = [insp.CommandResult(title="巡检", command=c, output="ok")
+                for c in scheme_commands]
+        return insp.DeviceResult(host=device.host, vendor=device.vendor,
+                                 status="OK", commands=cmds, cost_ms=1)
+
+    monkeypatch.setattr(insp, "run_device", slow_run)
+    app.inventory.devices = []
+    app.inventory.add(Device(host="192.0.2.1", vendor="huawei", hostname="INS-1"))
+    page = app.pages["inspect"]
+    page.refresh_devices()
+    page.cmb_scheme.current(0)
+    page.cmb_workers.set("5")
+
+    page.start()
+    assert str(page.btn_run.cget("state")) == "disabled"
+    assert str(page.btn_cancel.cget("state")) == "normal"
+
+    page.cancel_run()                       # 立即变灰
+    assert str(page.btn_cancel.cget("state")) == "disabled"
+    for _ in range(100):                    # 泵事件循环等结果收尾
+        app.update()
+        if str(page.btn_run.cget("state")) == "normal":
+            break
+        time.sleep(0.05)
+    app.update()
+    assert str(page.btn_run.cget("state")) == "normal", "取消后应能再次开始"
+    assert str(page.btn_cancel.cget("state")) == "disabled"
+
+    page.start()                            # 可再次开始
+    page.cancel_run()
+    for _ in range(100):
+        app.update()
+        if str(page.btn_run.cget("state")) == "normal":
+            break
+        time.sleep(0.05)
+    app.update()
+    assert str(page.btn_run.cget("state")) == "normal"
+
+
 def test_smoke_generate_page_compile_to_policies(app, monkeypatch):
     """R13 GUI：生成页「编译为策略」→ 运行档案出现模板策略且已预演。"""
     from netwright.lib.inventory import Device

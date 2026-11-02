@@ -3,6 +3,26 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.25.0] - 2026-11-02
+
+### Added（R7 巡检治理：可取消 / 并发可配 / 超时可控）
+- **`inspector.run_batch` 支持取消**（`cancel=探针`）：取消后 **2 秒内收尾**——
+  未开始的任务 `cancel_futures` 撤销，已在执行的留给线程池自然结束（不强杀），
+  已完成的结果照常返回；跳过列表注明"已取消：剩余 N 台未巡检"。
+  执行器从 `with` 改为显式 `shutdown(wait=False, cancel_futures=True)`
+  （`with` 退出会等慢设备跑完，取消就失去意义）。
+- **巡检页新增「取消」按钮**：巡检中「开始」变灰、「取消」可用；点取消立即变灰
+  并提示收尾中；收尾后「开始」恢复可再次开始。并发数本就可配（5/10/20/50 下拉），
+  命令超时沿用 inspector 参数（15s）。
+- **线程模型修正**：巡检 worker 不再从后台线程调 `app.after`（红线）——
+  worker 只置数据 + 脏标记，页面 150ms 轮询刷新（与 events 页同一约定）。
+
+### Tests
+- 新增 `tests/test_inspection_govern.py`（4 项）：20 台 × 5 命令 mock 场景取消
+  < 2s 收尾、开局即取消立即返回、不取消全量完成回归、进度停在取消时完成数。
+- GUI 冒烟新增 1 项：取消按钮状态机（灰→可用→取消→恢复可再次开始）。
+- 全量 **307 项 pytest 通过**（+5）。
+
 ## [3.24.0] - 2026-11-02
 
 ### Added（R6 多 token 与审计）

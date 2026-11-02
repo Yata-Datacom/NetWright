@@ -39,6 +39,9 @@ class InspectPage(Page):
         self.btn_run = WButton(top, text="开始巡检", bg=theme.accent, fg="white", relief=tk.FLAT,
                                  activebackground=theme.nav2, command=self.start)
         self.btn_run.pack(side=tk.LEFT)
+        self.btn_cancel = WButton(top, text="取消", command=self.cancel_run)
+        self.btn_cancel.config(state=tk.DISABLED)
+        self.btn_cancel.pack(side=tk.LEFT, padx=(6, 0))
         WButton(top, text="导出报告", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
                   activebackground=theme.nav1, command=self.export_report).pack(side=tk.LEFT, padx=(6, 0))
         self.var_count = tk.StringVar(value="")
@@ -121,6 +124,8 @@ class InspectPage(Page):
         if not HAS_SSH:
             messagebox.showwarning("缺依赖", "请先安装 paramiko：pip install paramiko")
             return
+        if getattr(self, "_running", False):
+            return
         picked = []
         for d in self.app.inventory.devices:
             var = self.dev_vars.get(f"{d.host}:{d.port}")
@@ -132,20 +137,53 @@ class InspectPage(Page):
         scheme_name = self.cmb_scheme.get()
         scheme = inspector.BUILTIN_SCHEMES[scheme_name]
         workers = int(self.cmb_workers.get())
+        # R7 巡检治理：可取消 + 并发可配（下拉）+ 每命令超时走 inspector 默认值
+        self._running = True
+        self._cancel_evt = threading.Event()
+        self._batch_result = None
+        self._batch_dirty = False
         self.btn_run.config(state=tk.DISABLED)
+        self.btn_cancel.config(state=tk.NORMAL)
         self.table.set_rows([])
         self.detail.delete("1.0", tk.END)
         self.var_count.set(f"巡检中… 0/{len(picked)}")
 
         def worker():
-            results, skipped = inspector.run_batch(picked, scheme, workers=workers,
-                                                   progress=self._progress)
-            self.app.after(0, lambda: self._done(results, scheme_name, skipped))
+            results, skipped = inspector.run_batch(
+                picked, scheme, workers=workers, progress=self._progress,
+                cancel=self._cancel_evt.is_set)
+            self._batch_result = (results, scheme_name, skipped)   # 只置数据不碰 Tk
+            self._batch_dirty = True
 
         threading.Thread(target=worker, daemon=True).start()
+        self.after(150, self._batch_poll)
 
     def _progress(self, done, total):
-        self.app.after(0, lambda: self.var_count.set(f"巡检中… {done}/{total}"))
+        """worker 线程只置计数，由轮询刷新 UI（红线：后台线程不碰 Tk）。"""
+        self._progress_value = (done, total)
+
+    def _batch_poll(self):
+        """主线程轮询巡检结果（与 events 页的置脏标记同一约定）。"""
+        if getattr(self, "_batch_dirty", False):
+            self._batch_dirty = False
+            self._running = False
+            self.btn_run.config(state=tk.NORMAL)
+            self.btn_cancel.config(state=tk.DISABLED)
+            results, scheme_name, skipped = self._batch_result
+            self._done(results, scheme_name, skipped)
+            return
+        if getattr(self, "_running", False):
+            value = getattr(self, "_progress_value", None)
+            if value:
+                self.var_count.set(f"巡检中… {value[0]}/{value[1]}")
+            self.after(150, self._batch_poll)
+
+    def cancel_run(self):
+        """R7：取消本轮巡检——按钮立即变灰，线程池 2 秒内收尾。"""
+        if getattr(self, "_running", False):
+            self._cancel_evt.set()
+            self.btn_cancel.config(state=tk.DISABLED)
+            self.app.set_status("正在取消巡检…（等已在执行的设备收尾）")
 
     def _done(self, results, scheme_name, skipped=None):
         self.btn_run.config(state=tk.NORMAL)

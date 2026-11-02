@@ -325,10 +325,15 @@ def run_device(device, scheme_commands: list[str], timeout: float = 15.0,
 
 
 def run_batch(devices: list, scheme: dict[str, list[str]], workers: int = 20,
-              timeout: float = 15.0, progress=None) -> tuple[list[DeviceResult], list[str]]:
+              timeout: float = 15.0, progress=None,
+              cancel=None) -> tuple[list[DeviceResult], list[str]]:
     """并发巡检一批设备（每个设备独立 SSH 会话，跑完即断）。
 
     方案里没有该厂商命令集的设备会被自动跳过（避免空跑）。
+    :param cancel: 可选的取消探针（返回 True 表示要求停止，通常是
+        ``threading.Event.is_set``）。R7：取消后 2 秒内收尾返回——
+        未开始的任务直接撤销，已在执行的任务留给线程池自然结束（不强杀），
+        已完成的结果照常返回，跳过列表里注明取消。
     :return: (结果列表, 跳过原因列表)
     """
     results: list[DeviceResult] = []
@@ -341,14 +346,32 @@ def run_batch(devices: list, scheme: dict[str, list[str]], workers: int = 20,
             skipped.append(f"{dev.display_name}（{dev.vendor} 无此方案命令集）")
     total = len(targets)
     done = 0
-    with futures.ThreadPoolExecutor(max_workers=max(1, min(workers, 100))) as ex:
+    cancelled = False
+    # 不用 with：with 退出时 shutdown(wait=True) 会等慢设备跑完，取消就失去意义；
+    # 改为显式 shutdown(wait=False, cancel_futures=True)。
+    ex = futures.ThreadPoolExecutor(max_workers=max(1, min(workers, 100)))
+    try:
         futs = {ex.submit(run_device, dev, scheme.get(dev.vendor, []), timeout): dev
                 for dev in targets}
-        for fut in futures.as_completed(futs):
-            results.append(fut.result())
-            done += 1
-            if progress:
-                progress(done, total)
+        pending = set(futs)
+        while pending:
+            if cancel is not None and cancel():
+                cancelled = True
+                for fut in pending:
+                    fut.cancel()
+                break
+            finished, pending = futures.wait(
+                pending, timeout=0.2, return_when=futures.FIRST_COMPLETED)
+            for fut in finished:
+                results.append(fut.result())
+                done += 1
+                if progress:
+                    progress(done, total)
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)
+    if cancelled:
+        rest = total - done
+        skipped.append(f"⚠ 已取消：剩余 {rest} 台未巡检（以上为已完成部分）")
     order = {"FAILED": 0, "WARNING": 1, "OK": 2, "UNREACHABLE": 3}
     return sorted(results, key=lambda r: (order.get(r.status, 9), r.host)), skipped
 
