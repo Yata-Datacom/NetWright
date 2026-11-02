@@ -14,7 +14,7 @@
   <a href="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml"><img src="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml/badge.svg" alt="Build EXE"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
-  <img src="https://img.shields.io/badge/tests-214%20passed-brightgreen" alt="214 tests">
+  <img src="https://img.shields.io/badge/tests-225%20passed-brightgreen" alt="225 tests">
 </p>
 
 ---
@@ -120,7 +120,7 @@ pip install -e .          # 之后直接用 netwright 启动
 | **CLI（SSH/Telnet）** | ✅ 完整实装 | 复用 `lib/ssh_client`：自动关分页、剥 Telnet IAC、裁剪回显 |
 | **RESTCONF** | ✅ 完整实装 | GET/PATCH/POST/DELETE + Basic Auth，TLS 可配，面向 SONiC/云网设备 |
 | **NETCONF** | ✅ 实装（需 `ncclient`） | get-config / edit-config / commit / discard；会话可注入，便于离线测试 |
-| **OpenFlow 1.3** | 🧱 骨架 | 声明 `flow_program` 能力位与 flow 结构；flow-mod 待实装 |
+| **OpenFlow 1.3** | 🟡 半实装 | 流表校验 + `flow_mod` 字节编码（可 dry-run 看 hex）；TCP 通道/握手未实装 |
 
 > 骨架的硬约定：**做不了就当场抛 `UnsupportedOperation`**，不返回空结果让上层误判"下发成功"。
 
@@ -195,7 +195,7 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 │  ├─ lib/                      # 纯逻辑：清单、巡检、生成、计算、意图、拓扑解析
 │  └─ pages/                    # 12 个工作区页面 + 新手引导 + 设置
 ├─ templates/                   # 116 个配置模板 + library.json
-├─ tests/                       # 214 项 pytest（含 GUI 冒烟）
+├─ tests/                       # 225 项 pytest（含 GUI 冒烟）
 ├─ docs/                        # 用户指南 + 示例台账 + 截图
 └─ tools/                       # 图标生成、模板导入
 ```
@@ -208,7 +208,7 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 python -m venv .venv
 .venv/Scripts/pip install -e ".[dev]"     # Windows；Linux/macOS 用 .venv/bin/pip
 
-pytest tests/ -v                          # 214 项，含 GUI 冒烟（无显示环境自动跳过）
+pytest tests/ -v                          # 225 项，含 GUI 冒烟（无显示环境自动跳过）
 ruff check src tests main.py              # 核心规则 lint
 pyinstaller NetWright.spec --noconfirm    # 打包 exe
 python tools/make_icon.py                 # 重新生成图标

@@ -213,6 +213,18 @@ def dispatch(store, method: str, path: str, body: dict | None = None,
                                     "error": str(exc)})
             ok = all(item["ok"] for item in results)
             return (200 if ok else 207), {"ok": ok, "results": results}
+        if route == "/openflow/validate":
+            flows = body.get("flows") or []
+            if not isinstance(flows, list) or not flows:
+                return 400, {"ok": False, "message": "flows 必须是非空数组"}
+            adapter = store.registry.get("openflow")
+            if adapter is None:
+                return 503, {"ok": False, "message": "OpenFlow 适配器未注册"}
+            try:
+                compiled = adapter.build_flow_mods(flows)
+            except ValueError as exc:
+                return 400, {"ok": False, "message": str(exc)}
+            return 200, {"ok": True, "count": len(compiled), "compiled": compiled}
         if route == "/sources/start":
             try:
                 store.start_syslog(body.get("syslog_port"))

@@ -3,6 +3,23 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.18.0] - 2026-11-02
+
+### Added（OpenFlow 1.3：先做能离线验证的那一半）
+- **流表模型与校验**（`FlowEntry`）：table / priority / idle_timeout / hard_timeout 值域，
+  match 字段白名单（in_port、eth_type、eth_src/dst、vlan_vid、ip_proto、ipv4_src/dst），
+  动作白名单（output / drop / push_vlan），`drop` 不可与其他动作混用。
+- **`flow_mod` 编码**：按 OF1.3 线格式输出完整报文（8 字节头 + match OXM + apply_actions），
+  8 字节对齐；`vlan_vid` 自动带 `OFPVID_PRESENT` 标志。
+- **REST**：`POST /api/v2/openflow/validate`，返回每条 flow 的字节数与 hex（dry-run）。
+- **适配器诚实边界**：`program_flows()` 先校验+编码，再抛 `UnsupportedOperation`
+  并说明"已编译 N 条但通道未实装"——不假装下发成功。
+
+### Tests
+- 新增 `tests/test_openflow.py`（11 项）：报文头/长度/对齐、VLAN 标志位、6 类非法输入、
+  适配器编码与拒绝传输、REST 鉴权与 400 分支。
+- 全量 **225 项 pytest 通过**。
+
 ## [3.17.0] - 2026-11-02
 
 ### Added（排障时间线）
@@ -18,7 +35,7 @@
 
 ### Tests
 - 新增 `tests/test_timeline.py`（4 项）：三源合并、倒序、limit、REST 鉴权。
-- 全量 **214 项 pytest 通过**。
+- 全量 **225 项 pytest 通过**。
 
 ## [3.16.0] - 2026-11-02
 
@@ -42,7 +59,7 @@
 
 ### Tests
 - 备份 +2（latest 只读最新一份、history 完整性），GUI +2（刷新跳过、网格层复用）。
-- 全量 **214 项 pytest 通过**。
+- 全量 **225 项 pytest 通过**。
 
 ## [3.15.0] - 2026-11-02
 
@@ -60,7 +77,7 @@
 
 ### Tests
 - 备份测试新增 4 项（diff_against、无快照报错、compare_live 漂移事件、live-diff 路由）。
-- 全量 **214 项 pytest 通过**。
+- 全量 **225 项 pytest 通过**。
 
 ## [3.14.0] - 2026-11-02
 
@@ -78,7 +95,7 @@
 
 ### Tests
 - GUI 冒烟 +3：设置页保存落盘、备份历史对话框 diff、页面循环覆盖新页面。
-- 全量 **214 项 pytest 通过**。
+- 全量 **225 项 pytest 通过**。
 
 ## [3.13.0] - 2026-11-02
 
@@ -96,7 +113,7 @@
 
 ### Tests
 - 新增 `tests/test_errors.py`（9 项）：认证/超时/拒绝/校验/南向/生命周期/未知异常与关键字翻译。
-- 全量 **214 项 pytest 通过**。
+- 全量 **225 项 pytest 通过**。
 
 ## [3.12.0] - 2026-11-02
 
@@ -117,7 +134,7 @@
 
 ### Tests
 - 新增 `tests/test_backup.py`（12 项）+ GUI「运行档案」冒烟 1 项。
-- 全量 **214 项 pytest 通过**。
+- 全量 **225 项 pytest 通过**。
 
 ## [3.11.0] - 2026-11-02
 
@@ -147,7 +164,7 @@
 
 ### Tests
 - 新增 `tests/test_lifecycle.py`（16 项）与 `tests/test_southbound.py`（18 项）。
-- 全量 **214 项 pytest 通过**。
+- 全量 **225 项 pytest 通过**。
 
 ## [3.10.0] - 2026-11-02
 

@@ -502,6 +502,8 @@ v1 与 v2 并存：v1 面向脚本化既有功能，v2 是控制器语义接口�
 | GET `/api/v2/backups?device=` | 备份总览 / 某台设备的历史快照 |
 | GET `/api/v2/backups/diff?device=&old=&new=` | 两次快照的 unified diff |
 | POST `/api/v2/backups` | 触发备份（`device_hosts` 可限定，单次上限 50 台） |
+| `POST /api/v2/openflow/validate` | 流表校验 + flow_mod 编码（dry-run，不连交换机） |
+| `GET /api/v2/timeline?limit=` | 事件 / 快照 / 意图运行的合并时间线 |
 
 **鉴权（v3.11 起）**：除 `/api/v2/health` 外，所有 v2 请求都要带
 
