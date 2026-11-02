@@ -74,6 +74,25 @@ class ControllerStore:
         return {"enabled": True, "devices": devices, "count": len(devices),
                 "root": self.backups.root}
 
+    def compare_live(self, device, timeout: float = 20.0) -> dict:
+        """读现网配置并与最近一次快照对比（不写新快照）。"""
+        if self.backups is None:
+            raise RuntimeError("未配置备份目录（ControllerStore.backups 为空）")
+        adapter = self.registry.for_device(device)
+        if adapter is None:
+            raise RuntimeError(f"没有匹配 {getattr(device, 'protocol', '?')} 的南向适配器")
+        text = adapter.read_config(device, timeout=timeout)
+        if not (text or "").strip():
+            raise RuntimeError("设备返回空配置（命令不被支持或权限不足）")
+        name = device.display_name
+        diff = self.backups.diff_against(name, text)
+        self.bus.publish(
+            "config.drift",
+            f"{name}: 现网配置与最近快照{'有差异' if diff else '一致'}",
+            severity="warning" if diff else "info",
+            source="backup", device=name, changed=bool(diff))
+        return {"device": name, "has_changes": bool(diff), "diff": diff}
+
     # ── 事件源（syslog / snmp trap）──
     def start_syslog(self, port: int | None = None) -> dict:
         if port:

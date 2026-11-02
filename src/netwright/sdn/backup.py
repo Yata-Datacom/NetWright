@@ -23,6 +23,13 @@ from dataclasses import dataclass
 BACKUP_DIR = "backups"
 DEFAULT_KEEP = 30
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
+_SEQ_RE = re.compile(r"-(\d+)\.cfg$")
+
+
+def _sequence(filename: str) -> int:
+    """同一秒内的第 N 份快照（文件名后缀 -1/-2…），用于稳定排序。"""
+    match = _SEQ_RE.search(filename or "")
+    return int(match.group(1)) if match else 0
 
 
 @dataclass
@@ -122,7 +129,10 @@ class ConfigBackup:
             entries.append(BackupEntry(device=device, path=path,
                                        ts=stat.st_mtime_ns / 1e9,
                                        size=stat.st_size, sha256=digest))
-        return sorted(entries, key=lambda e: e.ts, reverse=True)
+        # 同一秒内可能有多份（文件名带 -1/-2 后缀）：按 (时间, 序号) 排序，
+        # 避免只按 mtime 排序时同秒快照顺序不稳定（prune 会删错）。
+        return sorted(entries, key=lambda e: (e.ts, _sequence(e.filename)),
+                      reverse=True)
 
     def latest(self, device: str) -> BackupEntry | None:
         items = self.history(device)
@@ -164,6 +174,16 @@ class ConfigBackup:
             (old_text or "").splitlines(), (new_text or "").splitlines(),
             fromfile=old_label, tofile=new_label, lineterm="", n=3)
         return "\n".join(diff)
+
+    def diff_against(self, device: str, text: str, label: str = "现网配置") -> str:
+        """拿"最新快照"和一段现读到的配置对比（不落盘）。
+
+        典型用法：怀疑有人手改了设备 → 读一次现网配置，直接和上次快照比。
+        """
+        latest = self.latest(device)
+        if latest is None:
+            raise ValueError(f"{device} 还没有快照：先「🗄 备份配置」一次再对比")
+        return self.diff_text(self.read(latest), text, latest.filename, label)
 
     # ── 清理 ──
     def _prune(self, device: str) -> None:

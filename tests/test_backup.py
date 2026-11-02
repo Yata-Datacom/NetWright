@@ -147,3 +147,40 @@ def test_nbapi_backup_requires_device_match(tmp_path):
     status, body = nbapi.dispatch(store, "POST", "/api/v2/backups",
                                   {"device_hosts": ["10.9.9.9"]}, headers=headers)
     assert status == 404 and body["ok"] is False
+
+
+# ── 现网对比（漂移检测）─────────────────────────────────────────────
+def test_diff_against_latest_snapshot(tmp_path):
+    backup = ConfigBackup(str(tmp_path))
+    backup.save("SW-1", CONFIG_V1)
+    diff = backup.diff_against("SW-1", CONFIG_V2)
+    assert "+vlan 20" in diff and "现网配置" in diff
+    assert not backup.diff_against("SW-1", CONFIG_V1)
+
+
+def test_diff_against_without_snapshot_raises(tmp_path):
+    backup = ConfigBackup(str(tmp_path))
+    with pytest.raises(ValueError):
+        backup.diff_against("SW-1", CONFIG_V1)
+
+
+def test_store_compare_live_detects_drift(tmp_path):
+    store = _store(tmp_path)
+    store.backup_device(store.inventory.devices[0])
+    store.registry.for_device = lambda _d: BackupAdapter(CONFIG_V2)
+    result = store.compare_live(store.inventory.devices[0])
+    assert result["has_changes"] is True and "+vlan 20" in result["diff"]
+    assert any(e.topic == "config.drift" for e in store.bus.snapshot(10))
+
+
+def test_nbapi_live_diff_route(tmp_path):
+    store = _store(tmp_path)
+    headers = {"Authorization": "Bearer t"}
+    nbapi.dispatch(store, "POST", "/api/v2/backups", {}, headers=headers)
+    store.registry.for_device = lambda _d: BackupAdapter(CONFIG_V2)
+    status, body = nbapi.dispatch(
+        store, "GET", "/api/v2/backups/live-diff?device=核心A", headers=headers)
+    assert status == 200 and body["has_changes"] is True
+    status, body = nbapi.dispatch(
+        store, "GET", "/api/v2/backups/live-diff?device=不存在", headers=headers)
+    assert status == 404

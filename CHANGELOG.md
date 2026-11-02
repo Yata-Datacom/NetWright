@@ -3,6 +3,24 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.15.0] - 2026-11-02
+
+### Added（配置漂移检测）
+- **`ConfigBackup.diff_against()`**：把最近一次快照和一段现读配置直接对比（不落盘）。
+- **`ControllerStore.compare_live()`**：读设备当前配置 → 与最近快照 diff →
+  有差异时发 `config.drift` 事件（severity=warning），事件流里能看到。
+- **备份历史对话框新增「与现网对比」**：不用先备份，直接看设备有没有被手改过；
+  一致时明确提示"没有漂移"，读取失败走统一的人话错误提示。
+- **REST**：`GET /api/v2/backups/live-diff?device=<显示名>`。
+
+### Fixed
+- **同一秒内多份快照排序不稳定**：改为按 `(mtime_ns, 文件名序号)` 排序，
+  避免 prune 删错快照（此前 `test_prune_keeps_latest` 偶发失败）。
+
+### Tests
+- 备份测试新增 4 项（diff_against、无快照报错、compare_live 漂移事件、live-diff 路由）。
+- 全量 **206 项 pytest 通过**。
+
 ## [3.14.0] - 2026-11-02
 
 ### Added（设置页 + 备份差异 GUI）
@@ -19,7 +37,7 @@
 
 ### Tests
 - GUI 冒烟 +3：设置页保存落盘、备份历史对话框 diff、页面循环覆盖新页面。
-- 全量 **202 项 pytest 通过**。
+- 全量 **206 项 pytest 通过**。
 
 ## [3.13.0] - 2026-11-02
 
@@ -37,7 +55,7 @@
 
 ### Tests
 - 新增 `tests/test_errors.py`（9 项）：认证/超时/拒绝/校验/南向/生命周期/未知异常与关键字翻译。
-- 全量 **202 项 pytest 通过**。
+- 全量 **206 项 pytest 通过**。
 
 ## [3.12.0] - 2026-11-02
 
@@ -58,7 +76,7 @@
 
 ### Tests
 - 新增 `tests/test_backup.py`（12 项）+ GUI「运行档案」冒烟 1 项。
-- 全量 **202 项 pytest 通过**。
+- 全量 **206 项 pytest 通过**。
 
 ## [3.11.0] - 2026-11-02
 
@@ -88,7 +106,7 @@
 
 ### Tests
 - 新增 `tests/test_lifecycle.py`（16 项）与 `tests/test_southbound.py`（18 项）。
-- 全量 **202 项 pytest 通过**。
+- 全量 **206 项 pytest 通过**。
 
 ## [3.10.0] - 2026-11-02
 

@@ -172,6 +172,19 @@ def dispatch(store, method: str, path: str, body: dict | None = None,
             except ValueError as exc:
                 return 400, {"ok": False, "message": str(exc)}
             return 200, {"ok": True, "device": device, "diff": text}
+        if route == "/backups/live-diff":
+            device_name = (query.get("device") or [""])[0]
+            if not device_name:
+                return 400, {"ok": False, "message": "需要 device 参数（设备显示名）"}
+            device = next((d for d in store.inventory.devices
+                           if d.display_name == device_name), None)
+            if device is None:
+                return 404, {"ok": False, "message": "设备清单里没有这台设备"}
+            try:
+                result = store.compare_live(device)
+            except Exception as exc:      # noqa: BLE001
+                return 400, {"ok": False, "message": str(exc)}
+            return 200, {"ok": True, **result}
         return 404, {"ok": False, "message": "未知端点"}
 
     if method == "POST":

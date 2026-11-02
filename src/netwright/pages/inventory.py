@@ -516,6 +516,7 @@ class BackupHistoryDialog(tk.Toplevel):
         btns.pack(fill=tk.X, padx=10, pady=(0, 10))
         WButton(btns, text="对比所选", command=self._diff_selected).pack(side=tk.LEFT)
         WButton(btns, text="最近两次", command=self._diff_latest).pack(side=tk.LEFT, padx=(6, 0))
+        WButton(btns, text="与现网对比", command=self._diff_live).pack(side=tk.LEFT, padx=(6, 0))
 
         right = tk.Frame(body, bg=theme.panel)
         right.grid(row=0, column=1, sticky="nsew")
@@ -560,6 +561,35 @@ class BackupHistoryDialog(tk.Toplevel):
         old, new = self.entries[first], self.entries[second]
         self._show(self.backup.diff_text(self.backup.read(old), self.backup.read(new),
                                          old.filename, new.filename))
+
+    def _diff_live(self):
+        """读一次现网配置，和最近快照对比（不落盘）。"""
+        store = self.app.controller_store
+        device = next((d for d in store.inventory.devices
+                       if d.display_name == self.device), None)
+        if device is None:
+            self._show("设备清单里找不到这台设备（可能已被删除）。")
+            return
+        self._show("正在读取现网配置…（SSH/Telnet 需要几秒）")
+
+        def worker():
+            try:
+                result = store.compare_live(device)
+            except Exception as exc:      # noqa: BLE001
+                from netwright.lib.errors import friendly_error
+
+                result = {"error": friendly_error(exc), "diff": ""}
+            self.app.after(0, lambda: self._show_live(result))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _show_live(self, result: dict):
+        if result.get("error"):
+            self._show(f"读取失败：{result['error']}")
+        elif result.get("has_changes"):
+            self._show(result.get("diff") or "")
+        else:
+            self._show("现网配置与最近一次快照一致（没有漂移）。")
 
     def _show(self, text: str):
         self.diff_text.delete("1.0", tk.END)
