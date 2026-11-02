@@ -81,7 +81,8 @@ class DataTable(tk.Frame):
     def preserve_selection(self) -> contextmanager   # 刷新前后保持选中
 ```
 **验收**：
-- `pytest tests/test_widgets.py -q` 新增 ≥6 项：空表、1000 行插入 < 0.5s、选中保持、斑马纹 tag、排序不变、列宽可配
+- **TDD 骨架已就绪**：`tests/test_widgets.py`（10 项）当前整文件 skip（基线 225 passed / 1 skipped）。
+  实现 `widgets.DataTable` 后必须 `pytest tests/test_widgets.py -q` → **10 passed**，且不得修改断言
 - `pytest tests/test_gui_smoke.py -q` 全绿；8 个存量页至少 4 个改用 `DataTable`
 - 手动验收：设备清单/巡检/盘点三页在明暗 × 4 主色切换后布局不塌、行高一致
 
