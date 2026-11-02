@@ -47,18 +47,34 @@ class DashboardPage(Page):
             tile.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
 
         body = tk.Frame(self, bg=theme.bg)
+        self._body = body
         body.pack(fill=tk.BOTH, expand=True, padx=20, pady=(12, 18))
         body.columnconfigure(0, weight=2)
         body.columnconfigure(1, weight=1, minsize=330)
         body.rowconfigure(0, weight=1)
 
+        # 第一次使用：设备清单为空时给一条最短路径（有设备后自动隐藏）
+        self.onboard = SectionCard(self, title="第一次使用？从这里开始",
+                                   desc="不用先读文档，三条路任选一条")
+        row0 = tk.Frame(self.onboard.body, bg=theme.panel)
+        row0.pack(fill=tk.X)
+        WButton(row0, text="① 载入演示数据（30 秒看懂）", bg=theme.accent,
+                command=self._load_demo).pack(side=tk.LEFT, padx=(0, 8))
+        WButton(row0, text="② 添加我的第一台设备", command=self._add_device).pack(
+            side=tk.LEFT, padx=(0, 8))
+        WButton(row0, text="③ 看 5 分钟引导", command=lambda: self.app.open_help()).pack(
+            side=tk.LEFT)
+        self.onboard.pack(fill=tk.X, padx=20, pady=(0, 12), before=body)
+
         left = tk.Frame(body, bg=theme.bg)
+        self._left = left
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
         left.rowconfigure(0, weight=1)
         left.columnconfigure(0, weight=1)
 
         events_card = SectionCard(left, title="最近事件",
                                   desc="拓扑变更 / 策略编译 / 南向异常")
+        self.events_card = events_card
         events_card.grid(row=0, column=0, sticky="nsew", pady=(0, 12))
         self.events_box = tk.Frame(events_card.body, bg=theme.panel)
         self.events_box.pack(fill=tk.BOTH, expand=True)
@@ -98,10 +114,45 @@ class DashboardPage(Page):
         self.refresh()
 
     # ── 刷新 ──
+    def _load_demo(self):
+        from netwright import demo
+
+        devices, links = demo.seed(self.app.inventory)
+        self.app.controller_store.graph.clear()
+        self.app.controller_store.sync_inventory()
+        self.refresh()
+        self.app.event_bus.publish("demo.loaded",
+                                   f"已载入演示数据：{devices} 台设备 / {links} 条链路",
+                                   source="dashboard")
+        self.app.set_status("演示数据已载入，去「拓扑」看看效果")
+        self.app.show("topology")
+
+    def _add_device(self):
+        self.app.show("inventory")
+        page = self.app.pages.get("inventory")
+        if page is not None and hasattr(page, "add_dialog"):
+            page.add_dialog()
+
+    def _toggle_onboard(self):
+        has_devices = bool(getattr(self.app.inventory, "devices", []))
+        shown = bool(self.onboard.winfo_manager())
+        if has_devices:
+            if shown:
+                self.onboard.pack_forget()
+                self.events_card.grid()
+                self._left.rowconfigure(0, weight=1)
+        else:
+            if not shown:
+                self.onboard.pack(fill=tk.X, padx=20, pady=(0, 12), before=self._body)
+            # 还没设备时事件区没有内容可看，把空间让给引导
+            self.events_card.grid_remove()
+            self._left.rowconfigure(0, weight=0)
+
     def refresh(self):
         store = getattr(self.app, "controller_store", None)
         if store is None:
             return
+        self._toggle_onboard()
         stats = store.summary()
         bus = self.app.event_bus
         counts = bus.counts()

@@ -61,6 +61,19 @@ def test_import_csv_pure_duplicate_still_warns(tmp_path):
     assert added == 1 and len(warns) == 1
 
 
+def test_import_csv_links_only_is_persisted(tmp_path):
+    """设备都已存在、只补链路时也必须落盘（否则拓扑白导）。"""
+    path = str(tmp_path / "dev.json")
+    inv = Inventory(path)
+    inv.add(Device(host="192.0.2.1", vendor="huawei"))
+    inv.add(Device(host="192.0.2.2", vendor="huawei"))
+    text = ("host,vendor,local_intf,peer_device,peer_intf\n"
+            "192.0.2.1,huawei,GE0/0/1,192.0.2.2,GE0/0/2\n")
+    added, _warns = inv.import_csv(text)
+    assert added == 0 and len(inv.links) == 1
+    assert Inventory(path).links, "只有链路新增时也必须落盘"
+
+
 # ── 旧文件名迁移 ───────────────────────────────────────────────────
 def test_inventory_migrates_netforge_file(tmp_path):
     legacy = tmp_path / "netforge_devices.json"

@@ -138,6 +138,7 @@ class Inventory:
         if data_rows is rows:
             colmap = {"host": 0, "port": 1, "vendor": 2, "username": 3, "password": 4}
         added = 0
+        links_added = 0
         if replace:
             self.devices.clear()
         for n, row in enumerate(data_rows, start=2):
@@ -183,7 +184,8 @@ class Inventory:
                 self.links.append(LedgerLink(
                     device_host=host, local_intf=local_intf,
                     peer_host=peer_dev, peer_intf=peer_intf))
-        if added:
+                links_added += 1
+        if added or links_added:
             self.save()
         return added, warnings
 
