@@ -195,9 +195,9 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 │  ├─ lib/                      # 纯逻辑：清单、巡检、生成、计算、意图、拓扑解析
 │  └─ pages/                    # 12 个工作区页面 + 新手引导 + 设置
 ├─ templates/                   # 116 个配置模板 + library.json
-├─ tests/                       # 234 项 pytest（含 GUI 冒烟）
-├─ docs/                        # 用户指南 + 示例台账 + 截图
-└─ tools/                       # 图标生成、模板导入
+├─ tests/                       # 326 项 pytest（含 GUI 冒烟）
+├─ docs/                        # 用户指南 + 启动基准 + 示例台账 + 截图
+└─ tools/                       # 图标生成、模板导入、启动基准（bench_startup）
 ```
 
 ---
@@ -208,7 +208,7 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 python -m venv .venv
 .venv/Scripts/pip install -e ".[dev]"     # Windows；Linux/macOS 用 .venv/bin/pip
 
-pytest tests/ -v                          # 233 项，含 GUI 冒烟（无显示环境自动跳过）
+pytest tests/ -v                          # 326 项，含 GUI 冒烟（无显示环境自动跳过）
 ruff check src tests main.py              # 核心规则 lint
 pyinstaller NetWright.spec --noconfirm    # 打包 exe
 python tools/make_icon.py                 # 重新生成图标
@@ -222,11 +222,15 @@ python tools/make_icon.py                 # 重新生成图标
 ## 路线图
 
 - [x] v3.9 控制台外壳 + 拓扑画布 + 事件总线 + 策略编译 + 南向骨架 + REST v2
-- [ ] 意图生命周期：编译 → 预演 → 下发 → **校验 → 回滚**（反向命令）
+- [x] v3.17 排障时间线；v3.18 OpenFlow 1.3 flow_mod 编码 + 事件源/漂移/审计
+- [x] v3.19~3.29（2026-11-02）：列表页统一组件 + 页面惰性构建（冷启动 -87%）、
+  时间线联动、**配置回滚**（恢复前自动备份/失败不重试）、模板→策略闭环、
+  意图→OpenFlow 流表计划、模板引擎条件/循环、**多 token**（只读 scope+轮换+来源审计）、
+  巡检可取消、备份治理（zip/按设备保留/目录迁移）、设置页扩展、
+  OpenFlow TCP 通道（os-ken 可选）、现网反生成模板（强制脱敏）
 - [ ] RESTCONF 写路径 + NETCONF `edit-config`（先 SONiC / 云网设备）
-- [ ] OpenFlow 1.3 flow-mod + packet-in 事件接入
-- [ ] syslog / SNMP trap → 事件总线（把"操作日志"变成"网络状态"）
-- [ ] REST v2 鉴权（token）+ 审计落库
+- [ ] OpenFlow packet-in 事件接入（R5 已有传输层，flow 下发装 os-ken 即可用）
+- [ ] 发布工程（R10，暂缓：等用户明确要发版）
 
 ---
 

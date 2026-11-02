@@ -131,11 +131,20 @@ compiled ──plan──▶ planned ──approve──▶ approved ──▶ d
 |---|---|
 | `sdn/events.py` | 事件总线（环形历史/订阅/严重度） |
 | `sdn/model.py` | 图模型（节点/端口/链路/统计） |
-| `sdn/policy.py` | 意图 → 策略（命令 + 风险） |
+| `sdn/policy.py` | 意图 → 策略（命令 + 风险 + 流表计划；全局 id 计数器） |
+| `sdn/openflow_plan.py` | 意图 → OpenFlow flow 计划（R4；缺端口事实参数返回空） |
 | `sdn/reverse.py` | 策略 → 反向命令（能/不能回滚都返回理由） |
-| `sdn/lifecycle.py` | 状态机 + 下发/校验/回滚 |
-| `sdn/store.py` | 状态仓库 + 事件源生命周期 + 节点闪烁 |
+| `sdn/lifecycle.py` | 状态机 + 下发/校验/回滚 + adopt（R13 外部策略入轨） |
+| `sdn/store.py` | 状态仓库 + 备份/恢复（R3 restore_backup）+ 目录迁移（R8） |
+| `sdn/backup.py` | 配置快照（去重/diff/prune/导出 zip/按设备保留/R8） |
+| `sdn/timeline.py` | 事件 + 快照 + 意图聚合（条目带 payload 供联动，R2） |
+| `sdn/auth.py` | 多 token 鉴权（read/write scope + 轮换记录，R6） |
+| `sdn/nbapi.py` | REST v2 路由（401/403 区分 + 来源审计，R6） |
 | `sdn/southbound/` | CLI / RESTCONF / NETCONF / OpenFlow 适配器 |
+| `sdn/southbound/openflow_transport.py` | OF1.3 TCP 通道（os-ken 可选闸门，R5） |
 | `sdn/sources/` | syslog / SNMP trap 解析与监听 |
-| `sdn/auth.py` | Bearer token |
-| `sdn/nbapi.py` | REST v2 路由 |
+| `lib/generator.py` | 模板引擎（{{var}} + {{#if}}/{{#each}}，R14）+ to_policies（R13） |
+| `lib/reverse_template.py` | 现网配置 → 脱敏候选模板（R15） |
+| `lib/inspector.py` | 批量巡检（run_batch 可取消，R7） |
+| `widgets.py` | PageHeader/SectionCard/StatTile/…/DataTable（R1 列表页统一组件） |
+| `app.py` | 外壳 + 主题 + **页面惰性构建（R11 LazyPages）** + pending_focus（R2） |
