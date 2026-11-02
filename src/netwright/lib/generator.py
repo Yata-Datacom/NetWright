@@ -22,6 +22,15 @@ from ..paths import resource_dir
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Za-z_]\w*)\s*\}\}")
 LEFTOVER_RE = re.compile(r"\{\{[^}]*\}\}")
 
+# R14 块指令词法：{{#if name}} / {{#each name}} / {{/if}} / {{/each}} / {{var}}
+_TOKEN_RE = re.compile(
+    r"\{\{\s*#(?P<open>if|each)\s+(?P<cond>[A-Za-z_]\w*)\s*\}\}"
+    r"|\{\{\s*/(?P<close>if|each)\s*\}\}"
+    r"|\{\{\s*(?P<var>[A-Za-z_]\w*)\s*\}\}")
+
+_FALSY = {"", "0", "false", "none", "no", "off"}
+_LIST_SPLIT_RE = re.compile(r"[,\s，、]+")
+
 _TPL_IDS = count(1)     # 模板策略 id 计数（进程内单调，与 pol- 共用一条时间线）
 
 
@@ -34,30 +43,134 @@ def _base_dir() -> str:
 TEMPLATE_DIR = resource_dir("templates", prefer_local=True)
 
 
+def _parse_blocks(text: str) -> list[tuple]:
+    """模板 → 节点树：(text, s) / (var, name) / (if, cond, children) / (each, cond, children)。
+
+    块未闭合 / 多余闭合 / 类型错配 → ValueError，报错带行号。
+    """
+    root: list[tuple] = []
+    # 栈元素：(kind, cond, children, open_line)；根为 (None, None, root, 0)
+    stack: list[tuple] = [(None, None, root, 0)]
+    pos = 0
+    for m in _TOKEN_RE.finditer(text):
+        line = text.count("\n", 0, m.start()) + 1
+        if m.start() > pos:
+            stack[-1][2].append(("text", text[pos:m.start()]))
+        pos = m.end()
+        if m.group("open"):
+            kind, cond = m.group("open"), m.group("cond")
+            children: list[tuple] = []
+            stack[-1][2].append((kind, cond, children))
+            stack.append((kind, cond, children, line))
+        elif m.group("close"):
+            kind = m.group("close")
+            open_kind, _cond, _children, open_line = stack[-1]
+            if open_kind is None:
+                raise ValueError(f"第 {line} 行：{{{{/{kind}}}}} 没有对应的 "
+                                 f"{{{{#{kind}}}}}")
+            if open_kind != kind:
+                raise ValueError(f"第 {line} 行：{{{{/{kind}}}}} 与第 {open_line} 行的 "
+                                 f"{{{{#{open_kind}}}}} 不匹配")
+            stack.pop()
+        else:
+            stack[-1][2].append(("var", m.group("var")))
+    if pos < len(text):
+        stack[-1][2].append(("text", text[pos:]))
+    if len(stack) > 1:
+        kind, _cond, _children, line = stack[-1]
+        raise ValueError(f"第 {line} 行：{{{{#{kind}}}}} 缺少 {{{{/{kind}}}}}")
+    return root
+
+
+def _truthy(value) -> bool:
+    """{{#if}} 的真值判定：空 / 0 / false / none / no / off / 空列表 / 缺省 = 假。"""
+    if value is None:
+        return False
+    if isinstance(value, (list, tuple, dict)):
+        return len(value) > 0
+    return str(value).strip().lower() not in _FALSY
+
+
+def _as_list(value) -> list[str]:
+    """{{#each}} 的列表语义：list/tuple 直接用；字符串按逗号/空白分隔。"""
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        return [str(v) for v in value]
+    return [t for t in _LIST_SPLIT_RE.split(str(value)) if t]
+
+
+def _render_nodes(nodes, variables: dict, missing: list[str], out: list[str]) -> None:
+    for node in nodes:
+        kind = node[0]
+        if kind == "text":
+            out.append(node[1])
+        elif kind == "var":
+            name = node[1]
+            if name in variables:
+                out.append(str(variables[name]))
+            else:
+                missing.append(name)
+                out.append("")
+        elif kind == "if":
+            if _truthy(variables.get(node[1])):
+                _render_nodes(node[2], variables, missing, out)
+        elif kind == "each":
+            for item in _as_list(variables.get(node[1])):
+                scoped = dict(variables)
+                scoped["item"] = item
+                _render_nodes(node[2], scoped, missing, out)
+
+
 def render_template(template_text: str, variables: dict[str, str]) -> str:
-    """渲染模板；未提供的变量 → 抛 ValueError（列出缺失名），绝不输出字面占位符。"""
-    def rep(m):
-        key = m.group(1)
-        if key not in variables:
-            missing.append(key)
-        return str(variables.get(key, ""))
+    """渲染模板；未提供的变量 → 抛 ValueError（列出缺失名），绝不输出字面占位符。
+
+    R14 起支持两个最小块指令（零第三方依赖）::
+
+        {{#if var}} ... {{/if}}           var 为空/0/false/缺省时整段不输出
+        {{#each list}} ... {{/each}}      列表按逗号/空白分隔，块内 {{item}} 可用
+
+    块可以嵌套；未闭合/错配 → ValueError 且带行号
+    （如 ``第 12 行：{{#if}} 缺少 {{/if}}``）。
+    """
+    variables = variables or {}
+    tree = _parse_blocks(template_text)
     missing: list[str] = []
-    out = PLACEHOLDER_RE.sub(rep, template_text)
+    out: list[str] = []
+    _render_nodes(tree, variables, missing, out)
+    text = "".join(out)
     if missing:
         names = ", ".join(sorted(set(missing)))
         raise ValueError(f"缺少变量: {names}")
-    leftovers = LEFTOVER_RE.findall(out)
+    leftovers = LEFTOVER_RE.findall(text)
     if leftovers:
         raise ValueError(f"模板存在无法识别的占位符: {leftovers[:5]}")
-    return out
+    return text
 
 
 def template_variables(template_text: str) -> list[str]:
-    """提取模板里的变量名（按出现顺序去重）。"""
+    """提取需要调用方提供的变量名（按出现顺序去重）。
+
+    块语义（R14）：``{{#each list}}`` 的 list 必须提供（要靠它驱动循环）；
+    ``{{#if cond}}`` 的 cond 是可选开关，不算必填变量；块内 ``{{item}}``
+    由引擎注入，同样不算。if 分支内的普通变量保守起见仍算必填列。
+    """
     seen: list[str] = []
-    for m in PLACEHOLDER_RE.finditer(template_text):
-        if m.group(1) not in seen:
-            seen.append(m.group(1))
+
+    def walk(nodes: list[tuple]) -> None:
+        for node in nodes:
+            kind = node[0]
+            if kind == "var":
+                if node[1] != "item" and node[1] not in seen:
+                    seen.append(node[1])
+            elif kind == "if":
+                walk(node[2])
+            elif kind == "each":
+                if node[1] not in seen:
+                    seen.append(node[1])
+                walk(node[2])
+
+    walk(_parse_blocks(template_text))
     return seen
 
 
