@@ -90,6 +90,9 @@ class DashboardPage(Page):
                            ("✓ 批量巡检", "inspect")):
             WButton(row, text=label, command=lambda k=key: self.app.show(k)).pack(
                 side=tk.LEFT, padx=(0, 8))
+        # 载入与清除成对出现：演示数据要能一键进、也能一键清
+        WButton(row, text="🧹 清除演示数据", command=self._clear_demo).pack(
+            side=tk.LEFT, padx=(0, 8))
 
         right_col = tk.Frame(body, bg=theme.bg)
         right_col.grid(row=0, column=1, sticky="nsew")
@@ -126,6 +129,16 @@ class DashboardPage(Page):
                                    source="dashboard")
         self.app.set_status("演示数据已载入，去「拓扑」看看效果")
         self.app.show("topology")
+
+    def _clear_demo(self):
+        from netwright import demo
+
+        if not demo.is_demo_loaded(self.app.inventory):
+            toast(self.app, "当前没有演示数据", "info")
+            return
+        removed = self.app.clear_demo_data()
+        toast(self.app, f"已清除 {removed} 台演示设备与相关链路", "info")
+        self.refresh()
 
     def _add_device(self):
         self.app.show("inventory")

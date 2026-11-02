@@ -386,3 +386,24 @@ def test_smoke_help_dialog_and_demo_data(app):
     assert not any(d.note.startswith("演示数据") for d in app.inventory.devices)
     dialog2.close()
 
+def test_smoke_demo_can_be_cleared(app):
+    """演示数据要能一键进、也能一键清（含链路与图）。"""
+    from netwright import demo
+
+    if demo.is_demo_loaded(app.inventory):
+        app.clear_demo_data()
+    demo.seed(app.inventory)
+    app.controller_store.graph.clear()
+    app.controller_store.sync_inventory()
+    assert demo.is_demo_loaded(app.inventory)
+
+    removed = app.clear_demo_data()
+    assert removed == len(demo.DEMO_DEVICES)
+    assert not demo.is_demo_loaded(app.inventory)
+    assert not any(d.note == demo.DEMO_NOTE for d in app.inventory.devices)
+    assert "Core-SW-01" not in [d.hostname for d in app.inventory.devices]
+    remaining = {n.name for n in app.controller_store.graph.nodes.values()}
+    assert not (remaining & {d.hostname for d in demo.DEMO_DEVICES})
+    # 入口存在：概览与设备清单各有清除按钮
+    assert hasattr(app.pages["dashboard"], "_clear_demo")
+    assert hasattr(app.pages["inventory"], "clear_demo")

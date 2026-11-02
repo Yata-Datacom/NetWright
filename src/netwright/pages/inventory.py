@@ -34,7 +34,8 @@ class InventoryPage(Page):
                           ("导出 CSV", self.export_csv), ("⚡ 在线检测", self.alive_check),
                           ("🔌 测试连接", self.test_connections),
                           ("🗄 备份配置", self.backup_configs),
-                          ("🗂 备份历史", self.show_backups)):
+                          ("🗂 备份历史", self.show_backups),
+                          ("🧹 清除演示", self.clear_demo)):
             WButton(bar, text=text, command=cmd).pack(side=tk.LEFT, padx=(0, 8))
         self.var_count = tk.StringVar()
         tk.Label(bar, textvariable=self.var_count, bg=theme.bg, fg=theme.muted,
@@ -427,6 +428,22 @@ class InventoryPage(Page):
                             "\n".join(results[:20]) +
                             ("\n…" if len(results) > 20 else "") +
                             "\n\n端口可达只代表网络通；登录是否成功还要看用户名/密码。")
+
+    def clear_demo(self):
+        """清除演示设备（备注为「演示数据」）及其链路。"""
+        from netwright import demo
+
+        if not demo.is_demo_loaded(self.app.inventory):
+            messagebox.showinfo("提示", "当前清单里没有演示数据")
+            return
+        if not messagebox.askyesno("清除演示数据",
+                                   "将删除所有备注为「演示数据」的设备及其链路。\\n"
+                                   "你自己的设备不受影响。继续？"):
+            return
+        removed = self.app.clear_demo_data()
+        self.refresh()
+        self.app.refresh_dashboard()
+        toast(self.app, f"已清除 {removed} 台演示设备", "info")
 
     # ── 配置备份（Oxidized 式：按设备存档，未变化不落盘）──
     def backup_configs(self):

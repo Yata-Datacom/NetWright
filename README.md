@@ -14,7 +14,7 @@
   <a href="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml"><img src="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml/badge.svg" alt="Build EXE"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
-  <img src="https://img.shields.io/badge/tests-233%20passed-brightgreen" alt="233 tests">
+  <img src="https://img.shields.io/badge/tests-234%20passed-brightgreen" alt="234 tests">
 </p>
 
 ---
@@ -195,7 +195,7 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 │  ├─ lib/                      # 纯逻辑：清单、巡检、生成、计算、意图、拓扑解析
 │  └─ pages/                    # 12 个工作区页面 + 新手引导 + 设置
 ├─ templates/                   # 116 个配置模板 + library.json
-├─ tests/                       # 233 项 pytest（含 GUI 冒烟）
+├─ tests/                       # 234 项 pytest（含 GUI 冒烟）
 ├─ docs/                        # 用户指南 + 示例台账 + 截图
 └─ tools/                       # 图标生成、模板导入
 ```

@@ -29,6 +29,7 @@ else:
     if _SRC not in sys.path:
         sys.path.insert(0, _SRC)
 from netwright import __version__  # noqa: E402
+from netwright import demo as demo_mod  # noqa: E402
 from netwright.lib.controller.restapi import ControllerAPI, ControllerState  # noqa: E402
 from netwright.lib.inventory import Inventory  # noqa: E402
 from netwright.lib.settings import load_settings, save_settings  # noqa: E402
@@ -375,6 +376,23 @@ class NetWrightApp(tk.Tk):
         if hasattr(self.pages[key], "on_show"):
             self.pages[key].on_show()
         self.set_status("就绪")
+
+    def clear_demo_data(self) -> int:
+        """清除演示设备/链路并同步图与页面（载入与清除成对出现）。"""
+        removed = demo_mod.clear(self.inventory)
+        self.controller_store.graph.clear()
+        self.controller_store.sync_inventory()
+        for key in ("dashboard", "inventory", "topology"):
+            page = self.pages.get(key)
+            hook = PAGE_REFRESH.get(key)
+            if page is not None and hook and hasattr(page, hook):
+                try:
+                    getattr(page, hook)()
+                except Exception:      # noqa: BLE001
+                    pass
+        self.event_bus.publish("demo.cleared", f"已清除 {removed} 台演示设备", source="app")
+        self.set_status(f"演示数据已清除：{removed} 台设备")
+        return removed
 
     def refresh_dashboard(self):
         page = self.pages.get("dashboard")

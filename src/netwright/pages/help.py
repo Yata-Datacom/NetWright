@@ -141,12 +141,7 @@ class HelpDialog(tk.Toplevel):
         self.app.set_status("演示数据已载入：先看拓扑，再去「意图与策略」试一次 Dry-Run")
 
     def _clear_demo(self):
-        removed = demo.clear(self.app.inventory)
-        self.app.controller_store.graph.clear()
-        self.app.controller_store.sync_inventory()
-        self.app.event_bus.publish("demo.cleared", f"已清除 {removed} 台演示设备",
-                                   source="help")
-        self.app.refresh_dashboard()
+        removed = self.app.clear_demo_data()
         toast(self.app, f"已清除 {removed} 台演示设备", "info")
 
     def _open_guide(self):
