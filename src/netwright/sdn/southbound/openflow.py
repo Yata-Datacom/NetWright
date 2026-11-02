@@ -187,7 +187,8 @@ class OpenFlowAdapter(SouthboundAdapter):
                 or importlib.util.find_spec("ryu") is not None)
 
     def note(self) -> str:
-        return "已实装校验 + flow_mod 编码；TCP 通道与握手待实装"
+        return ("校验 + flow_mod 编码离线可用；装 os-ken 后可经 TCP 通道真实下发"
+                "（transport 层）")
 
     def run_commands(self, device, commands: list[str], timeout: float = 15.0) -> list[CommandOutput]:
         raise UnsupportedOperation("OpenFlow 设备不接受 CLI 命令：请用 program_flows")
@@ -204,8 +205,31 @@ class OpenFlowAdapter(SouthboundAdapter):
         return out
 
     def program_flows(self, device, flows: list[dict], timeout: float = 10.0) -> dict:
-        """传输层未实装：先校验+编码，再明确拒绝发送。"""
+        """下发流表（R5）。
+
+        未装 os-ken：先校验+编码，再抛 ``UnsupportedOperation`` 并给出安装提示
+        ——不假装下发成功。装了 os-ken：走 TCP 通道真实下发（逐条 flow_mod +
+        barrier 确认），需要交换机/OVS 在对端监听。
+        """
         compiled = self.build_flow_mods(flows)
-        raise UnsupportedOperation(
-            f"已校验并编码 {len(compiled)} 条 flow_mod，但 OpenFlow 通道尚未实装："
-            "请用 /api/v2/openflow/validate 做 dry-run，或接入 os-ken/ryu 后实现 program_flows")
+        from .openflow_transport import OsKenTransport, TransportError, of_port_for
+
+        if not OsKenTransport.available():
+            raise UnsupportedOperation(
+                f"已校验并编码 {len(compiled)} 条 flow_mod，但未安装 os-ken："
+                f"{OsKenTransport.install_hint()}"
+                "；或用 /api/v2/openflow/validate 做 dry-run")
+        host = getattr(device, "host", "127.0.0.1") or "127.0.0.1"
+        transport = OsKenTransport(host=host, port=of_port_for(device),
+                                   timeout=timeout)
+        transport.connect()
+        try:
+            programmed = [transport.send_flow_mod(bytes.fromhex(c["hex"]))
+                          for c in compiled]
+        except TransportError as exc:
+            raise UnsupportedOperation(f"OpenFlow 下发失败：{exc}") from exc
+        finally:
+            transport.close()
+        return {"ok": True, "device": host,
+                "programmed": len(programmed),
+                "port_status": transport.receive_port_status()}

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netwright"
-version = "3.27.0"
+version = "3.28.0"
 description = "NetWright — 网络工程师工作台 + SDN 控制器控制台：拓扑 / 意图策略 / 南向适配 / 事件总线 / REST v2"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -30,6 +30,7 @@ dependencies = ["paramiko>=3.4"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6", "pillow>=10", "pyinstaller>=6"]
+openflow = ["os-ken"]   # R5 可选：装了才有 OpenFlow 真实下发通道，不装不能崩
 
 [project.urls]
 Homepage = "https://github.com/Yata-Datacom/NetWright"
@@ -52,6 +53,9 @@ netwright = ["py.typed"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q -p no:cacheprovider"
+markers = [
+    "openflow_live: 需要真实 OVS/mininet 对端（默认环境自动跳过）",
+]
 
 [tool.ruff]
 line-length = 120

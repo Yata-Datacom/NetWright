@@ -3,6 +3,27 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.28.0] - 2026-11-02
+
+### Added（R5 OpenFlow 传输层：os-ken 可选依赖）
+- **`sdn/southbound/openflow_transport.py`**：OF1.3 TCP 通道——
+  `OsKenTransport.connect()`（HELLO 握手）/ `send_flow_mod()`（发送 +
+  Barrier Reply 确认落表，交换机回 ERROR 直接抛错不重试）/
+  `receive_port_status()`（端口变化摘要）。通道本体用标准库 socket 实现，
+  os-ken 作为**能力闸门**（与 `OpenFlowAdapter.available()` 同口径）。
+- **`program_flows` 两段行为**：未装 os-ken → 保持既有契约
+  （`UnsupportedOperation`，报错含"已校验并编码 N 条"+ 安装提示）；
+  装了 → 真实下发（需要 OVS/mininet 对端）。os-ken 进
+  `[project.optional-dependencies].openflow`，**不在必装依赖**，不装不崩。
+
+### Tests
+- 新增 `tests/test_openflow_transport.py`（6 过 2 跳过）：未装路径断言、
+  HELLO/Barrier 逐字节、PORT_STATUS 解析、OF 端口推断（22 不当 OF 口）、
+  未连接即发送报错、对本地假交换机的"握手→下发 1 条 flow→barrier"通路、
+  `pytest -m openflow_live`（需真实 OVS，默认跳过，marker 已登记）。
+- 既有 11 项 openflow 编码测试全绿（行为不变）。
+- 全量 **320 passed, 2 skipped**（+6）。
+
 ## [3.27.0] - 2026-11-02
 
 ### Added（R9 设置页扩展）
