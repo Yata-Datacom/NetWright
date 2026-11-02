@@ -3,6 +3,17 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.18.5] - 2026-11-02
+
+### Fixed（基线体检：ruff 新版抓到的真 bug）
+- **概览「清除演示数据」点击即崩**：`pages/dashboard.py` 用了 `toast()` 但从未导入
+  （v3.18.4 引入），无演示数据时点按钮抛 `NameError`。已补导入，并新增点击路径
+  回归测试（此前只测了按钮存在，没真实调用）。
+- `tests/test_widgets.py` 去掉未使用的 `ttk` 导入（TDD 骨架文件，未动断言）。
+
+### Tests
+- 全量 **235 项 pytest 通过**（+1 回归测试）。
+
 ## [3.18.4] - 2026-11-02
 
 ### Added

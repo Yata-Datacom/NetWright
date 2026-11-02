@@ -18,7 +18,6 @@ import os
 import sys
 import time
 import tkinter as tk
-from tkinter import ttk
 
 import pytest
 

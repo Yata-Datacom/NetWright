@@ -407,3 +407,25 @@ def test_smoke_demo_can_be_cleared(app):
     # 入口存在：概览与设备清单各有清除按钮
     assert hasattr(app.pages["dashboard"], "_clear_demo")
     assert hasattr(app.pages["inventory"], "clear_demo")
+
+
+def test_smoke_dashboard_clear_demo_click_path(app):
+    """回归：概览「清除演示数据」按钮的真实点击路径。
+
+    v3.18.4 漏 import ``toast``，无数据时点击即 NameError——点击路径必须有测试。
+    """
+    from netwright import demo
+
+    page = app.pages["dashboard"]
+    if demo.is_demo_loaded(app.inventory):
+        app.clear_demo_data()
+    page.refresh()                       # 无数据 → 提示分支（此前 NameError）
+    page._clear_demo()
+    assert not demo.is_demo_loaded(app.inventory)
+
+    demo.seed(app.inventory)             # 有数据 → 清除成功分支
+    app.controller_store.graph.clear()
+    app.controller_store.sync_inventory()
+    page._clear_demo()
+    assert not demo.is_demo_loaded(app.inventory)
+    assert not any(d.note == demo.DEMO_NOTE for d in app.inventory.devices)

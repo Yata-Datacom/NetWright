@@ -12,7 +12,7 @@ from netwright import __version__
 from netwright.lib import HAS_SSH
 from netwright.theme import FONT_SMALL, VENDOR_COLORS, theme
 from netwright.widgets import (KeyValue, Page, SectionCard, StatTile, WButton,
-                               page_header)
+                               page_header, toast)
 
 SEVERITY_COLOR = {"info": "info", "warning": "warn", "critical": "err"}
 
