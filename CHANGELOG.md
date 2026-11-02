@@ -3,6 +3,23 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.29.0] - 2026-11-02
+
+### Added（R15 从现网反生成基线——必须脱敏）
+- **`lib/reverse_template.py`**：`read_config` 的配置文本 → 脱敏候选模板。
+  - 所有 IPv4 → `{{ip_N}}`（同址复用同变量）；密码行 → `{{password_N}}`；
+    SNMP 团体名 → `{{snmp_community_N}}`；
+  - 网掩码与 0.0.0.0 是配置结构不是凭据，保留原样（文档写明）；
+  - `find_leaks(template, original)` 自检残留——**leaks 非空即拒绝入库**；
+  - 变量名是机械编号，注释明确"人工裁剪改名后再入库"，不做魔法推断。
+- 与 R13 闭环兼容：反生成产物可直接喂 `to_policies` 编译下发。
+
+### Tests
+- 新增 `tests/test_reverse_template.py`（6 项）：IP/密码/团体名零泄漏
+  （含 `%^%#…` 密文格式）、网掩码/0.0.0.0 保留、同 IP 共享占位、
+  `find_leaks` 能抓原文、render 往返零残留、to_policies 直通。
+- 全量 **326 passed, 2 skipped**（+6）。
+
 ## [3.28.0] - 2026-11-02
 
 ### Added（R5 OpenFlow 传输层：os-ken 可选依赖）
