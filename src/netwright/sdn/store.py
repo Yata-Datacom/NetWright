@@ -12,8 +12,10 @@ import threading
 import time
 
 from .events import EventBus
+from .lifecycle import IntentLifecycle
 from .model import NetworkGraph
 from .policy import CompileResult, PolicyCompiler
+from .sources import SnmpTrapListener, SyslogListener
 from .southbound import default_registry
 
 FILENAME = "netwright_controller.json"
@@ -23,13 +25,22 @@ MAX_POLICIES = 500
 class ControllerStore:
     """控制器内核状态。"""
 
-    def __init__(self, inventory, bus: EventBus | None = None, registry=None):
+    def __init__(self, inventory, bus: EventBus | None = None, registry=None,
+                 auth=None):
         self.inventory = inventory
         # 注意：不能写 ``bus or EventBus()`` —— EventBus 定义了 __len__，
         # 空总线是 falsy，会被悄悄换成另一条总线（页面与内核就看不到彼此的事件）。
         self.bus = bus if bus is not None else EventBus()
         self.registry = registry or default_registry(self.bus)
         self.compiler = PolicyCompiler(self.bus)
+        self.auth = auth
+        self.lifecycle = IntentLifecycle(self)
+        # 事件源（默认不启动，端口可能与系统服务冲突；由 UI/REST 显式开启）
+        self.syslog = SyslogListener(self.bus)
+        self.snmp_trap = SnmpTrapListener(self.bus)
+        self.node_flash: dict[str, float] = {}
+        self._bus_unsub = self.bus.subscribe(self._on_network_event,
+                                             topic_prefix="")
         self.graph = NetworkGraph()
         self.policies: dict[str, object] = {}
         self.started_at = time.time()
@@ -37,6 +48,74 @@ class ControllerStore:
         self.last_discovery_at: float | None = None
         self._lock = threading.RLock()
         self.sync_inventory(publish=False)
+
+    # ── 事件源（syslog / snmp trap）──
+    def start_syslog(self, port: int | None = None) -> dict:
+        if port:
+            self.syslog.port = port
+        self.syslog.start()
+        self.bus.publish("source.started", f"Syslog 监听已启动：UDP {self.syslog.bound_port}",
+                         source="store", port=self.syslog.bound_port)
+        return self.listener_status()
+
+    def start_snmp_trap(self, port: int | None = None) -> dict:
+        if port:
+            self.snmp_trap.port = port
+        self.snmp_trap.start()
+        self.bus.publish("source.started",
+                         f"SNMP Trap 监听已启动：UDP {self.snmp_trap.bound_port}",
+                         source="store", port=self.snmp_trap.bound_port)
+        return self.listener_status()
+
+    def stop_listeners(self) -> dict:
+        self.syslog.stop()
+        self.snmp_trap.stop()
+        return self.listener_status()
+
+    def listener_status(self) -> dict:
+        return {
+            "syslog": {"running": self.syslog.running, "port": self.syslog.bound_port,
+                       "received": self.syslog.received},
+            "snmp_trap": {"running": self.snmp_trap.running,
+                          "port": self.snmp_trap.bound_port,
+                          "received": self.snmp_trap.received},
+        }
+
+    def _on_network_event(self, event) -> None:
+        """网络状态类事件 → 记录"哪个节点刚变化过"，供拓扑做增量高亮。"""
+        if not event.topic.startswith(("link.", "device.", "syslog.", "snmp.")):
+            return
+        candidates = []
+        for key in ("device", "host", "source", "node", "peer"):
+            value = (event.data or {}).get(key)
+            if value:
+                candidates.append(str(value))
+        if not candidates:
+            return
+        now = time.time()
+        with self._lock:
+            for name in self.graph.nodes:
+                for candidate in candidates:
+                    if candidate == name or name.endswith(candidate) or candidate in name:
+                        self.node_flash[name] = now
+                        break
+        # 只保留最近 5 分钟的闪烁记录，避免字典无限增长
+        with self._lock:
+            cutoff = now - 300
+            self.node_flash = {k: v for k, v in self.node_flash.items() if v >= cutoff}
+
+    def flashed_nodes(self, within: float = 90.0) -> dict:
+        """最近 ``within`` 秒内变化过的节点 → 变化时间。"""
+        cutoff = time.time() - within
+        with self._lock:
+            return {k: v for k, v in self.node_flash.items() if v >= cutoff}
+
+    def close(self) -> None:
+        try:
+            self._bus_unsub()
+        except Exception:      # noqa: BLE001
+            pass
+        self.stop_listeners()
 
     # ── 设备 → 图 ──
     def sync_inventory(self, publish: bool = True) -> NetworkGraph:
@@ -105,6 +184,8 @@ class ControllerStore:
             "policies": len(self.policies),
             "events": self.bus.counts(),
             "southbound": len(self.registry),
+            "sources": self.listener_status(),
+            "flash": len(self.flashed_nodes()),
             "uptime_s": int(time.time() - self.started_at),
             "last_topology_at": self.last_topology_at,
         }
@@ -115,6 +196,7 @@ class ControllerStore:
             "summary": self.summary(),
             "topology": self.graph.to_dict(),
             "policies": [p.to_dict() for p in self.recent_policies(limit)],
+            "intents": self.lifecycle.snapshot(limit),
             "events": [e.to_dict() for e in self.bus.snapshot(limit)],
             "southbound": self.registry.describe(),
         }

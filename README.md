@@ -14,7 +14,7 @@
   <a href="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml"><img src="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml/badge.svg" alt="Build EXE"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
-  <img src="https://img.shields.io/badge/tests-142%20passed-brightgreen" alt="142 tests">
+  <img src="https://img.shields.io/badge/tests-176%20passed-brightgreen" alt="176 tests">
 </p>
 
 ---
@@ -116,23 +116,49 @@ pip install -e .          # 之后直接用 netwright 启动
 | 南向通道 | 状态 | 说明 |
 |---|---|---|
 | **CLI（SSH/Telnet）** | ✅ 完整实装 | 复用 `lib/ssh_client`：自动关分页、剥 Telnet IAC、裁剪回显 |
-| **NETCONF** | 🧱 骨架 | 能力位已声明；缺 `ncclient` 时 `available=False`，调用直接报错 |
-| **OpenFlow 1.3** | 🧱 骨架 | 声明 `flow_program` 能力；`program_flows` 待实现 |
-| **RESTCONF** | 🧱 骨架 | 已能只读 `GET /restconf/data/...`，PATCH 待实现 |
+| **RESTCONF** | ✅ 完整实装 | GET/PATCH/POST/DELETE + Basic Auth，TLS 可配，面向 SONiC/云网设备 |
+| **NETCONF** | ✅ 实装（需 `ncclient`） | get-config / edit-config / commit / discard；会话可注入，便于离线测试 |
+| **OpenFlow 1.3** | 🧱 骨架 | 声明 `flow_program` 能力位与 flow 结构；flow-mod 待实装 |
 
 > 骨架的硬约定：**做不了就当场抛 `UnsupportedOperation`**，不返回空结果让上层误判"下发成功"。
 
-### 北向 REST v2
+### 意图生命周期（借鉴 ONOS）
 
-```bash
-curl http://127.0.0.1:8899/api/v2/snapshot          # 一次拿全量
-curl http://127.0.0.1:8899/api/v2/topology          # 控制器图
-curl -X POST http://127.0.0.1:8899/api/v2/policies/compile \
-     -H "Content-Type: application/json" \
-     -d '{"intent_key":"vlan_deploy","params":{"vlans":"10,20"}}'
+```
+compiled → planned → approved → deploying → deployed → verified
+                                    │                      │
+                                    └── failed             └── rolled_back / rollback_blocked
 ```
 
-完整端点见 [用户指南 · 12. REST API](docs/USER_GUIDE.zh-CN.md#12-rest-api)。
+- **预演不连设备**：`plan()` 只做静态检查（命令、风险、能否回滚）
+- **回滚要诚实**：VLAN 部署 / 端口 shutdown 生成确定安全的反向命令；
+  端口模式互转、BGP 邻居、管理面基线直接返回"不可回滚 + 人工处置建议"
+- **下发后校验**：回读 `display vlan` / `show vlan brief`，确认意图真的生效
+
+### 事件源（不止操作日志）
+
+| 来源 | 端口 | 能力 |
+|---|---|---|
+| Syslog | UDP 5140 | RFC3164/5424 解析，归类链路 down/up、BGP/OSPF、配置变更、登录失败、硬件告警 |
+| SNMPv2c Trap | UDP 1162 | 自实现 BER 解码（不依赖 pysnmp），linkDown/linkUp/coldStart/authFailure |
+| 控制器自身 | — | 拓扑变更、策略编译、下发、校验、回滚、token 轮换 |
+
+事件命中的节点会在拓扑页画**琥珀色脉冲圈**（90 秒内），自动刷新时自然消退。
+
+### 北向 REST v2（带 token）
+
+```bash
+TOKEN=$(curl -s localhost:8899/api/v2/health | jq -r .api_token 2>/dev/null)  # 见 GUI「REST API」页
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8899/api/v2/snapshot
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     http://127.0.0.1:8899/api/v2/intents/plan \
+     -d '{"intent_key":"vlan_deploy","params":{"vlans":"10,20"}}'
+curl -X POST -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8899/api/v2/intents/deploy \
+     -d '{"run_ids":["pol-0001"]}'
+```
+
+完整端点见 [用户指南 · 12. REST API](docs/USER_GUIDE.zh-CN.md#12-rest-api)；
+分层与取舍见 [架构文档](docs/ARCHITECTURE.md)。
 
 ---
 
@@ -166,7 +192,7 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 │  ├─ lib/                      # 纯逻辑：清单、巡检、生成、计算、意图、拓扑解析
 │  └─ pages/                    # 10 个工作区页面 + 新手引导
 ├─ templates/                   # 116 个配置模板 + library.json
-├─ tests/                       # 142 项 pytest（含 GUI 冒烟）
+├─ tests/                       # 176 项 pytest（含 GUI 冒烟）
 ├─ docs/                        # 用户指南 + 示例台账 + 截图
 └─ tools/                       # 图标生成、模板导入
 ```
@@ -179,7 +205,7 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 python -m venv .venv
 .venv/Scripts/pip install -e ".[dev]"     # Windows；Linux/macOS 用 .venv/bin/pip
 
-pytest tests/ -v                          # 142 项，含 GUI 冒烟（无显示环境自动跳过）
+pytest tests/ -v                          # 176 项，含 GUI 冒烟（无显示环境自动跳过）
 ruff check src tests main.py              # 核心规则 lint
 pyinstaller NetWright.spec --noconfirm    # 打包 exe
 python tools/make_icon.py                 # 重新生成图标

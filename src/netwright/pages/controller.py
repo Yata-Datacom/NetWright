@@ -257,12 +257,42 @@ class ControllerPage(Page):
                                command=self.toggle_api)
         self.btn_api.pack(side=tk.RIGHT)
 
+        tok = tk.Frame(card.body, bg=theme.panel)
+        tok.pack(fill=tk.X, pady=(10, 0))
+        tk.Label(tok, text="API Token", bg=theme.panel, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.LEFT)
+        self.var_token = tk.StringVar(value="")
+        tk.Label(tok, textvariable=self.var_token, bg=theme.panel_alt, fg=theme.fg,
+                 font=FONT_MONO, padx=8, pady=2).pack(side=tk.LEFT, padx=(8, 8))
+        WButton(tok, text="复制", command=self.copy_token).pack(side=tk.LEFT, padx=(0, 6))
+        WButton(tok, text="轮换", command=self.rotate_token).pack(side=tk.LEFT)
+        tk.Label(tok, text="除 /health 外，v2 请求都要带 Authorization: Bearer <token>",
+                 bg=theme.panel, fg=theme.faint, font=FONT_SMALL).pack(side=tk.RIGHT)
+        self._refresh_token()
+
         audit = SectionCard(tab, title="下发审计", desc="最近 30 条，新在上（不含密码）")
         audit.pack(fill=tk.X)
         self.audit_text = tk.Text(audit.body, bg=theme.panel_alt, fg=theme.muted,
                                   relief=tk.FLAT, font=FONT_MONO, height=6,
                                   highlightthickness=0, bd=0, padx=8, pady=6)
         self.audit_text.pack(fill=tk.X)
+
+    def _refresh_token(self):
+        auth = getattr(self.app, "api_auth", None)
+        self.var_token.set(auth.masked() if auth is not None else "（disabled）")
+
+    def copy_token(self):
+        auth = getattr(self.app, "api_auth", None)
+        if auth is None:
+            return
+        self.app.clipboard_clear()
+        self.app.clipboard_append(auth.token)
+        toast(self.app, "API token 已复制到剪贴板", "ok")
+
+    def rotate_token(self):
+        self.app.rotate_api_token()
+        self._refresh_token()
+        toast(self.app, "API token 已轮换：旧 token 立即失效", "ok")
 
     def toggle_api(self):
         if self.app.controller_api.running:

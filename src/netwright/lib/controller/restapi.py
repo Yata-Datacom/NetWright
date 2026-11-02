@@ -54,8 +54,20 @@ def make_handler(state: ControllerState) -> type:
                 return self._json({"ok": False,
                                    "message": "控制器内核未启用：未注入 ControllerStore"}, 503)
             from ...sdn import nbapi as nbapi_mod
-            status, body = nbapi_mod.dispatch(store, method, self.path, payload)
+            status, body = nbapi_mod.dispatch(
+                store, method, self.path, payload,
+                headers={"Authorization": self.headers.get("Authorization", ""),
+                         "X-API-Token": self.headers.get("X-API-Token", "")})
             return self._json(body, status)
+
+        def _authorized(self) -> bool:
+            """v1 的写接口也要 token（读接口保持开放，方便脚本先摸清家底）。"""
+            auth = getattr(getattr(state, "store", None), "auth", None)
+            if auth is None:
+                return True
+            return auth.check(self.path,
+                              self.headers.get("Authorization", ""),
+                              self.headers.get("X-API-Token", ""))
 
         def do_GET(self):
             path = self.path.split("?")[0]
@@ -92,6 +104,10 @@ def make_handler(state: ControllerState) -> type:
 
             if path.startswith("/api/v2"):
                 return self._v2("POST", payload)
+
+            if not self._authorized():
+                return self._json({"ok": False, "message": "缺少或无效的 API token",
+                                   "hint": "Authorization: Bearer <token>"}, 401)
 
             if path == "/api/dry-run":
                 try:

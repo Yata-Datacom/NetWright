@@ -59,16 +59,74 @@ def _int(raw, default: int, lo: int, hi: int) -> int:
     return max(lo, min(hi, value))
 
 
-def dispatch(store, method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
-    """执行一条 v2 请求；返回 (HTTP 状态码, JSON 载荷)。"""
+def _intent_action(store, body: dict, action: str) -> tuple[int, dict]:
+    """意图生命周期的四个动作：plan / deploy / verify / rollback。"""
+    if action == "plan":
+        intent_key = str(body.get("intent_key") or "")
+        params = body.get("params") or {}
+        if not intent_key:
+            return 400, {"ok": False, "message": "缺少 intent_key"}
+        hosts = body.get("device_hosts")
+        devices = store.inventory.devices
+        if isinstance(hosts, list) and hosts:
+            devices = [d for d in devices if d.host in hosts]
+        try:
+            runs = store.lifecycle.create(intent_key, params, devices)
+            planned = [run for run in runs if store.lifecycle.plan(run)["ok"]]
+        except Exception as exc:      # noqa: BLE001  生命周期错误统一 400
+            return 400, {"ok": False, "message": str(exc)}
+        return 200, {"ok": True, "runs": [run.to_dict() for run in planned],
+                     "count": len(planned)}
+
+    run_ids = body.get("run_ids")
+    if not isinstance(run_ids, list) or not run_ids:
+        return 400, {"ok": False, "message": "缺少 run_ids"}
+    results = []
+    for run_id in run_ids:
+        run = store.lifecycle.get(str(run_id))
+        if run is None:
+            results.append({"run": run_id, "ok": False, "message": "找不到该运行记录"})
+            continue
+        try:
+            if action == "deploy":
+                outcome = store.lifecycle.deploy(run)
+            elif action == "verify":
+                outcome = store.lifecycle.verify(run)
+            else:
+                outcome = store.lifecycle.rollback(run)
+        except Exception as exc:      # noqa: BLE001
+            outcome = {"ok": False, "error": str(exc)}
+        results.append({"run": run_id, "state": run.state, **outcome})
+    ok = all(item.get("ok") for item in results)
+    return (200 if ok else 422), {"ok": ok, "results": results}
+
+
+def dispatch(store, method: str, path: str, body: dict | None = None,
+             headers: dict | None = None) -> tuple[int, dict]:
+    """执行一条 v2 请求；返回 (HTTP 状态码, JSON 载荷)。
+
+    除 ``/api/v2/health`` 外都需要 API token（``Authorization: Bearer …``
+    或 ``X-API-Token``）；控制器未配置 auth 时保持开放（便于单测与内嵌使用）。
+    """
     parsed = urlparse(path)
     route = parsed.path.rstrip("/") or "/"
     query = parse_qs(parsed.query)
     body = body or {}
+    headers = {str(k).lower(): v for k, v in (headers or {}).items()}
     method = (method or "GET").upper()
 
     if not route.startswith(API_PREFIX):
         return 404, {"ok": False, "message": "未知端点"}
+
+    auth = getattr(store, "auth", None)
+    if auth is not None and not auth.check(
+            parsed.path,
+            headers.get("authorization", ""),
+            headers.get("x-api-token", "")):
+        return 401, {"ok": False,
+                     "message": "缺少或无效的 API token",
+                     "hint": "请求头加 Authorization: Bearer <token>（GUI「REST API」页可查看）"}
+
     route = route[len(API_PREFIX):] or "/"
 
     if method == "GET":
@@ -89,11 +147,30 @@ def dispatch(store, method: str, path: str, body: dict | None = None) -> tuple[i
             return 200, {"ok": True, "intents": store.compiler.catalog()}
         if route == "/southbound":
             return 200, {"ok": True, "adapters": store.registry.describe()}
+        if route == "/intents/runs":
+            limit = _int(query.get("limit"), 50, 1, 200)
+            return 200, {"ok": True, "runs": store.lifecycle.snapshot(limit)}
+        if route == "/sources":
+            return 200, {"ok": True, **store.listener_status()}
         return 404, {"ok": False, "message": "未知端点"}
 
     if method == "POST":
+        if route == "/sources/start":
+            try:
+                store.start_syslog(body.get("syslog_port"))
+                store.start_snmp_trap(body.get("trap_port"))
+            except OSError as exc:
+                return 400, {"ok": False, "message": f"端口不可用：{exc}"}
+            return 200, {"ok": True, **store.listener_status()}
+        if route == "/sources/stop":
+            return 200, {"ok": True, **store.stop_listeners()}
         if route == "/policies/compile":
             return _compile(store, body)
+        if route.startswith("/intents/"):
+            action = route[len("/intents/"):]
+            if action in ("plan", "deploy", "verify", "rollback"):
+                return _intent_action(store, body, action)
+            return 404, {"ok": False, "message": "未知端点"}
         if route == "/topology/sync":
             graph = store.sync_inventory()
             return 200, {"ok": True, **graph.to_dict()}

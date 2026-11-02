@@ -303,6 +303,30 @@ OpenDaylight 思路的极简单机实现：**你声明意图，控制器翻译�
 **台账导入的对端关系以虚线叠加**，实线 = LLDP 实测、虚线 = 台账登记。
 详见 [2.1 拓扑工作区](#21-拓扑工作区控制器主视图)。
 
+### 意图生命周期（v3.11）
+
+Dry-Run 之后，一条意图会经历：**预演 → 下发 → 校验 →（必要时）回滚**。
+
+| 阶段 | 发生什么 | 失败会怎样 |
+|---|---|---|
+| 预演 plan | 静态检查命令、风险、能否回滚，**不连设备** | 直接标 failed，不浪费设备连接 |
+| 下发 deploy | 通过 CLI / RESTCONF / NETCONF 执行命令 | 任一条命令报错 → failed |
+| 校验 verify | 回读 `display vlan` 等，确认意图真的生效 | 关键字段缺失 → failed |
+| 回滚 rollback | 执行**确定安全**的反向命令（如 `undo vlan 10`） | 没有安全反向命令 → `rollback_blocked`，提示人工处置 |
+
+> 回滚是"能确定才做"：端口 access/trunk 互转、BGP 邻居、管理面基线都**不会**自动回滚，
+> 因为原状态只有设备知道——猜一条命令比不滚更危险。
+
+### 事件源（v3.11）
+
+「事件」页 →「事件源」卡片 →「启动监听」：
+
+- Syslog：UDP **5140**（设备侧 `logging host <本机IP> port 5140`）
+- SNMP Trap：UDP **1162**（`snmp-server host <本机IP> traps version 2c public 1162`）
+
+收到的事件会进事件流；命中的设备节点在拓扑页画**琥珀色脉冲圈**（90 秒）。
+端口被占用时启动会失败并提示，可在 `sdn/store.py` 的默认端口处改。
+
 ---
 
 ## 7. 批量巡检
@@ -396,6 +420,20 @@ v1 与 v2 并存：v1 面向脚本化既有功能，v2 是控制器语义接口�
 | GET `/api/v2/southbound` | 南向适配器与能力位 |
 | POST `/api/v2/policies/compile` | 意图 → 策略（不连设备） |
 | POST `/api/v2/topology/sync` | 设备清单 → 图 |
+| POST `/api/v2/intents/plan` | 意图编译 + 静态预演（不连设备） |
+| POST `/api/v2/intents/{deploy,verify,rollback}` | 下发 / 回读校验 / 回滚（body 传 `run_ids`） |
+| GET `/api/v2/intents/runs` | 运行档案（状态、检查项、反向命令） |
+| GET `/api/v2/sources` | syslog / trap 监听状态 |
+| POST `/api/v2/sources/{start,stop}` | 启停事件源监听 |
+
+**鉴权（v3.11 起）**：除 `/api/v2/health` 外，所有 v2 请求都要带
+
+```
+Authorization: Bearer <token>
+```
+
+token 在「意图与策略 → REST API」页查看/复制/轮换（首次启动自动生成，存在设置文件里）。
+v1 的写接口（`/api/apply`、`/api/dry-run`）同样需要 token；读接口保持开放便于脚本摸底。
 
 ### v1（兼容）
 

@@ -36,6 +36,7 @@ from netwright.lib.settings import load_settings, save_settings  # noqa: E402
 from netwright.pages import NAV_GROUPS, PAGE_REGISTRY  # noqa: E402
 from netwright.pages.help import show_help  # noqa: E402
 from netwright.sdn import ControllerStore, EventBus  # noqa: E402
+from netwright.sdn.auth import TokenAuth  # noqa: E402
 from netwright.theme import (  # noqa: E402
     FONT_SMALL, PRIMARY_HUES, SIDEBAR_COLLAPSED_W, SIDEBAR_W, TOPBAR_H,
     setup_ttk, theme,
@@ -81,7 +82,10 @@ class NetWrightApp(tk.Tk):
         # ── 控制器内核 ──
         self.inventory = Inventory()
         self.event_bus = EventBus()
-        self.controller_store = ControllerStore(self.inventory, self.event_bus)
+        self.api_auth = TokenAuth.from_settings(self.settings)
+        self.controller_store = ControllerStore(self.inventory, self.event_bus,
+                                                auth=self.api_auth)
+        save_settings(self.settings, BASE_DIR)
         self.controller_state = ControllerState(self.inventory, self.controller_store)
         self.controller_api = ControllerAPI(self.controller_state,
                                             port=int(self.settings.get("rest_port", 8899)))
@@ -430,6 +434,15 @@ class NetWrightApp(tk.Tk):
     # ── 帮助 / 快捷键 ─────────────────────────────────────────────
     def open_help(self):
         return show_help(self)
+
+    # ── API token（v2 写接口鉴权）──────────────────────────────────
+    def rotate_api_token(self) -> str:
+        token = self.api_auth.rotate()
+        self.settings["api_token"] = token
+        save_settings(self.settings, BASE_DIR)
+        self.event_bus.publish("api.token_rotated", "REST API token 已轮换（旧 token 立即失效）",
+                               source="app")
+        return token
 
     def _bind_shortcuts(self):
         self.bind("<F5>", lambda _e: self.refresh_current(silent=False))

@@ -70,6 +70,19 @@ class EventsPage(Page):
         self.south_box = tk.Frame(south.body, bg=theme.panel)
         self.south_box.pack(fill=tk.X)
 
+        sources = SectionCard(side, title="事件源", desc="syslog / SNMP trap 接进来才算“网络状态”")
+        sources.pack(fill=tk.X, pady=(0, 12))
+        self.var_syslog = tk.StringVar(value="Syslog：未启动")
+        self.var_trap = tk.StringVar(value="SNMP Trap：未启动")
+        tk.Label(sources.body, textvariable=self.var_syslog, bg=theme.panel,
+                 fg=theme.muted, font=FONT_SMALL).pack(anchor="w")
+        tk.Label(sources.body, textvariable=self.var_trap, bg=theme.panel,
+                 fg=theme.muted, font=FONT_SMALL).pack(anchor="w", pady=(2, 6))
+        row = tk.Frame(sources.body, bg=theme.panel)
+        row.pack(fill=tk.X)
+        WButton(row, text="启动监听", command=self.start_sources).pack(side=tk.LEFT)
+        WButton(row, text="停止", command=self.stop_sources).pack(side=tk.LEFT, padx=(6, 0))
+
         audit = SectionCard(side, title="下发审计", desc="真实下发记录（无密码）")
         audit.pack(fill=tk.BOTH, expand=True)
         self.audit_text = tk.Text(audit.body, height=12, bg=theme.panel, fg=theme.fg,
@@ -137,6 +150,36 @@ class EventsPage(Page):
                      font=FONT_SMALL).pack(side=tk.LEFT, padx=(8, 4))
             tk.Label(row, text=f"{len(adapter['capabilities'])} 项能力", bg=theme.panel,
                      fg=theme.faint, font=FONT_SMALL).pack(side=tk.RIGHT)
+        self._render_sources()
+
+    def _render_sources(self):
+        status = self.app.controller_store.listener_status()
+        syslog = status["syslog"]
+        trap = status["snmp_trap"]
+        self.var_syslog.set(
+            f"Syslog：{'运行中 UDP ' + str(syslog['port']) if syslog['running'] else '未启动'}"
+            f"（已收 {syslog['received']} 条）")
+        self.var_trap.set(
+            f"SNMP Trap：{'运行中 UDP ' + str(trap['port']) if trap['running'] else '未启动'}"
+            f"（已收 {trap['received']} 条）")
+
+    def start_sources(self):
+        store = self.app.controller_store
+        try:
+            if not store.syslog.running:
+                store.start_syslog()
+            if not store.snmp_trap.running:
+                store.start_snmp_trap()
+        except OSError as exc:
+            self.app.set_status(f"监听启动失败（端口被占用？）：{exc}")
+            return
+        self.app.set_status("Syslog / SNMP Trap 监听已启动，设备指向本机即可看到事件")
+        self.refresh()
+
+    def stop_sources(self):
+        self.app.controller_store.stop_listeners()
+        self.app.set_status("事件源监听已停止")
+        self.refresh()
 
     def _render_audit(self):
         entries = deploy_mod.audit_tail(40)

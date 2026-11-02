@@ -3,6 +3,36 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.11.0] - 2026-11-02
+
+### Added（控制器能力：从"能下发"到"可回滚、可观测"）
+- **意图生命周期状态机**（`sdn/lifecycle.py`）：
+  `compiled → planned → approved → deploying → deployed → verified → rolled_back`，
+  非法迁移抛 `LifecycleError`；每次迁移进历史并发事件。
+- **反向命令生成**（`sdn/reverse.py`）：VLAN 部署 / 端口 shutdown 生成确定安全的
+  反向命令；端口模式互转、BGP 邻居、管理面基线等**明确返回"不可回滚"及人工处置建议**，
+  回滚时状态停在 `rollback_blocked`，绝不猜命令。
+- **下发后校验**：`verify()` 回读 `display vlan` / `show vlan brief` 检查意图是否真的生效；
+  没有回读命令的厂商诚实降级为"仅确认下发"。
+- **REST v2 意图路由**：`POST /api/v2/intents/{plan,deploy,verify,rollback}` +
+  `GET /api/v2/intents/runs`。
+- **RESTCONF 完整实装**：GET/PATCH/POST/DELETE、Basic Auth、TLS 可配、错误带状态码。
+- **NETCONF 实装**：get-config / edit-config / commit / discard；`session_factory`
+  可注入假会话，没装 ncclient 也能单测。
+- **事件源**：Syslog 监听（UDP 5140，RFC3164/5424/裸消息）+ SNMPv2c Trap 监听
+  （UDP 1162，自实现 BER，不依赖 pysnmp），归类 link down/up、BGP/OSPF、配置变更、
+  登录失败、硬件告警。
+- **拓扑增量高亮**：事件命中的节点画琥珀脉冲圈（90 秒），自动刷新自然消退。
+- **事件页"事件源"卡片**：一键启停监听，显示端口与收包数。
+- **REST v2 鉴权**：除 `/api/v2/health` 外都要 Bearer token（或 `X-API-Token`）；
+  token 首次启动生成并落盘，GUI 可查看/复制/轮换，v1 写接口同样受保护。
+- **`docs/ARCHITECTURE.md`**：对 ODL / ONOS / Neutron / NetBox / DNA Center /
+  Oxidized / NAPALM 的借鉴矩阵与"刻意不做"清单。
+
+### Tests
+- 新增 `tests/test_lifecycle.py`（16 项）与 `tests/test_southbound.py`（18 项）。
+- 全量 **176 项 pytest 通过**。
+
 ## [3.10.0] - 2026-11-02
 
 ### Added（小白易用性）

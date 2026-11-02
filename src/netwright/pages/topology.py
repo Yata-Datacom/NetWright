@@ -134,11 +134,13 @@ class TopologyPage(Page):
             return
         store.sync_inventory(publish=False)
         stats = store.graph.stats()
+        flash = store.flashed_nodes()
         self.var_stat.set(
             f"节点：{stats['nodes']}\n链路：{stats['links']}\n"
             f"纳管：{stats['managed']}    孤立：{stats['isolated']}\n"
             f"链路来源：LLDP {stats['by_source'].get('lldp', 0)} / "
-            f"台账 {stats['by_source'].get('ledger', 0)}")
+            f"台账 {stats['by_source'].get('ledger', 0)}"
+            + (f"\n最近变化：{len(flash)} 个节点" if flash else ""))
         layout_key = (frozenset(store.graph.nodes), self.cmb_layout.get())
         if layout_key != getattr(self, "_layout_key", None):
             self._relayout_silent()
@@ -294,6 +296,7 @@ class TopologyPage(Page):
                               text=f"{edge.a_port} ↔ {edge.b_port}",
                               fill=theme.muted, font=("Consolas", 8))
         # 节点
+        flash = self.app.controller_store.flashed_nodes(within=90)
         for name in sorted(self._pos):
             if not self._visible(name):
                 continue
@@ -304,6 +307,10 @@ class TopologyPage(Page):
             selected = name == self._selected
             hovered = name == self._hover
             r = 11 if selected else (10 if hovered else 9)
+            if name in flash:
+                # 最近 90 秒内有链路/设备事件：琥珀色脉冲圈（自动刷新会自然消退）
+                c.create_oval(x - r - 9, y - r - 9, x + r + 9, y + r + 9,
+                              outline=theme.warn, width=2, dash=(2, 3))
             if selected:
                 c.create_oval(x - r - 6, y - r - 6, x + r + 6, y + r + 6,
                               outline=theme.accent, width=2, dash=(3, 2))
