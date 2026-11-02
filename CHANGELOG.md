@@ -3,6 +3,27 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.26.0] - 2026-11-02
+
+### Added（R8 备份治理：保留份数 / 导出 zip / 目录迁移）
+- **按设备设保留份数**：`ConfigBackup.device_keep`（settings 键
+  `backup_keep_device`）+ `set_device_keep(device, n)` 立即对现有历史生效；
+  未登记的设备用全局 `backup_keep`。
+- **导出 zip**：`ConfigBackup.export_zip(path, devices=None)` / 
+  `ControllerStore.export_backups_zip()`——zip 内含 `manifest.json`
+  （每份快照的设备 / 时间 / 大小 / **sha256**，与 `BackupEntry` 一致）。
+- **目录迁移**：`ConfigBackup.migrate_root(new_base)` /
+  `ControllerStore.set_backup_dir()`——目标 `backups/` 空闲时整个目录
+  同盘原子重命名（历史完整保留、旧路径消失）；被占用时旧目录保留只读、
+  新目录从空开始；迁移后写入只进新目录（事件 `backup.migrated`）。
+- app 启动时从设置读取 `backup_keep` / `backup_keep_device` 构造备份器。
+
+### Tests
+- 新增 `tests/test_backup_govern.py`（6 项）：按设备保留份数覆盖全局并立即
+  prune、zip manifest 的 sha256 一致性、按设备过滤导出、迁移搬移分支、
+  迁移保留分支、store 集成（旧目录不再被写入）。
+- 全量 **313 项 pytest 通过**（+6）。
+
 ## [3.25.0] - 2026-11-02
 
 ### Added（R7 巡检治理：可取消 / 并发可配 / 超时可控）

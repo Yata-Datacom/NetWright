@@ -105,9 +105,12 @@ class NetWrightApp(tk.Tk):
         self.inventory = Inventory()
         self.event_bus = EventBus()
         self.api_auth = TokenAuth.from_settings(self.settings)
+        from netwright.sdn.backup import DEFAULT_KEEP
         self.controller_store = ControllerStore(
             self.inventory, self.event_bus, auth=self.api_auth,
-            backups=ConfigBackup(BASE_DIR, self.event_bus))
+            backups=ConfigBackup(BASE_DIR, self.event_bus,
+                                 keep=int(self.settings.get("backup_keep", DEFAULT_KEEP)),
+                                 device_keep=self.settings.get("backup_keep_device")))
         save_settings(self.settings, BASE_DIR)
         self.controller_state = ControllerState(self.inventory, self.controller_store)
         self.controller_api = ControllerAPI(self.controller_state,

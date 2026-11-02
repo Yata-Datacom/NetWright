@@ -74,6 +74,36 @@ class ControllerStore:
         return {"enabled": True, "devices": devices, "count": len(devices),
                 "root": self.backups.root}
 
+    def set_backup_dir(self, new_base_dir: str) -> dict:
+        """迁移备份目录（R8 设置项）：迁移后旧目录不再写入。
+
+        新的 ConfigBackup 继承全局保留份数与按设备保留份数；
+        旧目录是否搬走由 ``ConfigBackup.migrate_root`` 决定（同盘原子重命名）。
+        """
+        from .backup import ConfigBackup
+
+        if self.backups is None:
+            self.backups = ConfigBackup(new_base_dir, self.bus)
+            return {"old": None, "new": self.backups.root, "moved": False}
+        result = self.backups.migrate_root(new_base_dir)
+        self.bus.publish("backup.migrated",
+                         f"备份目录已迁移 → {result['new']}"
+                         + ("（历史已搬移）" if result["moved"] else "（旧目录保留只读）"),
+                         source="backup")
+        return result
+
+    def export_backups_zip(self, zip_path: str, devices: list[str] | None = None) -> dict:
+        """导出快照 zip（R8）：内含 manifest.json（设备/时间/sha256）。"""
+        if self.backups is None:
+            raise RuntimeError("未配置备份目录（ControllerStore.backups 为空）")
+        return self.backups.export_zip(zip_path, devices)
+
+    def set_device_backup_keep(self, device: str, keep: int) -> int:
+        """按设备设置保留份数（R8），立即对现有历史生效。"""
+        if self.backups is None:
+            raise RuntimeError("未配置备份目录（ControllerStore.backups 为空）")
+        return self.backups.set_device_keep(device, keep)
+
     def compare_live(self, device, timeout: float = 20.0) -> dict:
         """读现网配置并与最近一次快照对比（不写新快照）。"""
         if self.backups is None:

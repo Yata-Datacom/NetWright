@@ -80,13 +80,28 @@ class BackupEntry:
 class ConfigBackup:
     """按设备保存配置快照，并提供历史与差异查询。"""
 
-    def __init__(self, base_dir: str, bus=None, keep: int = DEFAULT_KEEP):
+    def __init__(self, base_dir: str, bus=None, keep: int = DEFAULT_KEEP,
+                 device_keep: dict | None = None):
         self.base_dir = base_dir
         self.bus = bus
         self.keep = max(2, int(keep))
+        # R8：按设备覆盖保留份数（settings["backup_keep_device"]）；
+        # 没登记的设备用全局 keep。
+        self.device_keep: dict[str, int] = {
+            str(d): max(2, int(n)) for d, n in (device_keep or {}).items()}
         # 摘要缓存：键是 (路径, mtime_ns, size)。备份目录只在 save/prune 时变化，
         # 缓存能把 "每次 save 都重算全部快照 sha256" 的 O(n) IO 降到 O(1)。
         self._digests: dict[tuple, str] = {}
+
+    def _keep_for(self, device: str) -> int:
+        return self.device_keep.get(device, self.keep)
+
+    def set_device_keep(self, device: str, keep: int) -> int:
+        """按设备设置保留份数（R8），立即对现有历史生效（触发一次 prune）。"""
+        value = max(2, int(keep))
+        self.device_keep[device] = value
+        self._prune(device)
+        return value
 
     # ── 路径 ──
     @property
@@ -257,12 +272,67 @@ class ConfigBackup:
 
     # ── 清理 ──
     def _prune(self, device: str, protect: str | None = None) -> None:
-        """只保留最近 ``keep`` 份；``protect`` 指定的文件永不删除（刚写入的那份）。"""
+        """只保留最近 ``keep`` 份（R8：按设备覆盖）；``protect`` 永不删除。"""
         items = self.history(device)
-        for entry in items[self.keep:]:
+        limit = self._keep_for(device)
+        for entry in items[limit:]:
             if protect and os.path.abspath(entry.path) == os.path.abspath(protect):
                 continue
             try:
                 os.remove(entry.path)
             except OSError:
                 pass
+
+    # ── 导出 / 迁移（R8 备份治理）──
+    def export_zip(self, zip_path: str, devices: list[str] | None = None) -> dict:
+        """把快照打包成 zip，内含 manifest.json（设备 / 时间 / sha256）。
+
+        :param devices: 要导出的设备列表（默认全部）。
+        :return: {"path", "devices", "snapshots"}
+        """
+        import json as _json
+        import zipfile
+
+        names = devices if devices is not None else self.devices()
+        manifest = {
+            "created": time.time(),
+            "created_text": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "tool": "NetWright",
+            "entries": [],
+        }
+        count = 0
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for device in names:
+                for entry in self.history(device):
+                    arc = f"{self._safe(device)}/{entry.filename}"
+                    zf.write(entry.path, arc)
+                    manifest["entries"].append({
+                        "device": device, "file": arc, "ts": entry.ts,
+                        "time": entry.time_text, "size": entry.size,
+                        "sha256": entry.sha256})
+                    count += 1
+            zf.writestr("manifest.json",
+                        _json.dumps(manifest, ensure_ascii=False, indent=2))
+        return {"path": zip_path, "devices": len(names), "snapshots": count}
+
+    def migrate_root(self, new_base_dir: str) -> dict:
+        """迁移备份目录到新 base（R8 设置项），迁移后旧目录不再写入。
+
+        同盘且新位置空闲 → 整个 ``backups/`` 原子重命名（历史完整保留）；
+        否则新目录从空开始（旧目录保持原样，只读不再写入）。
+        """
+        old_root = self.root
+        old_base = self.base_dir
+        self.base_dir = new_base_dir
+        new_root = self.root
+        moved = False
+        os.makedirs(new_base_dir, exist_ok=True)   # rename 需要目标父目录存在
+        if os.path.isdir(old_root) and not os.path.exists(new_root):
+            try:
+                os.rename(old_root, new_root)      # 同盘原子；跨盘抛 OSError
+                moved = True
+            except OSError:
+                self.base_dir = old_base           # 回退，绝不留在半路
+                raise
+        self._digests.clear()
+        return {"old": old_root, "new": new_root, "moved": moved}
