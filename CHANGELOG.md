@@ -3,6 +3,23 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.20.0] - 2026-11-02
+
+### Added（R2 时间线联动）
+- **时间线点行可跳转定位**：`TimelinePage._open(item)`——事件 → 事件页并高亮该事件、
+  配置快照 → 直接打开该设备的备份历史对话框、意图运行 → 控制器运行档案并选中该档案。
+  单击仍看详情，双击跳转；页头说明同步更新。
+- **跨页定位传参**：`app.pending_focus = {key, payload}` 约定，目标页在 `on_show`
+  消费（事件页按 event_id 选中、控制器页按 run_id 选中）；消费后置 None。
+- `TimelineItem` 增加可选 `payload` 字段（事件 id / 快照设备+文件名 / 运行档案 id），
+  `build_timeline` 聚合时填充；`to_dict()` 带出，REST 侧可直接消费。
+
+### Tests
+- GUI 冒烟新增 4 项：事件行 → `_active_key == "events"` 且行被选中；快照行 →
+  打开 BackupHistoryDialog；意图行 → 运行档案被选中；无 payload / 未知类型
+  落回对应页面首页不崩。
+- 全量 **254 项 pytest 通过**（+4）。
+
 ## [3.19.1] - 2026-11-02
 
 ### Added（R11 页面惰性构建——冷启动最大的一笔）

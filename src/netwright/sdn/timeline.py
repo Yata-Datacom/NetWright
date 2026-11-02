@@ -24,6 +24,7 @@ class TimelineItem:
     title: str
     detail: str = ""
     severity: str = "info"
+    payload: dict | None = None   # R2 联动用：跳转定位所需的结构化数据
 
     @property
     def time_text(self) -> str:
@@ -37,7 +38,8 @@ class TimelineItem:
         return {"ts": self.ts, "time": self.time_text, "kind": self.kind,
                 "kind_label": self.kind_label,
                 "device": self.device, "title": self.title,
-                "detail": self.detail, "severity": self.severity}
+                "detail": self.detail, "severity": self.severity,
+                "payload": dict(self.payload or {})}
 
 
 def build_timeline(store, limit: int = 120,
@@ -51,7 +53,8 @@ def build_timeline(store, limit: int = 120,
     for event in store.bus.snapshot(limit=limit * 2):
         items.append(TimelineItem(
             ts=event.ts, kind="event", device=str((event.data or {}).get("device", "")),
-            title=event.message, detail=event.topic, severity=event.severity))
+            title=event.message, detail=event.topic, severity=event.severity,
+            payload={"event_id": getattr(event, "id", None), "topic": event.topic}))
 
     # 2) 配置快照（每台设备只取最近几份，避免大目录把时间线淹没）
     backups = getattr(store, "backups", None)
@@ -61,7 +64,8 @@ def build_timeline(store, limit: int = 120,
                 items.append(TimelineItem(
                     ts=entry.ts, kind="backup", device=device,
                     title=f"配置快照 {entry.filename}",
-                    detail=f"{entry.size // 1024} KB", severity="info"))
+                    detail=f"{entry.size // 1024} KB", severity="info",
+                    payload={"device": device, "filename": entry.filename}))
 
     # 3) 意图运行档案
     lifecycle = getattr(store, "lifecycle", None)
@@ -71,7 +75,8 @@ def build_timeline(store, limit: int = 120,
             items.append(TimelineItem(
                 ts=run.updated, kind="intent", device=run.device,
                 title=f"{getattr(run.policy, 'intent_title', '')} · {run.state}",
-                detail=f"档案 {run.id}", severity=severity))
+                detail=f"档案 {run.id}", severity=severity,
+                payload={"run_id": run.id}))
 
     items.sort(key=lambda i: i.ts, reverse=True)
     return items[:limit]

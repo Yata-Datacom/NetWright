@@ -120,6 +120,7 @@ class NetWrightApp(tk.Tk):
         self.auto_refresh = bool(self.settings.get("auto_refresh", True))
         self._auto_job = None
         self._help_dialog = None
+        self.pending_focus: dict | None = None   # R2：跨页定位传参（时间线→目标页消费）
         self._nav_items: dict[str, tk.Frame] = {}
         self._build_shell()
         self.show(self._active_key if self._active_key in PAGE_REGISTRY else "dashboard")

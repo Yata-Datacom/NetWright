@@ -7,6 +7,9 @@ from netwright.sdn.timeline import build_timeline
 from netwright.theme import FONT_SMALL, theme
 from netwright.widgets import DataTable, Page, SectionCard, WButton, page_header
 
+# 未知/缺 payload 的条目落回的页面首页（R2：绝不因跳转目标缺失而崩）
+FOCUS_FALLBACK = {"event": "events", "backup": "inventory", "intent": "controller"}
+
 
 class TimelinePage(Page):
     def __init__(self, master, app):
@@ -18,7 +21,7 @@ class TimelinePage(Page):
 
         self.var_stat = tk.StringVar(value="")
         card = SectionCard(self, title="最近 120 条",
-                           desc="按时间倒序；点行查看详情")
+                           desc="按时间倒序；点行看详情，双击跳到对应页面定位")
         card.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 18))
         self.table = DataTable(
             card.body,
@@ -33,6 +36,7 @@ class TimelinePage(Page):
         self.tree.tag_configure("critical", foreground=theme.err)
         self.tree.tag_configure("info", foreground=theme.fg)
         self.tree.bind("<<TreeviewSelect>>", lambda _e: self._show_detail())
+        self.tree.bind("<Double-1>", self._on_double)
         self.detail = tk.Label(card.body, textvariable=self.var_stat, bg=theme.panel,
                                fg=theme.muted, font=FONT_SMALL, anchor="w")
         self.detail.pack(fill=tk.X, pady=(6, 0))
@@ -72,3 +76,38 @@ class TimelinePage(Page):
             self.var_stat.set(
                 f"{item.time_text} · {item.kind_label} · {item.device or '—'} · "
                 f"{item.title}" + (f" · {item.detail}" if item.detail else ""))
+
+    # ── R2 联动：点行跳转到对应页面并定位 ──
+    def _on_double(self, _ev=None):
+        selection = self.tree.selection()
+        if not selection or not self.items:
+            return
+        index = self.tree.index(selection[0])
+        if 0 <= index < len(self.items):
+            self._open(self.items[index])
+
+    def _open(self, item):
+        """时间线联动入口：事件→事件页、快照→备份历史、意图→运行档案。
+
+        缺 payload / 未知类型时退回对应页面首页，绝不崩。
+        """
+        kind = getattr(item, "kind", "")
+        payload = getattr(item, "payload", None) or {}
+        if kind == "backup" and (payload.get("device") or item.device):
+            from netwright.pages.inventory import BackupHistoryDialog
+
+            dialog = BackupHistoryDialog(self.app,
+                                         payload.get("device") or item.device)
+            dialog.focus_force()
+            return
+        if kind == "intent" and payload.get("run_id"):
+            self.app.pending_focus = {"key": "controller",
+                                      "payload": {"run_id": payload["run_id"]}}
+            self.app.show("controller")
+            return
+        if kind == "event":
+            self.app.pending_focus = {"key": "events",
+                                      "payload": {"event_id": payload.get("event_id")}}
+            self.app.show("events")
+            return
+        self.app.show(FOCUS_FALLBACK.get(kind, "dashboard"))

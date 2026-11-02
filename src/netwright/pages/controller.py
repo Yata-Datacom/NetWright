@@ -414,6 +414,22 @@ class ControllerPage(Page):
         self.var_run.set(f"{len(runs)} 条运行档案" if runs else "尚未创建运行档案（先在「意图下发」做 Dry-Run）")
         self._render_run_detail()
 
+    def on_show(self):
+        """R2 联动：从时间线跳来时切到运行档案并定位该档案（run_id 即行 iid）。"""
+        focus = getattr(self.app, "pending_focus", None)
+        if not focus or focus.get("key") != "controller":
+            return
+        self.app.pending_focus = None
+        run_id = (focus.get("payload") or {}).get("run_id")
+        if not run_id:
+            return
+        self.nb.select(3)               # 运行档案 tab
+        self._runs_refresh()
+        if self.runs_tree.exists(str(run_id)):
+            self.runs_tree.selection_set(str(run_id))
+            self.runs_tree.see(str(run_id))
+            self._render_run_detail()
+
     def _selected_run(self):
         selection = self.runs_tree.selection()
         if not selection:

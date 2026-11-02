@@ -429,3 +429,81 @@ def test_smoke_dashboard_clear_demo_click_path(app):
     page._clear_demo()
     assert not demo.is_demo_loaded(app.inventory)
     assert not any(d.note == demo.DEMO_NOTE for d in app.inventory.devices)
+
+
+def test_smoke_timeline_linkage_event(app):
+    """R2：点时间线事件行 → 跳到事件页并定位该事件。"""
+    app.event_bus.publish("linkage.test", "时间线联动定位测试事件", source="test")
+    page = app.pages["timeline"]
+    page.refresh()
+    event_items = [i for i in page.items if i.kind == "event"]
+    assert event_items, "时间线里应有事件条目"
+    page._open(event_items[0])
+    assert app._active_key == "events"
+    assert app.pending_focus is None, "pending_focus 应被事件页消费"
+    sel = app.pages["events"].tree.selection()
+    assert sel, "事件页应选中定位到的事件行"
+
+
+def test_smoke_timeline_linkage_backup(app, tmp_path):
+    """R2：点时间线快照行 → 打开该设备的备份历史对话框。"""
+    import tkinter as tk
+
+    from netwright.sdn.backup import ConfigBackup
+
+    backup = ConfigBackup(str(tmp_path))
+    backup.save("联动测试设备", "sysname X\nvlan 10\n")
+    original = app.controller_store.backups
+    app.controller_store.backups = backup
+    try:
+        page = app.pages["timeline"]
+        page.refresh()
+        backup_items = [i for i in page.items if i.kind == "backup"]
+        assert backup_items, "时间线里应有快照条目"
+        page._open(backup_items[0])
+        dialogs = [w for w in app.winfo_children() if isinstance(w, tk.Toplevel)
+                   and "备份历史" in str(w.title())]
+        assert dialogs, "应打开备份历史对话框"
+        for d in dialogs:
+            d.destroy()
+    finally:
+        app.controller_store.backups = original
+
+
+def test_smoke_timeline_linkage_intent(app):
+    """R2：点时间线意图运行行 → 跳到控制器运行档案并选中该档案。"""
+    from netwright.lib.inventory import Device
+
+    app.inventory.devices = []
+    app.inventory.add(Device(host="192.0.2.1", vendor="huawei", hostname="A"))
+    page = app.pages["controller"]
+    page.nb.select(1)
+    page._render_fields()
+    page.cmb_target.current(1)
+    page.field_vars["vlans"].set("10,20")
+    page.dry_run()
+
+    timeline = app.pages["timeline"]
+    timeline.refresh()
+    intent_items = [i for i in timeline.items if i.kind == "intent"]
+    assert intent_items, "时间线里应有意图运行条目"
+    run_id = intent_items[0].payload["run_id"]
+    timeline._open(intent_items[0])
+    assert app._active_key == "controller"
+    assert app.pending_focus is None
+    assert page.runs_tree.selection() == (str(run_id),), "运行档案应被定位选中"
+
+
+def test_smoke_timeline_linkage_fallbacks(app):
+    """R2：缺 payload / 未知类型不崩，落回对应页面首页。"""
+    import time as _time
+
+    from netwright.sdn.timeline import TimelineItem
+
+    page = app.pages["timeline"]
+    page._open(TimelineItem(ts=_time.time(), kind="event", device="",
+                            title="裸事件（无 payload）"))
+    assert app._active_key == "events"
+    page._open(TimelineItem(ts=_time.time(), kind="mystery", device="",
+                            title="未知类型"))
+    assert app._active_key == "dashboard"

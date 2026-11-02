@@ -138,6 +138,7 @@ class EventsPage(Page):
         self.tile_crit.set(counts.get("critical", 0))
 
         events = bus.snapshot(limit=200, min_severity=self._min_severity())
+        self._events = events       # R2 联动定位用：行号 → 事件对象
         # 自动刷新每 10 秒跑一次：数据没变就不要重建整张表（Treeview 重建在千行级并不便宜）
         signature = (len(events), events[0].id if events else 0, self.var_filter.get())
         if signature == getattr(self, "_refresh_sig", None) and self.tree.get_children():
@@ -158,6 +159,22 @@ class EventsPage(Page):
                     [(SEVERITY_TAG.get(event.severity, "info"),) for event in events])
         self._render_southbound()
         self._render_audit()
+
+    def on_show(self):
+        """R2 联动：从时间线跳来时按 event_id 定位并高亮该事件行。"""
+        focus = getattr(self.app, "pending_focus", None)
+        if not focus or focus.get("key") != "events":
+            return
+        self.app.pending_focus = None
+        event_id = (focus.get("payload") or {}).get("event_id")
+        if event_id is None:
+            return
+        for index, event in enumerate(getattr(self, "_events", [])):
+            if getattr(event, "id", None) == event_id:
+                iid = str(index)
+                self.tree.selection_set(iid)
+                self.tree.see(iid)
+                break
 
     def _render_southbound(self):
         for child in self.south_box.winfo_children():
