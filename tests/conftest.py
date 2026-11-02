@@ -60,6 +60,12 @@ def app():
 
 @pytest.fixture(autouse=True)
 def isolated_data(tmp_path, monkeypatch):
-    """把清单/审计等数据目录重定向到 tmp，保证用例互不影响、不写仓库。"""
+    """把清单/审计/设置等数据目录重定向到 tmp，保证用例互不影响、不写仓库。
+
+    app.BASE_DIR 一并重定向：NetWrightApp 的设置文件（last_page 等）落到 tmp，
+    用例行为不随开发者本机的设置文件漂移（R11 的惰性构建断言依赖"冷启动落在
+    dashboard"这一确定性）。
+    """
     monkeypatch.setattr("netwright.lib.inventory._base_dir", lambda: str(tmp_path))
     monkeypatch.setattr("netwright.lib.controller.deploy._base_dir", lambda: str(tmp_path))
+    monkeypatch.setattr("netwright.app.BASE_DIR", str(tmp_path))

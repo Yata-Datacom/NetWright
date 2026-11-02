@@ -58,6 +58,25 @@ PAGE_REFRESH = {
 AUTO_REFRESH_MS = 10_000       # 10 秒自动刷新（可在顶栏关掉）
 
 
+class LazyPages(dict):
+    """页面惰性容器（R11）：页面在第一次被访问时才构建。
+
+    保持 ``app.pages[key]`` 的既有写法：``__getitem__`` 缺 key 时按需构建一次；
+    ``get`` / ``in`` / 迭代都不触发构建——所以"已构建"与"已访问"是同一集合，
+    冷启动只建当前页，启动时间不再被没点开的页面吃掉。
+    """
+
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+
+    def __missing__(self, key):
+        page = self.app._ensure_page(key)
+        if page is None:
+            raise KeyError(key)
+        return page
+
+
 class NetWrightApp(tk.Tk):
     """主窗口：深色控制台外壳 + 浅色内容区 + 控制器内核。"""
 
@@ -233,8 +252,19 @@ class NetWrightApp(tk.Tk):
         self.container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         self._build_nav()
-        self.pages = {key: cls(self.container, self)
-                      for key, (_n, _i, cls) in PAGE_REGISTRY.items()}
+        self.pages = LazyPages(self)
+
+    def _ensure_page(self, key):
+        """按需构建页面（R11，幂等）：已构建直接返回；未构建构建一次并缓存。"""
+        page = self.pages.get(key)          # dict.get 不触发 __missing__
+        if page is not None:
+            return page
+        if key not in PAGE_REGISTRY:
+            return None
+        _label, _icon, cls = PAGE_REGISTRY[key]
+        page = cls(self.container, self)
+        self.pages[key] = page
+        return page
 
     # ── 侧栏导航 ──────────────────────────────────────────────────
     def _build_nav(self):
@@ -338,7 +368,9 @@ class NetWrightApp(tk.Tk):
         old_top = getattr(self, "top", None)
         old_main = getattr(self, "main_frame", None)
 
-        # 先建新外壳，再销毁旧的（避免中途重绘闪烁）
+        # 先建新外壳，再销毁旧的（避免中途重绘闪烁）。
+        # R11：页面容器换成空 LazyPages——只有当前页会随 show() 重建，
+        # 没访问过的页面不花构建时间（下次 show 时按需重建，天然带新主题）。
         self._build_topbar()
         self._build_main()
         self._paint_active()
@@ -350,31 +382,32 @@ class NetWrightApp(tk.Tk):
         if old_main is not None:
             old_main.destroy()
 
-        self.show(self._active_key if self._active_key in self.pages else "dashboard")
+        self.show(self._active_key if self._active_key in PAGE_REGISTRY else "dashboard")
         self.set_status(f"主题已切换：{'深色' if theme.mode == 'dark' else '浅色'} · {theme.hue}色")
 
     # ══════════════════════════════════════════════════════════════════
     # 工作区切换
     # ══════════════════════════════════════════════════════════════════
     def show(self, key: str):
-        if key not in self.pages:
+        if key not in PAGE_REGISTRY:
             return
-        for k, page in self.pages.items():
+        page = self.pages[key]              # 未构建时由 LazyPages 按需构建
+        for k, built in self.pages.items():
             if k == key:
-                page.place(relx=0, rely=0, relwidth=1, relheight=1)
+                built.place(relx=0, rely=0, relwidth=1, relheight=1)
             else:
-                page.place_forget()
+                built.place_forget()
         self._active_key = key
         self.var_ptitle.set(PAGE_REGISTRY[key][0] if key in PAGE_REGISTRY else "")
         self._paint_active()
         hook = PAGE_REFRESH.get(key)
-        if hook and hasattr(self.pages[key], hook):
+        if hook and hasattr(page, hook):
             try:
-                getattr(self.pages[key], hook)()
+                getattr(page, hook)()
             except Exception:      # noqa: BLE001  单页刷新失败不应拦住导航
                 pass
-        if hasattr(self.pages[key], "on_show"):
-            self.pages[key].on_show()
+        if hasattr(page, "on_show"):
+            page.on_show()
         self.set_status("就绪")
 
     def clear_demo_data(self) -> int:

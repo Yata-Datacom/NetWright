@@ -3,6 +3,28 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.19.1] - 2026-11-02
+
+### Added（R11 页面惰性构建——冷启动最大的一笔）
+- **页面在第一次被 show 时才构建**：`app.LazyPages`（dict 子类，`__missing__`
+  按需构建，保持 `app.pages[key]` 既有写法）+ `NetWrightApp._ensure_page`（幂等）。
+  已构建页面同一会话内复用；`apply_theme` 只重建当前页，未访问页面下次 show
+  时带新主题按需重建。
+- **`tools/bench_startup.py`**：输出 `construct_ms` / `first_show_ms` / `total_ms` /
+  `pages_built`；`--exe <path>` 模式测打包产物"进程启动→窗口可见"毫秒数（R12 用）。
+
+### Performance（本机实测，5 次取中位）
+- 页面构建：**257 ms（12 页）→ 34 ms（1 页），-87%**（规格要求 ≥40%）；
+  App 构造总耗时 814 ms → 337 ms（-59%）。
+- 双击 exe 到出窗口的剩余大头是 Python 解释器与依赖导入（onefile 解压），
+  页面构建已不再是瓶颈。
+
+### Tests
+- `tests/test_lazy_pages.py`（R11 契约 5 项）从整文件 skip 变为 **5 passed**（未改断言）。
+- conftest 把 `app.BASE_DIR` 一并重定向到 tmp：设置文件（last_page 等）不落仓库，
+  用例行为不随本机设置漂移。
+- 全量 **250 项 pytest 通过、0 skipped**（+5，两个 TDD 骨架文件全部转正）。
+
 ## [3.19.0] - 2026-11-02
 
 ### Added（R1 列表页统一组件化）
