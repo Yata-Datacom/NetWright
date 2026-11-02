@@ -33,7 +33,8 @@ class InventoryPage(Page):
                           ("✖ 删除", self.remove_sel), ("导入 CSV…", self.import_csv),
                           ("导出 CSV", self.export_csv), ("⚡ 在线检测", self.alive_check),
                           ("🔌 测试连接", self.test_connections),
-                          ("🗄 备份配置", self.backup_configs)):
+                          ("🗄 备份配置", self.backup_configs),
+                          ("🗂 备份历史", self.show_backups)):
             WButton(bar, text=text, command=cmd).pack(side=tk.LEFT, padx=(0, 8))
         self.var_count = tk.StringVar()
         tk.Label(bar, textvariable=self.var_count, bg=theme.bg, fg=theme.muted,
@@ -459,3 +460,118 @@ class InventoryPage(Page):
                             "\n".join(lines[:20]) +
                             ("\n…" if len(lines) > 20 else "") +
                             f"\n\n存放目录：{self.app.controller_store.backups.root}")
+
+    # ── 备份历史 / 差异（Oxidized 的 GUI 那一半）──
+    def show_backups(self):
+        devices = self._selected_devices()
+        if not devices:
+            messagebox.showinfo("提示", "请先选中一台设备，再查看它的备份历史")
+            return
+        store = self.app.controller_store
+        if getattr(store, "backups", None) is None:
+            messagebox.showwarning("备份未启用", "当前控制器没有配置备份目录")
+            return
+        dialog = BackupHistoryDialog(self.app, devices[0].display_name)
+        dialog.focus_force()
+
+
+class BackupHistoryDialog(tk.Toplevel):
+    """列出某台设备的快照，并可对任意两份做 unified diff。"""
+
+    def __init__(self, app, device: str):
+        super().__init__(app)
+        self.app = app
+        self.device = device
+        self.backup = app.controller_store.backups
+        self.title(f"备份历史 · {device}")
+        self.configure(bg=theme.bg)
+        self.transient(app)
+        w, h = 900, 620
+        x = app.winfo_rootx() + max(0, (app.winfo_width() - w) // 2)
+        y = app.winfo_rooty() + max(0, (app.winfo_height() - h) // 2)
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+        head = tk.Frame(self, bg=theme.panel)
+        head.pack(fill=tk.X)
+        tk.Label(head, text=f"{device} 的配置快照", bg=theme.panel, fg=theme.fg,
+                 font=("Microsoft YaHei UI", 12, "bold")).pack(side=tk.LEFT, padx=14, pady=10)
+        tk.Label(head, text=self.backup.root, bg=theme.panel, fg=theme.faint,
+                 font=FONT_SMALL).pack(side=tk.RIGHT, padx=14)
+
+        body = tk.Frame(self, bg=theme.bg)
+        body.pack(fill=tk.BOTH, expand=True, padx=12, pady=10)
+        body.columnconfigure(0, weight=0, minsize=250)
+        body.columnconfigure(1, weight=1)
+        body.rowconfigure(0, weight=1)
+
+        left = tk.Frame(body, bg=theme.panel)
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        tk.Label(left, text="选择两份快照（按住 Ctrl 多选）", bg=theme.panel,
+                 fg=theme.muted, font=FONT_SMALL).pack(anchor="w", padx=10, pady=(8, 4))
+        self.listbox = tk.Listbox(left, selectmode=tk.EXTENDED, bg=theme.panel,
+                                  fg=theme.fg, relief=tk.FLAT, highlightthickness=0,
+                                  font=("Consolas", 9), activestyle="none")
+        self.listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 8))
+        btns = tk.Frame(left, bg=theme.panel)
+        btns.pack(fill=tk.X, padx=10, pady=(0, 10))
+        WButton(btns, text="对比所选", command=self._diff_selected).pack(side=tk.LEFT)
+        WButton(btns, text="最近两次", command=self._diff_latest).pack(side=tk.LEFT, padx=(6, 0))
+
+        right = tk.Frame(body, bg=theme.panel)
+        right.grid(row=0, column=1, sticky="nsew")
+        self.diff_text = tk.Text(right, bg=theme.code_bg, fg="#D7E2F2", relief=tk.FLAT,
+                                 font=("Consolas", 9), wrap="none", bd=0,
+                                 highlightthickness=0, padx=10, pady=8)
+        self.diff_text.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+        self.diff_text.tag_config("add", foreground="#7EE787")
+        self.diff_text.tag_config("del", foreground="#FF7B72")
+        self.diff_text.tag_config("meta", foreground="#8B949E")
+
+        self.entries: list = []
+        self._load()
+        self.bind("<Escape>", lambda _e: self.destroy())
+
+    def _load(self):
+        self.listbox.delete(0, tk.END)
+        self.entries = self.backup.history(self.device)
+        if not self.entries:
+            self.listbox.insert(tk.END, "（还没有快照：先点「🗄 备份配置」）")
+            self.diff_text.insert("1.0", "没有可对比的快照。")
+            return
+        for entry in self.entries:
+            self.listbox.insert(tk.END, f"{entry.time_text}   {entry.size // 1024} KB")
+        if len(self.entries) >= 2:
+            self._diff_latest()
+
+    def _diff_latest(self):
+        if len(self.entries) < 2:
+            self._show("只有一份快照，无法对比。再备份一次（内容有变化时）即可。")
+            return
+        new, old = self.entries[0], self.entries[1]
+        self._show(self.backup.diff_text(self.backup.read(old), self.backup.read(new),
+                                         old.filename, new.filename))
+
+    def _diff_selected(self):
+        selection = list(self.listbox.curselection())
+        if len(selection) != 2:
+            self._show("请按住 Ctrl 选中**两份**快照再点「对比所选」。")
+            return
+        first, second = sorted(selection)
+        old, new = self.entries[first], self.entries[second]
+        self._show(self.backup.diff_text(self.backup.read(old), self.backup.read(new),
+                                         old.filename, new.filename))
+
+    def _show(self, text: str):
+        self.diff_text.delete("1.0", tk.END)
+        if not text:
+            self.diff_text.insert(tk.END, "两份快照内容一致，没有差异。")
+            return
+        for line in text.splitlines():
+            tag = ""
+            if line.startswith("+") and not line.startswith("+++"):
+                tag = "add"
+            elif line.startswith("-") and not line.startswith("---"):
+                tag = "del"
+            elif line.startswith(("---", "+++", "@@")):
+                tag = "meta"
+            self.diff_text.insert(tk.END, line + "\n", tag)

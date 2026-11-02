@@ -11,6 +11,7 @@ from .events import EventsPage
 from .generation import GeneratePage
 from .inspection import InspectPage
 from .inventory import InventoryPage
+from .settings import SettingsPage
 from .topology import TopologyPage
 from .toolbox import ToolboxPage
 
@@ -25,6 +26,7 @@ PAGE_REGISTRY = {
     "generate": ("配置生成", "▩", GeneratePage),
     "toolbox": ("工具箱", "⚒", ToolboxPage),
     "cheat": ("命令速查", "▣", CheatPage),
+    "settings": ("设置", "⚙", SettingsPage),
 }
 
 # 侧栏分组（key, 显示名, 图标）；顺序即导航顺序
@@ -44,5 +46,8 @@ NAV_GROUPS = [
         ("generate", "配置生成", "▩"),
         ("toolbox", "工具箱", "⚒"),
         ("cheat", "命令速查", "▣"),
+    ]),
+    ("系统", [
+        ("settings", "设置", "⚙"),
     ]),
 ]

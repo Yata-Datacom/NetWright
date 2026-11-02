@@ -14,7 +14,7 @@
   <a href="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml"><img src="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml/badge.svg" alt="Build EXE"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
-  <img src="https://img.shields.io/badge/tests-200%20passed-brightgreen" alt="200 tests">
+  <img src="https://img.shields.io/badge/tests-202%20passed-brightgreen" alt="202 tests">
 </p>
 
 ---
@@ -91,6 +91,7 @@ pip install -e .          # 之后直接用 netwright 启动
 | **配置生成** | 116 模板 × 设备表、零残留校验、批量导出 | 开局/扩容 |
 | **工具箱** | 子网/VLSM、端口扫描、在线检测、密码生成 | 日常零碎 |
 | **命令速查** | 场景 × 厂商 CLI 备忘，即时过滤，双击复制 | 忘了命令时 |
+| **设置** | REST / Syslog / Trap 端口、备份保留份数、自动刷新 | 部署到不同环境时 |
 
 ---
 
@@ -191,9 +192,9 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 │  ├─ demo.py                   # 一键演示数据
 │  ├─ sdn/                      # 控制器内核（事件/图/策略/仓库/南向/REST v2）
 │  ├─ lib/                      # 纯逻辑：清单、巡检、生成、计算、意图、拓扑解析
-│  └─ pages/                    # 10 个工作区页面 + 新手引导
+│  └─ pages/                    # 11 个工作区页面 + 新手引导 + 设置
 ├─ templates/                   # 116 个配置模板 + library.json
-├─ tests/                       # 200 项 pytest（含 GUI 冒烟）
+├─ tests/                       # 202 项 pytest（含 GUI 冒烟）
 ├─ docs/                        # 用户指南 + 示例台账 + 截图
 └─ tools/                       # 图标生成、模板导入
 ```
@@ -206,7 +207,7 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 python -m venv .venv
 .venv/Scripts/pip install -e ".[dev]"     # Windows；Linux/macOS 用 .venv/bin/pip
 
-pytest tests/ -v                          # 200 项，含 GUI 冒烟（无显示环境自动跳过）
+pytest tests/ -v                          # 202 项，含 GUI 冒烟（无显示环境自动跳过）
 ruff check src tests main.py              # 核心规则 lint
 pyinstaller NetWright.spec --noconfirm    # 打包 exe
 python tools/make_icon.py                 # 重新生成图标

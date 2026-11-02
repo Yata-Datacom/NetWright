@@ -293,6 +293,49 @@ def test_smoke_lifecycle_runs_tab(app):
     assert "undo vlan 10" in detail, "详情里应能看到反向命令"
 
 
+def test_smoke_settings_page_save(app, tmp_path):
+    """设置页：改端口/保留份数并保存，写入设置文件且不影响运行。"""
+    from netwright.lib.settings import load_settings
+
+    page = app.pages["settings"]
+    old_base = app.base_dir
+    app.base_dir = str(tmp_path)
+    try:
+        page.refresh()
+        page.var_rest.set("8898")
+        page.var_syslog.set("5514")
+        page.var_trap.set("1163")
+        page.var_keep.set("20")
+        page.var_auto.set(True)
+        page.save()
+        data = load_settings(str(tmp_path))
+        assert data["rest_port"] == 8898
+        assert data["syslog_port"] == 5514 and data["trap_port"] == 1163
+        assert data["backup_keep"] == 20
+    finally:
+        app.base_dir = old_base
+
+
+def test_smoke_backup_history_dialog(app, tmp_path):
+    """备份历史对话框：两份快照能直接看到 unified diff。"""
+    from netwright.pages.inventory import BackupHistoryDialog
+    from netwright.sdn.backup import ConfigBackup
+
+    backup = ConfigBackup(str(tmp_path))
+    backup.save("核心A", "sysname A\nvlan 10\n")
+    backup.save("核心A", "sysname A\nvlan 10\nvlan 20\n")
+    original = app.controller_store.backups
+    app.controller_store.backups = backup
+    try:
+        dialog = BackupHistoryDialog(app, "核心A")
+        text = dialog.diff_text.get("1.0", "end")
+        assert "+vlan 20" in text
+        assert dialog.listbox.size() == 2
+        dialog.destroy()
+    finally:
+        app.controller_store.backups = original
+
+
 def test_smoke_help_dialog_and_demo_data(app):
     """引导面板可打开，一键演示数据能填满清单并跳到拓扑。"""
     from netwright.pages.help import show_help

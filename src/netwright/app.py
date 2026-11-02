@@ -28,7 +28,6 @@ else:
     _SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if _SRC not in sys.path:
         sys.path.insert(0, _SRC)
-
 from netwright import __version__  # noqa: E402
 from netwright.lib.controller.restapi import ControllerAPI, ControllerState  # noqa: E402
 from netwright.lib.inventory import Inventory  # noqa: E402
@@ -65,6 +64,7 @@ class NetWrightApp(tk.Tk):
         self.title(f"NetWright SDN Console v{__version__}")
         self.geometry("1280x820")
         self.minsize(1080, 700)
+        self.base_dir = BASE_DIR
 
         # ── 设置（含主题记忆）──
         self.settings = load_settings(BASE_DIR)
