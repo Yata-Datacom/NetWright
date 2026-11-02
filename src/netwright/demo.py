@@ -68,10 +68,16 @@ def seed(inventory, with_links: bool = True) -> tuple[int, int]:
 
 
 def clear(inventory) -> int:
-    """删除所有演示设备（按备注识别），返回删除台数。"""
+    """删除所有演示设备与演示链路（按备注/端点识别），返回删除的台数。"""
+    names = {d.hostname or d.host for d in inventory.devices if d.note == DEMO_NOTE}
+    names |= {d.host for d in inventory.devices if d.note == DEMO_NOTE}
     before = len(inventory.devices)
     inventory.devices = [d for d in inventory.devices if d.note != DEMO_NOTE]
-    removed = before - len(inventory.devices)
-    if removed:
+    demo_peers = {lk.peer_host for lk in DEMO_LINKS} | {lk.device_host for lk in DEMO_LINKS}
+    kept_links = [lk for lk in inventory.links
+                  if not (lk.device_host in names or lk.peer_host in demo_peers)]
+    links_changed = len(kept_links) != len(inventory.links)
+    inventory.links = kept_links
+    if before != len(inventory.devices) or links_changed:
         inventory.save()
-    return removed
+    return before - len(inventory.devices)

@@ -132,6 +132,33 @@ def test_demo_seed_keeps_user_devices(tmp_path):
     assert "10.0.0.1" in hosts and "192.0.2.11" in hosts
 
 
+def test_demo_clear_removes_links_too(tmp_path):
+    """回归：清演示数据时不能只删设备、把演示链路留在台账里（会污染真实拓扑）。"""
+    from netwright.lib.inventory import LedgerLink
+
+    inv = Inventory(str(tmp_path / "dev.json"))
+    inv.add(Device(host="10.0.0.1", hostname="我的核心"))
+    inv.links.append(LedgerLink("10.0.0.1", "Gi0/1", "我的接入", "Gi0/2"))
+    demo.seed(inv)
+    assert len(inv.links) >= 2
+    demo.clear(inv)
+    assert [lk.peer_host for lk in inv.links] == ["我的接入"], "演示链路应全部清除、用户链路保留"
+
+
+def test_network_event_marks_node_flash(tmp_path):
+    """回归：syslog/trap 用的字段名（device_host/trap_source）也要能命中拓扑节点。"""
+    from netwright.sdn import ControllerStore
+
+    inv = Inventory(str(tmp_path / "dev.json"))
+    inv.add(Device(host="192.0.2.1", vendor="huawei", hostname="核心A"))
+    store = ControllerStore(inv)
+    store.bus.publish("link.down", "链路中断", severity="critical",
+                      source="syslog", device_host="核心A")
+    assert "核心A" in store.flashed_nodes(within=120)
+    store.bus.publish("link.up", "链路恢复", source="snmp-trap", trap_source="192.0.2.1")
+    assert "核心A" in store.flashed_nodes(within=120)
+
+
 # ── 图模型 clear ───────────────────────────────────────────────────
 def test_graph_clear():
     from netwright.sdn.model import NetworkGraph

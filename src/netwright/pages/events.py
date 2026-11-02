@@ -96,10 +96,20 @@ class EventsPage(Page):
 
     # ── 事件订阅（后台线程安全：只入队，主线程刷新）──
     def _on_event(self, event):
+        """事件可能来自 REST 线程 / syslog 线程。
+
+        非主线程**绝不碰 Tk**（createcommand 在主循环未运行时可能挂死）；
+        只置脏标记，交给 10 秒自动刷新或下一次手动刷新。
+        """
+        import threading
+
+        if threading.current_thread() is not threading.main_thread():
+            self._dirty = True
+            return
         try:
             self.after(50, self.refresh)
         except (RuntimeError, tk.TclError):
-            pass
+            self._dirty = True
 
     def destroy(self):  # noqa: D102
         try:

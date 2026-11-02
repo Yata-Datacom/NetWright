@@ -31,7 +31,7 @@
 
 ### Tests
 - 新增 `tests/test_lifecycle.py`（16 项）与 `tests/test_southbound.py`（18 项）。
-- 全量 **176 项 pytest 通过**。
+- 全量 **178 项 pytest 通过**。
 
 ## [3.10.0] - 2026-11-02
 

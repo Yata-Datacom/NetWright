@@ -86,7 +86,10 @@ class ControllerStore:
         if not event.topic.startswith(("link.", "device.", "syslog.", "snmp.")):
             return
         candidates = []
-        for key in ("device", "host", "source", "node", "peer"):
+        # 事件源各有自己的字段名：syslog 用 device_host，SNMP 用 trap_source，
+        # 控制器内部事件用 device/source —— 这里统一收口，别漏键。
+        for key in ("device", "host", "device_host", "source", "trap_source",
+                    "node", "peer", "title"):
             value = (event.data or {}).get(key)
             if value:
                 candidates.append(str(value))
