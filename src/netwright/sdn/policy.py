@@ -16,6 +16,7 @@ from itertools import count
 
 from ..lib.controller import intents as intents_mod
 from .model import is_high_risk
+from .openflow_plan import flows_for
 
 RISK_ORDER = {"low": 0, "high": 1}
 
@@ -43,6 +44,7 @@ class Policy:
     vendor: str
     commands: tuple
     risk: str = "low"
+    flows: tuple = ()        # R4：OpenFlow flow 计划（无流表语义的意图为空元组）
     created: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
@@ -50,6 +52,7 @@ class Policy:
                 "intent_title": self.intent_title, "params": self.params,
                 "device": self.device, "host": self.host, "vendor": self.vendor,
                 "commands": list(self.commands), "risk": self.risk,
+                "flows": list(self.flows),
                 "created": self.created,
                 "time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.created))}
 
@@ -129,7 +132,8 @@ class PolicyCompiler:
                 intent_key=intent_key, intent_title=title,
                 params={k: v for k, v in params.items() if not k.startswith("_")},
                 device=name, host=getattr(device, "host", ""), vendor=vendor,
-                commands=tuple(commands), risk=risk))
+                commands=tuple(commands), risk=risk,
+                flows=tuple(flows_for(intent_key, params, vendor))))
 
         if self.bus is not None:
             self.bus.publish(

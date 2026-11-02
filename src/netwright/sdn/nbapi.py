@@ -75,8 +75,11 @@ def _intent_action(store, body: dict, action: str) -> tuple[int, dict]:
             planned = [run for run in runs if store.lifecycle.plan(run)["ok"]]
         except Exception as exc:      # noqa: BLE001  生命周期错误统一 400
             return 400, {"ok": False, "message": str(exc)}
+        # R4：返回里带 OpenFlow flow 计划（无流表语义/缺端口事实参数 → 空列表，不报错）
+        flows = [dict(f) for run in planned
+                 for f in getattr(run.policy, "flows", ()) or ()]
         return 200, {"ok": True, "runs": [run.to_dict() for run in planned],
-                     "count": len(planned)}
+                     "flows": flows, "count": len(planned)}
 
     run_ids = body.get("run_ids")
     if not isinstance(run_ids, list) or not run_ids:

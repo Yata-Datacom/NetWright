@@ -3,6 +3,26 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.22.0] - 2026-11-02
+
+### Added（R4 意图 → 流表）
+- **`sdn/openflow_plan.flows_for(intent_key, params, vendor)`**：意图 → OpenFlow
+  flow 计划。`vlan_deploy` 每个 VLAN 生成两条 flow——`ingress_tag`（access 口
+  push_vlan 后转发）与 `egress_untag`（带标签流量送回 access 口）。
+  `in_port`/`out_port` 是流表计划的事实参数：缺失/非法/相同 → 空列表
+  （与 reverse.py 的"不猜命令"同一原则）；不支持的意图一律 `[]` 不报错。
+- **`Policy.flows: tuple = ()`**：策略携带流表计划，`to_dict()` 带出；
+  `PolicyCompiler` 编译时自动附加（无流表语义的意图为空元组）。
+- **REST `POST /api/v2/intents/plan`**：返回新增顶层 `flows` 字段
+  （聚合全部 planned 策略的流表计划）；既有字段不变。
+  plan 产出的 flows 可直接喂 `/api/v2/openflow/validate` 全部编码通过（闭环）。
+
+### Tests
+- 新增 `tests/test_openflow_plan.py`（7 项）：ingress/egress 断言、FlowEntry
+  全量校验、缺端口空计划、未知意图空计划、编译附加 flows、REST plan 带 flows、
+  plan → validate 编码闭环。
+- 全量 **277 项 pytest 通过**（+7）。
+
 ## [3.21.0] - 2026-11-02
 
 ### Added（R13 模板 → 策略闭环）
