@@ -9,7 +9,7 @@ from tkinter import ttk
 from netwright.lib import discovery, loopdetect
 from netwright.lib import history as hist
 from netwright.theme import FONT, FONT_SMALL, FONT_MONO, theme
-from netwright.widgets import (Page, page_header, make_table, zebra, WButton)
+from netwright.widgets import DataTable, Page, page_header, WButton
 
 
 class DiscoveryPage(Page):
@@ -59,12 +59,13 @@ class DiscoveryPage(Page):
         cols = ("ip", "hostname", "vendor", "protocols", "source", "known")
         heads = {"ip": "IP 地址", "hostname": "主机名", "vendor": "厂商(推测)",
                  "protocols": "管理协议", "source": "发现来源", "known": "清单"}
-        self.wrap, self.tree = make_table(
+        self.table = DataTable(
             tab, list(cols), heads,
             {"ip": 150, "hostname": 170, "vendor": 120,
              "protocols": 150, "source": 150, "known": 90}, height=15,
             selectmode="extended")
-        self.tree.pack(fill=tk.BOTH, expand=True)
+        self.table.pack(fill=tk.BOTH, expand=True)
+        self.tree = self.table.tree
         self.tree.tag_configure("new", foreground=theme.warn)
         self.tree.tag_configure("known", foreground=theme.ok)
         self.summary = tk.Label(tab, text="", bg=theme.bg, fg=theme.muted, font=FONT_SMALL)
@@ -108,12 +109,14 @@ class DiscoveryPage(Page):
 
         cols = ("sev", "kind", "mac", "message")
         heads = {"sev": "级别", "kind": "类型", "mac": "MAC", "message": "说明"}
-        self.loop_wrap, self.loop_tree = make_table(
+        self.loop_table = DataTable(
             tab, list(cols), heads,
             {"sev": 70, "kind": 100, "mac": 170, "message": 420}, height=13)
-        self.loop_wrap.pack(fill=tk.BOTH, expand=True)
+        self.loop_table.pack(fill=tk.BOTH, expand=True)
+        self.loop_tree = self.loop_table.tree
         self.loop_tree.tag_configure("critical", foreground=theme.err)
         self.loop_tree.tag_configure("warning", foreground=theme.warn)
+        self.loop_tree.tag_configure("ok", foreground=theme.ok)
         self.loop_tree.bind("<<TreeviewSelect>>", self._loop_select)
 
     def run_loop_detect(self):
@@ -149,7 +152,7 @@ class DiscoveryPage(Page):
             alerts = loopdetect.find_loops(curr)
             if prev:
                 alerts += loopdetect.diff_flapping(prev, curr)
-            self.app.after(0, lambda: self._loop_done(curr, alerts, raws))
+            self.app.after(0, lambda: self._loop_done(curr, alerts))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -160,18 +163,18 @@ class DiscoveryPage(Page):
         hist.save_snapshot("mac", {
             "records": [{"device": r.device, "intf": r.intf, "mac": r.mac}
                         for r in curr]})
-        self.loop_tree.delete(*self.loop_tree.get_children())
         self._alerts = alerts
-        for i, a in enumerate(alerts):
-            self.loop_tree.insert("", "end", iid=str(i), values=(
+        if alerts:
+            rows = [(
                 "🔴 高危" if a.severity == "critical" else "🟠 中危",
                 {"same-device": "同机多口", "cross-device": "跨设备",
                  "flap": "漂移"}.get(a.kind, a.kind),
-                a.mac, a.message), tags=(a.severity,))
-            zebra(self.loop_tree, str(i), i)
-        if not alerts:
-            self.loop_tree.insert("", "end", values=("✅", "", "", "未发现环路/漂移线索"),
-                                  tags=("ok",))
+                a.mac, a.message) for a in alerts]
+            tags = [(a.severity,) for a in alerts]
+        else:
+            rows = [("✅", "", "", "未发现环路/漂移线索")]
+            tags = [("ok",)]
+        self.loop_table.set_rows(rows, tags)
         self.loop_devices = loopdetect.loop_devices(alerts)
         if getattr(self, "_last_topo", None):
             self._draw_topology(self._last_topo)   # 红圈高亮环路设备
@@ -206,7 +209,7 @@ class DiscoveryPage(Page):
         self.btn_run.config(state=tk.DISABLED)
         self.progress.config(value=0, maximum=100)
         self.var_prog.set("盘点中…")
-        self.tree.delete(*self.tree.get_children())
+        self.table.set_rows([])
 
         def worker():
             result = discovery.discover_from_seeds(
@@ -229,16 +232,14 @@ class DiscoveryPage(Page):
         summary = result["summary"]
         self._result = result
 
-        rows = sorted(assets.values(), key=lambda a: (not a.known, a.ip or a.key))
-        for i, a in enumerate(rows):
-            self.tree.insert("", "end", iid=str(i), values=(
-                a.ip or "—", a.hostname or "—",
-                a.vendor_guess or "—",
-                ", ".join(a.protocols) or "—",
-                " + ".join(sorted(a.source)) or "—",
-                "已知" if a.known else "新增"),
-                tags=("known",) if a.known else ("new",))
-            zebra(self.tree, str(i), i)
+        assets_sorted = sorted(assets.values(), key=lambda a: (not a.known, a.ip or a.key))
+        self.table.set_rows(
+            [(a.ip or "—", a.hostname or "—",
+              a.vendor_guess or "—",
+              ", ".join(a.protocols) or "—",
+              " + ".join(sorted(a.source)) or "—",
+              "已知" if a.known else "新增") for a in assets_sorted],
+            [("known",) if a.known else ("new",) for a in assets_sorted])
         by_vendor = " · ".join(f"{k}:{v}" for k, v in sorted(summary["by_vendor"].items()))
         self.summary.config(text=f"资产 {len(assets)}（已知 {summary['known']} / 新增 {summary['new']}）"
                                  f" · 链路 {summary['links']} 条 · {by_vendor}")

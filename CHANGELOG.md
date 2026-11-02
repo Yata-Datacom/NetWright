@@ -3,6 +3,30 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.19.0] - 2026-11-02
+
+### Added（R1 列表页统一组件化）
+- **`widgets.DataTable`**：列表页统一组件（外框 + 表头 + 斑马纹 + 选中保持）。
+  - `set_rows(rows, tags_by_row=None)` 整表批量重建，行 iid 固定为字符串行号；
+  - `preserve_selection()` 上下文管理器：刷新前后按行下标保持选中，越界自动丢弃；
+  - `selected_indices()` 选中行下标；`table.tree` 仍暴露底层 Treeview 供高级用法；
+  - 内置 `_CompatTreeview`：Python 3.14 起 `cget("show")` 返回元组，统一归一回字符串，
+    跨版本行为一致。
+- **7 个页面 / 9 张表全部换用 DataTable**：设备清单、批量巡检、资产盘点（结果 + 环路）、
+  时间线、命令速查、事件流、工具箱（端口扫描 + 在线检测）。controller 运行档案表
+  以 run.id 为行身份（跨刷新选中稳定），暂保留 make_table。
+- **tests/conftest.py 环境加固**：实测本机杀软实时扫描对 uv 版 Python 的 tcl/tk
+  库目录有读竞态（"couldn't read …/tk8.6/xxx.tcl"），在 `Tk.__init__` 层加带退避重试，
+  消除 GUI 测试随机 skip（此前 10 轮累计 14 次误跳过）。
+
+### Fixed
+- 资产盘点「检测环路/漂移」回调崩溃：worker 给 `_loop_done` 传 3 个参数但签名只收 2 个
+  （TypeError 被事件循环吞掉，表格永不更新）。
+
+### Tests
+- `tests/test_widgets.py`（R1 契约 10 项）从整文件 skip 变为 **10 passed**（未改断言）。
+- 全量 **245 项 pytest 通过**（+10）。
+
 ## [3.18.5] - 2026-11-02
 
 ### Fixed（基线体检：ruff 新版抓到的真 bug）

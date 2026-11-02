@@ -10,7 +10,7 @@ from netwright.lib import HAS_SSH, inspector
 from netwright.lib.inventory import VENDORS
 from netwright.theme import FONT_MONO, theme
 from netwright.lib import history as hist
-from netwright.widgets import Page, page_header, WButton, toast, zebra, draw_line_chart
+from netwright.widgets import DataTable, Page, page_header, WButton, toast, draw_line_chart
 
 
 def header(title, desc, page):
@@ -77,21 +77,20 @@ class InspectPage(Page):
         self.trend_canvas.place(relx=0, rely=0, relwidth=1, relheight=1)
         tbar.lift()
 
-        # 右：结果
+        # 右：结果（R1 统一组件）
         right = tk.Frame(pane, bg=theme.panel)
         pane.add(right)
         cols = ("host", "status", "critical", "warn", "cost")
-        wrap = tk.Frame(right, bg=theme.panel)
-        wrap.pack(fill=tk.BOTH, expand=True, padx=10, pady=(8, 4))
-        self.tree = ttk.Treeview(wrap, columns=cols, show="headings", height=9)
-        for c, t, w in (("host", "设备", 160), ("status", "状态", 110), ("critical", "严重", 60),
-                        ("warn", "告警", 60), ("cost", "耗时", 80)):
-            self.tree.heading(c, text=t)
-            self.tree.column(c, width=w, anchor="center")
-        vsb = ttk.Scrollbar(wrap, orient=tk.VERTICAL, command=self.tree.yview)
-        self.tree.configure(yscrollcommand=vsb.set)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        vsb.pack(side=tk.RIGHT, fill=tk.Y)
+        heads = {"host": "设备", "status": "状态", "critical": "严重",
+                 "warn": "告警", "cost": "耗时"}
+        widths = {"host": 160, "status": 110, "critical": 60, "warn": 60, "cost": 80}
+        self.table = DataTable(right, list(cols), heads, widths, height=9)
+        self.table.pack(fill=tk.BOTH, expand=True, padx=10, pady=(8, 4))
+        self.tree = self.table.tree   # 兼容按 iid=行号 反查结果的习惯
+        self.tree.tag_configure("st-ok", foreground=theme.ok)
+        self.tree.tag_configure("st-warn", foreground=theme.warn)
+        self.tree.tag_configure("st-fail", foreground=theme.err)
+        self.tree.tag_configure("st-un", foreground=theme.muted)
         self.tree.bind("<<TreeviewSelect>>", self._show_detail)
         self.detail = tk.Text(right, bg=theme.code_bg, fg=theme.fg, relief=tk.FLAT, font=FONT_MONO, height=12,
                               insertbackground=theme.fg)
@@ -134,7 +133,7 @@ class InspectPage(Page):
         scheme = inspector.BUILTIN_SCHEMES[scheme_name]
         workers = int(self.cmb_workers.get())
         self.btn_run.config(state=tk.DISABLED)
-        self.tree.delete(*self.tree.get_children())
+        self.table.set_rows([])
         self.detail.delete("1.0", tk.END)
         self.var_count.set(f"巡检中… 0/{len(picked)}")
 
@@ -154,17 +153,13 @@ class InspectPage(Page):
         self._scheme_name = scheme_name
         status_icon = {"OK": "✓ 正常", "WARNING": "▲ 告警", "FAILED": "✖ 失败",
                        "UNREACHABLE": "○ 不可达"}
-        self.tree.tag_configure("st-ok", foreground=theme.ok)
-        self.tree.tag_configure("st-warn", foreground=theme.warn)
-        self.tree.tag_configure("st-fail", foreground=theme.err)
-        self.tree.tag_configure("st-un", foreground=theme.muted)
-        for i, r in enumerate(results):
-            tag = {"OK": "st-ok", "WARNING": "st-warn", "FAILED": "st-fail",
-                   "UNREACHABLE": "st-un"}[r.status]
-            self.tree.insert("", "end", iid=str(i), values=(
-                r.host, status_icon[r.status], r.critical_count, len(r.anomalies),
-                f"{r.cost_ms} ms"), tags=(tag,))
-            zebra(self.tree, str(i), i)
+        rows, tags = [], []
+        for r in results:
+            rows.append((r.host, status_icon[r.status], r.critical_count,
+                         len(r.anomalies), f"{r.cost_ms} ms"))
+            tags.append(({"OK": "st-ok", "WARNING": "st-warn", "FAILED": "st-fail",
+                          "UNREACHABLE": "st-un"}[r.status],))
+        self.table.set_rows(rows, tags)
         summary = " ".join(f"{k}:{v}" for k, v in sorted(
             {s: sum(1 for r in results if r.status == s)
              for s in {r.status for r in results}}.items()))

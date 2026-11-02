@@ -9,7 +9,7 @@ from tkinter import messagebox, ttk
 
 from netwright.lib import netcalc, portscan
 from netwright.theme import FONT_MONO, theme
-from netwright.widgets import (Page, page_header, make_table, WButton)
+from netwright.widgets import DataTable, Page, page_header, WButton
 
 
 def header(title, desc, page):
@@ -100,8 +100,9 @@ class ToolboxPage(Page):
         self.s_btn.pack(side=tk.LEFT)
         self.s_count = tk.StringVar()
         tk.Label(row, textvariable=self.s_count, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)
-        self.s_tree = self._make_tree(tab, ("port", "state", "service"),
-                                      ("端口", "状态", "常见服务"), (100, 100, 220))
+        self.s_table = self._make_tree(tab, ("port", "state", "service"),
+                                       ("端口", "状态", "常见服务"), (100, 100, 220))
+        self.s_tree = self.s_table.tree
         self.s_tree.tag_configure("open", foreground=theme.ok)
 
     def scan(self):
@@ -112,7 +113,7 @@ class ToolboxPage(Page):
             return
         host = self.s_host.get().strip()
         self.s_btn.config(state=tk.DISABLED)
-        self.s_tree.delete(*self.s_tree.get_children())
+        self.s_table.set_rows([])
 
         def worker():
             results = portscan.scan_ports(host, ports)
@@ -122,11 +123,10 @@ class ToolboxPage(Page):
 
     def _scan_done(self, results):
         self.s_btn.config(state=tk.NORMAL)
-        opened = 0
-        for r in results:
-            self.s_tree.insert("", "end", values=(r.port, r.state, r.service),
-                               tags=("open",) if r.state == "open" else ())
-            opened += r.state == "open"
+        self.s_table.set_rows(
+            [(r.port, r.state, r.service) for r in results],
+            [("open",) if r.state == "open" else () for r in results])
+        opened = sum(1 for r in results if r.state == "open")
         self.s_count.set(f"{len(results)} 个端口，开放 {opened}")
 
     # ── 在线检测 ──
@@ -143,8 +143,9 @@ class ToolboxPage(Page):
         self.p_btn.pack(side=tk.LEFT)
         self.p_count = tk.StringVar()
         tk.Label(row, textvariable=self.p_count, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)
-        self.p_tree = self._make_tree(tab, ("ip", "alive", "delay"),
-                                      ("IP 地址", "状态", "延迟(ms)"), (180, 100, 120))
+        self.p_table = self._make_tree(tab, ("ip", "alive", "delay"),
+                                       ("IP 地址", "状态", "延迟(ms)"), (180, 100, 120))
+        self.p_tree = self.p_table.tree
         self.p_tree.tag_configure("alive", foreground=theme.ok)
 
     def ping(self):
@@ -154,7 +155,7 @@ class ToolboxPage(Page):
             messagebox.showwarning("输入有误", str(e))
             return
         self.p_btn.config(state=tk.DISABLED)
-        self.p_tree.delete(*self.p_tree.get_children())
+        self.p_table.set_rows([])
 
         def worker():
             results = portscan.sweep_hosts(ips)
@@ -164,12 +165,11 @@ class ToolboxPage(Page):
 
     def _ping_done(self, results):
         self.p_btn.config(state=tk.NORMAL)
-        alive = 0
-        for r in results:
-            self.p_tree.insert("", "end", values=(r.ip, "在线" if r.alive else "离线",
-                                                  f"{r.delay_ms:.0f}" if r.alive else "—"),
-                               tags=("alive",) if r.alive else ())
-            alive += r.alive
+        self.p_table.set_rows(
+            [(r.ip, "在线" if r.alive else "离线",
+              f"{r.delay_ms:.0f}" if r.alive else "—") for r in results],
+            [("alive",) if r.alive else () for r in results])
+        alive = sum(1 for r in results if r.alive)
         self.p_count.set(f"{alive}/{len(results)} 台在线")
 
     # ── 密码生成 ──
@@ -219,7 +219,7 @@ class ToolboxPage(Page):
     def _make_tree(self, parent, cols, heads, widths):
         heads_d = dict(zip(cols, heads))
         widths_d = dict(zip(cols, widths))
-        wrap, tree = make_table(parent, list(cols), heads_d, widths_d, height=14)
-        wrap.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
-        return tree
+        table = DataTable(parent, list(cols), heads_d, widths_d, height=14)
+        table.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
+        return table
 

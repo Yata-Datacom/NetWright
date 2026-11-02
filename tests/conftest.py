@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 
 import tkinter as tk
 
@@ -14,6 +15,28 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src")
 if SRC not in sys.path:
     sys.path.insert(0, SRC)
+
+# ── Windows 环境加固：Tcl/Tk 初始化重试 ──────────────────────────────
+# 实测（2026-11-02，本机）：杀软实时扫描对 uv 版 Python 的 tcl/tk 库目录存在读竞态，
+# 测试进程连续快速创建 Tk root 时小概率抛 "couldn't read file …/tk8.6/xxx.tcl:
+# no such file or directory"（文件实际存在，是扫描窗口期的读取失败）。
+# 在 Tk.__init__ 层做带退避的重试：竞态窗口过去后即可正常初始化；
+# 若 Tcl/Tk 真的损坏，重试 5 次后仍会如实抛错，不会被掩盖。
+_tk_init = tk.Tk.__init__
+
+
+def _retried_tk_init(self, *args, **kwargs):
+    for attempt in range(5):
+        try:
+            _tk_init(self, *args, **kwargs)
+            return
+        except tk.TclError:
+            if attempt == 4:
+                raise
+            time.sleep(0.05 * (attempt + 1))
+
+
+tk.Tk.__init__ = _retried_tk_init
 
 
 @pytest.fixture(scope="module")

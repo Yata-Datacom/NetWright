@@ -15,8 +15,8 @@ from tkinter import ttk
 
 from netwright.lib.controller import deploy as deploy_mod
 from netwright.theme import FONT_SMALL, theme
-from netwright.widgets import (Page, SectionCard, StatTile, Tag, WButton,
-                               make_table, page_header, zebra)
+from netwright.widgets import (DataTable, Page, SectionCard, StatTile, Tag,
+                               WButton, page_header)
 
 SEVERITY_TEXT = {"info": "ℹ 信息", "warning": "▲ 告警", "critical": "✖ 严重"}
 SEVERITY_TAG = {"info": "info", "warning": "warn", "critical": "err"}
@@ -50,14 +50,15 @@ class EventsPage(Page):
 
         card = SectionCard(body, title="事件流", desc="最新在上，保留最近 500 条")
         card.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
-        wrap, self.tree = make_table(
+        self.table = DataTable(
             card.body,
             columns=["time", "sev", "topic", "source", "message"],
             headings={"time": "时间", "sev": "级别", "topic": "主题",
                       "source": "来源", "message": "消息"},
             widths={"time": 68, "sev": 60, "topic": 138, "source": 64, "message": 280},
             height=16)
-        wrap.pack(fill=tk.BOTH, expand=True)
+        self.table.pack(fill=tk.BOTH, expand=True)
+        self.tree = self.table.tree
         self.tree.tag_configure("err", foreground=theme.err)
         self.tree.tag_configure("warn", foreground=theme.warn)
         self.tree.tag_configure("info", foreground=theme.fg)
@@ -143,18 +144,18 @@ class EventsPage(Page):
             self._render_sources()
             return
         self._refresh_sig = signature
-        self.tree.delete(*self.tree.get_children())
-        if not events:
-            self.tree.insert("", "end", values=(
-                "—", "ℹ 提示", "—", "—",
-                "暂无事件：可在下方「事件源」启动监听，或在拓扑页做一次发现"))
-        for i, event in enumerate(events):
-            data = event.to_dict()
-            iid = self.tree.insert("", "end", values=(
-                data["time"], SEVERITY_TEXT.get(event.severity, event.severity),
-                event.topic, event.source or "—", event.message))
-            self.tree.item(iid, tags=(SEVERITY_TAG.get(event.severity, "info"),))
-            zebra(self.tree, iid, i)
+        with self.table.preserve_selection():
+            if not events:
+                self.table.set_rows([(
+                    "—", "ℹ 提示", "—", "—",
+                    "暂无事件：可在下方「事件源」启动监听，或在拓扑页做一次发现")])
+            else:
+                self.table.set_rows(
+                    [(event.to_dict()["time"],
+                      SEVERITY_TEXT.get(event.severity, event.severity),
+                      event.topic, event.source or "—", event.message)
+                     for event in events],
+                    [(SEVERITY_TAG.get(event.severity, "info"),) for event in events])
         self._render_southbound()
         self._render_audit()
 

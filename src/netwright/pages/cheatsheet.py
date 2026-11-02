@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
 
 from netwright.lib import cheatsheet
 from netwright.theme import FONT_MONO, theme
-from netwright.widgets import (Page, page_header)
+from netwright.widgets import DataTable, Page, page_header
 
 
 def header(title, desc, page):
@@ -27,26 +26,21 @@ class CheatPage(Page):
         self.ent.bind("<KeyRelease>", lambda e: self.refresh())
         self.var_count = tk.StringVar()
         tk.Label(row, textvariable=self.var_count, bg=theme.bg, fg=theme.muted, font=("", 9)).pack(side=tk.RIGHT)
-        cols = ("scene", "vendor", "title", "cmd")
-        wrap = tk.Frame(body, bg=theme.bg)
-        wrap.pack(fill=tk.BOTH, expand=True, pady=(6, 0))
-        self.tree = ttk.Treeview(wrap, columns=cols, show="headings", height=18)
-        for c, t, w in (("scene", "场景", 110), ("vendor", "厂商", 130),
-                        ("title", "标题", 180), ("cmd", "命令 / 说明", 440)):
-            self.tree.heading(c, text=t)
-            self.tree.column(c, width=w, anchor="w")
-        vsb = ttk.Scrollbar(wrap, orient=tk.VERTICAL, command=self.tree.yview)
-        self.tree.configure(yscrollcommand=vsb.set)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        vsb.pack(side=tk.RIGHT, fill=tk.Y)
+        self.table = DataTable(
+            body,
+            columns=("scene", "vendor", "title", "cmd"),
+            headings={"scene": "场景", "vendor": "厂商",
+                      "title": "标题", "cmd": "命令 / 说明"},
+            widths={"scene": 110, "vendor": 130, "title": 180, "cmd": 440},
+            height=18)
+        self.table.pack(fill=tk.BOTH, expand=True, pady=(6, 0))
+        self.tree = self.table.tree
         self.tree.bind("<Double-1>", self._copy)
         self.refresh()
 
     def refresh(self):
         rows = cheatsheet.search(self.ent.get())
-        self.tree.delete(*self.tree.get_children())
-        for scene, vendor, title, cmd in rows:
-            self.tree.insert("", "end", values=(scene, vendor, title, cmd))
+        self.table.set_rows(rows)
         self.var_count.set(f"{len(rows)} 条")
 
     def _copy(self, _ev=None):

@@ -11,7 +11,7 @@ from netwright.lib.errors import friendly_error
 from netwright.lib.inventory import VENDORS, Device
 from netwright.theme import FONT_SMALL, theme
 from netwright.widgets import (
-    Drawer, Page, WButton, make_table, page_header, toast, zebra,
+    DataTable, Drawer, Page, WButton, page_header, toast,
 )
 
 
@@ -41,7 +41,7 @@ class InventoryPage(Page):
         tk.Label(bar, textvariable=self.var_count, bg=theme.bg, fg=theme.muted,
                  font=FONT_SMALL).pack(side=tk.RIGHT)
 
-        # ── 表格（行高 40 由全局样式；斑马纹）──
+        # ── 表格（R1 统一组件：行高 40 由全局样式；斑马纹；选中保持）──
         cols = ("name", "host", "port", "vendor", "protocol", "alive",
                 "username", "password", "note")
         heads = {"name": "名称", "host": "地址", "port": "端口", "vendor": "厂商",
@@ -50,13 +50,12 @@ class InventoryPage(Page):
         widths = {"name": 140, "host": 130, "port": 55, "vendor": 125,
                   "protocol": 70, "alive": 80, "username": 100,
                   "password": 80, "note": 150}
-        self.table_wrap, self.tree = make_table(
-            body, list(cols), heads, widths, height=18, selectmode="extended")
-        self.table_wrap.pack(fill=tk.BOTH, expand=True)
+        self.table = DataTable(body, list(cols), heads, widths,
+                               height=18, selectmode="extended")
+        self.table.pack(fill=tk.BOTH, expand=True)
+        self.tree = self.table.tree   # 兼容既有按行号/iid 操作的习惯
         self.tree.tag_configure("ok", foreground=theme.ok)
         self.tree.tag_configure("warn", foreground=theme.warn)
-        self.tree.tag_configure("even", background=theme.panel)
-        self.tree.tag_configure("odd", background=theme.panel_alt)
         self.tree.bind("<Double-1>", lambda e: self.edit_dialog())
         self.tree.bind("<<TreeviewSelect>>", lambda e: self._update_batchbar())
 
@@ -106,23 +105,18 @@ class InventoryPage(Page):
         if signature == getattr(self, "_refresh_sig", None) and self.tree.get_children():
             return
         self._refresh_sig = signature
-        # 先记住选中行，刷新后还原（否则用户勾选会被"吞掉"）
-        keep = self._selected_indices()
-        self.tree.delete(*self.tree.get_children())
-        for i, d in enumerate(devices):
+        rows, tags = [], []
+        for d in devices:
             alive = getattr(d, "_alive", None)
             alive_text = "—" if alive is None else ("● 在线" if alive else "○ 离线")
-            self.tree.insert("", "end", iid=str(i), values=(
+            rows.append((
                 d.display_name, d.host, d.port, VENDORS.get(d.vendor, d.vendor),
                 d.protocol.upper(), alive_text,
-                d.username, sec.mask(d.password) if d.password else "", d.note),
-                tags=("ok",) if alive is True else ("warn",) if alive is False else ())
-            zebra(self.tree, str(i), i)
-        for index in keep:
-            if index < len(devices):
-                self.tree.selection_add(str(index))
-        self.tree.tag_configure("ok", foreground=theme.ok)
-        self.tree.tag_configure("warn", foreground=theme.warn)
+                d.username, sec.mask(d.password) if d.password else "", d.note))
+            tags.append(("ok",) if alive is True else ("warn",) if alive is False else ())
+        # R1：行重建 + 斑马纹 + 选中还原都收进 DataTable
+        with self.table.preserve_selection():
+            self.table.set_rows(rows, tags)
         self.var_count.set(f"{len(devices)} 台设备")
         self._toggle_empty(not devices)
         self._update_batchbar()
@@ -130,10 +124,10 @@ class InventoryPage(Page):
     def _toggle_empty(self, show_empty: bool):
         if show_empty:
             self.empty.pack(fill=tk.BOTH, expand=True)
-            self.table_wrap.pack_forget()
+            self.table.pack_forget()
         else:
             self.empty.pack_forget()
-            self.table_wrap.pack(fill=tk.BOTH, expand=True)
+            self.table.pack(fill=tk.BOTH, expand=True)
 
     # ── 选择/批量 ──
     def _selected_indices(self) -> list[int]:
@@ -152,7 +146,7 @@ class InventoryPage(Page):
         if len(sel) > 1:
             self.batch_count.set(f"已选 {len(sel)} 台")
             self.batchbar.pack_forget()
-            self.batchbar.pack(fill=tk.X, side=tk.BOTTOM, before=self.table_wrap,
+            self.batchbar.pack(fill=tk.X, side=tk.BOTTOM, before=self.table,
                                pady=(6, 0))
         else:
             self.batchbar.pack_forget()

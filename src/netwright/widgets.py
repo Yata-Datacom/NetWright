@@ -5,10 +5,12 @@
   StatCard     总览统计卡（大数字 + 标签 + 打开按钮，顶部强调条）
   PillLabel    状态徽章（语义色：ok/warn/err/info）
   make_table   标准数据表（表头/列宽/斑马纹一次配好）
+  DataTable    列表页统一组件（set_rows 批量渲染 + 斑马纹 + 选中保持）
   EmptyState   空状态占位
 """
 from __future__ import annotations
 
+import contextlib
 import os
 
 import math
@@ -435,6 +437,102 @@ def zebra(tree: ttk.Treeview, iid: str, index: int):
     tags = list(tree.item(iid, "tags"))
     tags.append("even" if index % 2 == 0 else "odd")
     tree.item(iid, tags=tags)
+
+
+# 列名 → 居中锚定（与 make_table 同一套规则，视觉不漂移）
+_CENTER_COLS = ("port", "state", "status", "alive", "delay", "critical",
+                "warn", "cost", "sev")
+
+
+class _CompatTreeview(ttk.Treeview):
+    """Treeview 的跨版本兼容层。
+
+    Python 3.14 起 ``cget("show")`` / ``tree["show"]`` 返回元组
+    （Tk 把选项按列表解析，元素是惰性字符串对象），旧版本返回
+    空格分隔的字符串。这里统一归一回字符串形态，让
+    ``tree.cget("show") == "headings"`` 这类判断在所有版本一致。
+    """
+
+    @staticmethod
+    def _normalize(item, value):
+        if str(item) == "show" and isinstance(value, tuple):
+            return " ".join(str(part) for part in value)
+        return value
+
+    def cget(self, key):
+        return self._normalize(key, super().cget(key))
+
+    def __getitem__(self, item):
+        return self._normalize(item, super().__getitem__(item))
+
+
+class DataTable(tk.Frame):
+    """列表页统一组件（R1）：外框 + 表头 + 斑马纹 + 选中保持。
+
+    页面只管 ``set_rows(rows)``，不再各写一套 insert + zebra 循环；
+    刷新前后用 ``preserve_selection()`` 包住即可保住用户勾选。
+    行 iid 固定为字符串行号（"0"、"1"、…），页面可按 iid 反查数据下标。
+    ``table.tree`` 暴露底层 Treeview，习惯直接操作树的旧代码仍然可用。
+    """
+
+    def __init__(self, master, columns, headings, widths,
+                 height: int = 15, selectmode: str = "browse"):
+        super().__init__(master, bg=theme.line,
+                         highlightbackground=theme.line, highlightthickness=1)
+        self._columns = list(columns)
+        self._tree = _CompatTreeview(self, columns=self._columns, show="headings",
+                                     height=height, selectmode=selectmode)
+        for c in self._columns:
+            self._tree.heading(c, text=headings[c])
+            self._tree.column(c, width=widths[c],
+                              anchor="center" if c in _CENTER_COLS else "w",
+                              stretch=True)
+        vsb = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self._tree.yview)
+        self._tree.configure(yscrollcommand=vsb.set)
+        self._tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        vsb.pack(side=tk.RIGHT, fill=tk.Y)
+        self._retint()
+
+    def _retint(self):
+        """按当前主题重配斑马纹色（页面重建时自然拿到新主题）。"""
+        self._tree.tag_configure("even", background=theme.panel)
+        self._tree.tag_configure("odd", background=theme.panel_alt)
+
+    @property
+    def tree(self) -> ttk.Treeview:
+        """底层 Treeview（表头点击排序、tag_configure 等高级用法走这里）。"""
+        return self._tree
+
+    def set_rows(self, rows, tags_by_row=None) -> None:
+        """整表重建：rows 为值元组列表；tags_by_row 给每行附加 tag（如状态着色）。
+
+        传入 tag 不会覆盖斑马纹——zebra 在后，前景/背景各取所需。
+        """
+        children = self._tree.get_children()
+        if children:
+            self._tree.delete(*children)
+        for i, row in enumerate(rows):
+            tags = ["even" if i % 2 == 0 else "odd"]
+            if tags_by_row is not None and i < len(tags_by_row) and tags_by_row[i]:
+                tags.extend(tags_by_row[i])
+            self._tree.insert("", "end", iid=str(i), values=tuple(row), tags=tags)
+
+    def selected_indices(self) -> list[int]:
+        """当前选中行的下标（升序）。未知 iid 忽略。"""
+        position = {iid: i for i, iid in enumerate(self._tree.get_children())}
+        return sorted(position[iid] for iid in self._tree.selection()
+                      if iid in position)
+
+    @contextlib.contextmanager
+    def preserve_selection(self):
+        """刷新前后保持选中：按行下标记忆，行数变少时越界下标自动丢弃。"""
+        keep = self.selected_indices()
+        try:
+            yield
+        finally:
+            children = self._tree.get_children()
+            self._tree.selection_set(
+                [children[i] for i in keep if 0 <= i < len(children)])
 
 
 def empty_state(parent, text: str) -> tk.Label:
