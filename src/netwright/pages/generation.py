@@ -37,6 +37,9 @@ class GeneratePage(Page):
         self.cmb_tpl.bind("<<ComboboxSelected>>", lambda e: self._load_template())
         WButton(bar, text="生成到目录…", bg=theme.accent, fg="white", relief=tk.FLAT,
                   activebackground=theme.nav2, command=self.generate).pack(side=tk.LEFT, padx=(0, 6))
+        WButton(bar, text="编译为策略 →", bg=theme.ok, fg="white", relief=tk.FLAT,
+                  activebackground=theme.nav2, command=self.compile_to_policies).pack(
+            side=tk.LEFT, padx=(0, 6))
         WButton(bar, text="载入清单设备", bg=theme.nav2, fg=theme.fg, relief=tk.FLAT,
                   activebackground=theme.nav1, command=self.load_inventory).pack(side=tk.LEFT)
         self.var_info = tk.StringVar(value="")
@@ -140,4 +143,44 @@ class GeneratePage(Page):
         n = gen.write_outputs(out, files)
         messagebox.showinfo("生成完成", f"已生成 {n} 个配置文件到:\n{out}")
         self.app.set_status(f"已生成 {n} 个配置 → {out}")
+
+    def compile_to_policies(self):
+        """R13 模板 → 策略闭环：设备表 × 模板 → Policy → 生命周期（预演/下发/审计）。
+
+        与「生成到目录」的区别：产物不是磁盘上的 .cfg，而是运行档案——
+        下发走意图页的同一套生命周期，全程审计、可追溯模板来源。
+        """
+        from netwright.widgets import toast
+
+        t = self.tpl_map.get(self.cmb_tpl.get())
+        if not t:
+            toast(self.app, "请先选择模板", "warn")
+            return
+        try:
+            _header, devices = gen.parse_device_table(self.table_text.get("1.0", tk.END))
+            policies = gen.to_policies(t, devices, self.app.inventory)
+        except ValueError as e:
+            messagebox.showwarning("编译失败", str(e))
+            return
+        total = sum(len(p.commands) for p in policies)
+        if not messagebox.askyesno(
+                "编译为策略",
+                f"已按模板「{t['name']}」编译出 {len(policies)} 台设备 / "
+                f"{total} 条命令的策略。\n"
+                "策略将进入生命周期（先预演，确认后才会下发），现在继续？"):
+            return
+        runs = self.app.controller_store.lifecycle.adopt(policies)
+        for run in runs:
+            try:
+                self.app.controller_store.lifecycle.plan(run)
+            except Exception as exc:      # noqa: BLE001  单台预演失败不拦其余
+                self.app.set_status(f"预演失败 {run.device}: {exc}")
+                break
+        self.app.event_bus.publish(
+            "template.compiled",
+            f"模板「{t['name']}」编译出 {len(policies)} 条策略（{total} 条命令）",
+            source="generate")
+        toast(self.app, f"已生成 {len(policies)} 条策略并完成预演", "ok")
+        self.app.set_status("策略已就绪：到「意图与策略 → 运行档案」确认下发")
+        self.app.show("controller")
 

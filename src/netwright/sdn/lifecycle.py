@@ -122,8 +122,19 @@ class IntentLifecycle:
             raise LifecycleError("；".join(result.errors[:3]))
         if not result.policies:
             raise LifecycleError("没有编译出任何策略（目标厂商都不支持该意图？）")
+        return self.adopt(result.policies, runs=runs,
+                          intent_title=result.intent_title)
+
+    def adopt(self, policies: list, runs: list | None = None,
+              intent_title: str = "") -> list[PolicyRun]:
+        """把外部编译好的 Policy（模板部署等）收进生命周期（R13）。
+
+        与 ``create`` 共用同一套状态机：反向命令照走 ``reverse.py``，
+        未知意图（如 template_deploy）自然落 ``rollback_blocked``，
+        与"回滚要诚实"的约定一致。
+        """
         created = []
-        for policy in result.policies:
+        for policy in list(policies):
             reverse, reason = reverse_commands(policy.intent_key, policy.params, policy.vendor)
             run = PolicyRun(policy=policy, reverse=list(reverse), reverse_reason=reason)
             self._touch(run, "compiled", f"生成 {len(policy.commands)} 条命令，风险 {policy.risk}")
@@ -131,9 +142,10 @@ class IntentLifecycle:
             created.append(run)
         if runs is not None:
             runs.extend(created)
-        self.bus.publish("intent.compiled",
-                         f"{result.intent_title}: {len(created)} 台设备已编译，等待预演",
-                         source="lifecycle", intent=intent_key, runs=len(created))
+        if created:
+            self.bus.publish("intent.compiled",
+                             f"{intent_title or '外部策略'}: {len(created)} 台设备已编译，等待预演",
+                             source="lifecycle", runs=len(created))
         return created
 
     def _touch(self, run: PolicyRun, state: str, note: str = ""):

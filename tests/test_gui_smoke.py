@@ -601,3 +601,38 @@ def test_smoke_restore_backup_dialog_requires_selection(app, tmp_path, monkeypat
         dialog.destroy()
     finally:
         app.controller_store.backups = original
+
+
+def test_smoke_generate_page_compile_to_policies(app, monkeypatch):
+    """R13 GUI：生成页「编译为策略」→ 运行档案出现模板策略且已预演。"""
+    from netwright.lib.inventory import Device
+
+    page = app.pages["generate"]
+    huawei_tpl = next((name for name, t in page.tpl_map.items()
+                       if t["vendor"] == "huawei" and t["vars"]), None)
+    if huawei_tpl is None:
+        huawei_tpl = next(name for name, t in page.tpl_map.items() if t["vars"])
+    app.inventory.devices = []
+    app.inventory.add(Device(host="192.0.2.1", vendor="huawei", hostname="TPL-SW"))
+    page.cmb_tpl.set(huawei_tpl)
+    page._load_template()
+    tpl = page.tpl_map[huawei_tpl]
+    cols = list(tpl["vars"])
+    rows = [",".join(cols)]
+    row = {c: ("TPL-SW" if c in ("hostname", "name", "device") else f"V_{c}")
+           for c in cols}
+    rows.append(",".join(row[c] for c in cols))
+    page.table_text.delete("1.0", "end")
+    page.table_text.insert("1.0", "\n".join(rows))
+
+    monkeypatch.setattr("netwright.pages.generation.messagebox.askyesno",
+                        lambda *a, **k: True)
+    before = len(app.controller_store.lifecycle.runs)
+    page.compile_to_policies()
+    assert app._active_key == "controller", "编译后应跳到控制器页"
+    runs = app.controller_store.lifecycle.recent(50)
+    assert len(runs) >= before + 1
+    new_runs = [r for r in runs if r.policy.intent_key == "template_deploy"]
+    assert new_runs, "运行档案里应有 template_deploy 条目"
+    assert new_runs[0].state == "planned", "编译后应完成静态预演"
+    assert new_runs[0].policy.params["template"]["file"], "档案应能追溯到模板文件"

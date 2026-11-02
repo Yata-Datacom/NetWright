@@ -19,6 +19,16 @@ from .model import is_high_risk
 
 RISK_ORDER = {"low": 0, "high": 1}
 
+# 模块级 id 计数器：PolicyCompiler 可能被多处短生命周期地创建
+# （lifecycle.create 每次都新建一个），实例级计数器会让不同批次的策略
+# 撞 id，后一批的运行档案覆盖前一批（self.runs[policy.id]）。
+_IDS = count(1)
+
+
+def next_policy_id(prefix: str = "pol") -> str:
+    """全局唯一策略 id：pol-0001 / tpl-0002 …（进程内单调）。"""
+    return f"{prefix}-{next(_IDS):04d}"
+
 
 @dataclass(frozen=True)
 class Policy:
@@ -80,7 +90,6 @@ class PolicyCompiler:
 
     def __init__(self, bus=None):
         self.bus = bus
-        self._ids = count(1)
 
     def catalog(self) -> list[dict]:
         """意图目录（供 UI 下拉与 REST 使用）。"""
@@ -116,7 +125,7 @@ class PolicyCompiler:
                 continue
             risk = "high" if any(is_high_risk(c) for c in commands) else "low"
             result.policies.append(Policy(
-                id=f"pol-{next(self._ids):04d}",
+                id=next_policy_id("pol"),
                 intent_key=intent_key, intent_title=title,
                 params={k: v for k, v in params.items() if not k.startswith("_")},
                 device=name, host=getattr(device, "host", ""), vendor=vendor,

@@ -4,19 +4,26 @@
   * render_template：{{var}} 替换 + 残留占位符检测（宁报错不下发坏配置）
   * parse_device_table：CSV 文本 → 设备行（首行表头 = 变量名）
   * generate：模板 × 设备表 → [(文件名, 内容)]
+  * to_policies：模板 × 设备表 → 每台设备一条 Policy（走生命周期下发，R13）
 """
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import os
 import re
 import sys
+from itertools import count
+from types import SimpleNamespace
 
 from ..paths import resource_dir
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Za-z_]\w*)\s*\}\}")
 LEFTOVER_RE = re.compile(r"\{\{[^}]*\}\}")
+
+_TPL_IDS = count(1)     # 模板策略 id 计数（进程内单调，与 pol- 共用一条时间线）
+
 
 def _base_dir() -> str:
     if getattr(sys, "frozen", False):
@@ -106,6 +113,87 @@ def write_outputs(out_dir: str, files: list[tuple[str, str]], eol: str = "\r\n")
             f.write(content.replace("\r\n", "\n").replace("\n", eol))
         n += 1
     return n
+
+
+# ── R13：模板 → 策略闭环 ──────────────────────────────────────────────
+
+def rendered_commands(rendered_text: str) -> list[str]:
+    """渲染后的配置文本 → 可下发命令行（过滤空行与 !/# 注释行）。"""
+    return [line.strip() for line in rendered_text.splitlines()
+            if line.strip() and not line.lstrip().startswith(("!", "#"))]
+
+
+def _match_device(row: dict, inventory, vendor: str, index: int):
+    """把设备表的一行对回清单 Device（host/hostname 双向匹配）。
+
+    对不上时用行内信息合成只读替身——模板部署不强制先入清单；
+    Policy 只消费 display_name / host / vendor 三个字符串，不发起连接。
+    """
+    hosts = [str(row.get(k)).strip() for k in ("host", "ip", "mgmt_ip",
+                                               "management_ip", "address")
+             if row.get(k) and str(row.get(k)).strip()]
+    names = [str(row.get(k)).strip() for k in ("hostname", "name", "device",
+                                               "device_name", "sysname")
+             if row.get(k) and str(row.get(k)).strip()]
+    devices = list(getattr(inventory, "devices", []) or []) if inventory else []
+    for device in devices:
+        if any(h and getattr(device, "host", "") == h for h in hosts):
+            return device
+    for device in devices:
+        if any(n and getattr(device, "hostname", "") == n for n in names):
+            return device
+    host = hosts[0] if hosts else (names[0] if names else f"device-{index}")
+    name = names[0] if names else host
+    return SimpleNamespace(host=host, hostname=name, display_name=name,
+                           vendor=vendor)
+
+
+def to_policies(template: dict, devices: list[dict], inventory=None) -> list:
+    """模板 + 设备表 → 每台设备一条 Policy（R13 模板 → 策略闭环）。
+
+    只渲染、只编译，**不连设备**；下发必须走 ``IntentLifecycle``
+    （预演 / 审批 / 审计 / 回滚），这是与"生成 .cfg 文件"的本质区别。
+    ``Policy.params["template"]`` 记录 ``{"file", "sha256", "name"}``，
+    运行档案与审计可一直追溯到模板文件。
+
+    :param template: ``list_builtin_templates()`` 的条目（含 text / vendor / file）
+    :param devices: 设备表行（parse_device_table 的输出）
+    :param inventory: 设备清单（用于把行对回真实设备；可为 None）
+    :raises ValueError: 变量缺失 / 渲染后没有可执行命令
+    """
+    from ..sdn.model import is_high_risk
+    from ..sdn.policy import Policy
+
+    text = template.get("text", "")
+    if not (text or "").strip():
+        raise ValueError("模板内容为空")
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    meta = {"file": template.get("file", ""), "sha256": digest,
+            "name": template.get("name", "")}
+    vendor = template.get("vendor", "generic") or "generic"
+    title = f"模板部署 · {meta['name'] or meta['file'] or '未命名模板'}"
+    variables = template_variables(text)
+
+    policies = []
+    for n, row in enumerate(devices, start=1):
+        missing = [v for v in variables if not str(row.get(v, "")).strip()]
+        if missing:
+            raise ValueError(f"第 {n} 台设备缺少变量: {', '.join(sorted(set(missing)))}")
+        commands = rendered_commands(render_template(text, row))
+        if not commands:
+            raise ValueError(f"第 {n} 台设备渲染后没有可执行命令（模板全是注释？）")
+        device = _match_device(row, inventory, vendor, n)
+        params = {k: v for k, v in row.items() if not str(k).startswith("_")}
+        params["template"] = meta
+        policies.append(Policy(
+            id=f"tpl-{next(_TPL_IDS):04d}",
+            intent_key="template_deploy", intent_title=title,
+            params=params,
+            device=getattr(device, "display_name", "") or getattr(device, "host", "?"),
+            host=getattr(device, "host", ""), vendor=vendor,
+            commands=tuple(commands),
+            risk="high" if any(is_high_risk(c) for c in commands) else "low"))
+    return policies
 
 
 _TPL_CACHE: dict[str, tuple[float, list[dict]]] = {}

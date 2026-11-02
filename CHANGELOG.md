@@ -3,6 +3,32 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.21.0] - 2026-11-02
+
+### Added（R13 模板 → 策略闭环）
+- **`lib/generator.to_policies(template, devices, inventory)`**：模板 × 设备表 →
+  每台设备一条 `Policy`（intent_key=`template_deploy`），只渲染不连设备；
+  `Policy.params["template"]` 记录 `{file, sha256, name}`，运行档案与审计可追溯
+  到模板文件。设备行对不回清单时用行内信息合成只读替身（不强制先入清单）。
+- **`IntentLifecycle.adopt(policies)`**：外部编译好的策略走与意图完全相同的
+  状态机（compiled → planned → approve → deploying → …）；`template_deploy`
+  无登记反向命令 → 与现有一致地落 `rollback_blocked`，不猜命令。
+- **生成页新增「编译为策略 →」**：设备表 × 模板编译成策略并完成静态预演，
+  跳到「意图与策略 → 运行档案」确认下发——模板下发从"生成 .cfg 靠人工"
+  变成走审计闭环。
+
+### Fixed
+- **运行档案 id 冲突**：`lifecycle.create` 每次新建 `PolicyCompiler`，实例级
+  计数器从 `pol-0001` 重新开始，第二批档案会覆盖第一批（`runs[policy.id]`）。
+  改为模块级全局计数器（`policy.next_policy_id`），同批内 `tpl-`/`pol-` 前缀区分。
+
+### Tests
+- 新增 `tests/test_template_policy.py`（7 项）：N 条命令断言、模板 sha256 溯源、
+  缺变量报错带序号、清单外设备替身、完整生命周期（含审计）、回滚 blocked、
+  内置模板零残留回归。
+- GUI 冒烟新增 1 项：生成页编译 → 运行档案出现 template_deploy 且已预演。
+- 全量 **270 项 pytest 通过**（+8）。
+
 ## [3.20.1] - 2026-11-02
 
 ### Added（R3 配置回滚——危险操作）
