@@ -12,6 +12,7 @@ from .generation import GeneratePage
 from .inspection import InspectPage
 from .inventory import InventoryPage
 from .settings import SettingsPage
+from .timeline import TimelinePage
 from .topology import TopologyPage
 from .toolbox import ToolboxPage
 
@@ -26,6 +27,7 @@ PAGE_REGISTRY = {
     "generate": ("配置生成", "▩", GeneratePage),
     "toolbox": ("工具箱", "⚒", ToolboxPage),
     "cheat": ("命令速查", "▣", CheatPage),
+    "timeline": ("时间线", "≣", TimelinePage),
     "settings": ("设置", "⚙", SettingsPage),
 }
 
@@ -48,6 +50,7 @@ NAV_GROUPS = [
         ("cheat", "命令速查", "▣"),
     ]),
     ("系统", [
+        ("timeline", "时间线", "≣"),
         ("settings", "设置", "⚙"),
     ]),
 ]

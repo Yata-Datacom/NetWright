@@ -3,6 +3,23 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.17.0] - 2026-11-02
+
+### Added（排障时间线）
+- **「时间线」工作区**（系统 / 时间线）：把三类信息合成一条按时间倒序的轴——
+  - 事件流（链路/认证/漂移等，带严重度着色）；
+  - 配置快照（每台设备最多取最近 10 份，避免刷屏）；
+  - 意图运行档案（下发/校验/回滚结果）。
+- **`sdn/timeline.py`**：纯聚合函数 `build_timeline(store, limit=120)`，限流可配。
+- **REST**：`GET /api/v2/timeline?limit=`（需 token）。
+
+### Changed
+- 页面注册表扩到 **12 个页面**，「系统」分组下是「时间线 / 设置」。
+
+### Tests
+- 新增 `tests/test_timeline.py`（4 项）：三源合并、倒序、limit、REST 鉴权。
+- 全量 **214 项 pytest 通过**。
+
 ## [3.16.0] - 2026-11-02
 
 ### Changed（性能与代码质量）
@@ -25,7 +42,7 @@
 
 ### Tests
 - 备份 +2（latest 只读最新一份、history 完整性），GUI +2（刷新跳过、网格层复用）。
-- 全量 **210 项 pytest 通过**。
+- 全量 **214 项 pytest 通过**。
 
 ## [3.15.0] - 2026-11-02
 
@@ -43,7 +60,7 @@
 
 ### Tests
 - 备份测试新增 4 项（diff_against、无快照报错、compare_live 漂移事件、live-diff 路由）。
-- 全量 **210 项 pytest 通过**。
+- 全量 **214 项 pytest 通过**。
 
 ## [3.14.0] - 2026-11-02
 
@@ -61,7 +78,7 @@
 
 ### Tests
 - GUI 冒烟 +3：设置页保存落盘、备份历史对话框 diff、页面循环覆盖新页面。
-- 全量 **210 项 pytest 通过**。
+- 全量 **214 项 pytest 通过**。
 
 ## [3.13.0] - 2026-11-02
 
@@ -79,7 +96,7 @@
 
 ### Tests
 - 新增 `tests/test_errors.py`（9 项）：认证/超时/拒绝/校验/南向/生命周期/未知异常与关键字翻译。
-- 全量 **210 项 pytest 通过**。
+- 全量 **214 项 pytest 通过**。
 
 ## [3.12.0] - 2026-11-02
 
@@ -100,7 +117,7 @@
 
 ### Tests
 - 新增 `tests/test_backup.py`（12 项）+ GUI「运行档案」冒烟 1 项。
-- 全量 **210 项 pytest 通过**。
+- 全量 **214 项 pytest 通过**。
 
 ## [3.11.0] - 2026-11-02
 
@@ -130,7 +147,7 @@
 
 ### Tests
 - 新增 `tests/test_lifecycle.py`（16 项）与 `tests/test_southbound.py`（18 项）。
-- 全量 **210 项 pytest 通过**。
+- 全量 **214 项 pytest 通过**。
 
 ## [3.10.0] - 2026-11-02
 

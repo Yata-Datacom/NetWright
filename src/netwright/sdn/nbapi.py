@@ -150,6 +150,10 @@ def dispatch(store, method: str, path: str, body: dict | None = None,
         if route == "/intents/runs":
             limit = _int(query.get("limit"), 50, 1, 200)
             return 200, {"ok": True, "runs": store.lifecycle.snapshot(limit)}
+        if route == "/timeline":
+            limit = _int(query.get("limit"), 80, 1, 500)
+            from .timeline import build_timeline
+            return 200, {"ok": True, "items": [i.to_dict() for i in build_timeline(store, limit)]}
         if route == "/sources":
             return 200, {"ok": True, **store.listener_status()}
         if route == "/backups":
