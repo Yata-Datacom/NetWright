@@ -57,17 +57,23 @@ def make_handler(state: ControllerState) -> type:
             status, body = nbapi_mod.dispatch(
                 store, method, self.path, payload,
                 headers={"Authorization": self.headers.get("Authorization", ""),
-                         "X-API-Token": self.headers.get("X-API-Token", "")})
+                         "X-API-Token": self.headers.get("X-API-Token", "")},
+                client=self.client_address[0])
             return self._json(body, status)
 
-        def _authorized(self) -> bool:
-            """v1 的写接口也要 token（读接口保持开放，方便脚本先摸清家底）。"""
+        def _authorized(self, method: str = "GET") -> bool:
+            """v1 的写接口也要 token（读接口保持开放，方便脚本先摸清家底）。
+
+            R6：写路径按 POST 校验 scope——只读 token 不能借 v1 绕过写限制。
+            """
             auth = getattr(getattr(state, "store", None), "auth", None)
             if auth is None:
                 return True
-            return auth.check(self.path,
-                              self.headers.get("Authorization", ""),
-                              self.headers.get("X-API-Token", ""))
+            ok, _label, _err = auth.authorize(
+                self.path, method,
+                self.headers.get("Authorization", ""),
+                self.headers.get("X-API-Token", ""))
+            return ok
 
         def do_GET(self):
             path = self.path.split("?")[0]
@@ -105,7 +111,7 @@ def make_handler(state: ControllerState) -> type:
             if path.startswith("/api/v2"):
                 return self._v2("POST", payload)
 
-            if not self._authorized():
+            if not self._authorized("POST"):
                 return self._json({"ok": False, "message": "缺少或无效的 API token",
                                    "hint": "Authorization: Bearer <token>"}, 401)
 

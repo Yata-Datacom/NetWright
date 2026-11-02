@@ -490,14 +490,34 @@ class NetWrightApp(tk.Tk):
     def open_help(self):
         return show_help(self)
 
-    # ── API token（v2 写接口鉴权）──────────────────────────────────
+    # ── API token（v2 写接口鉴权；R6 起支持只读子 token）────────────
     def rotate_api_token(self) -> str:
         token = self.api_auth.rotate()
         self.settings["api_token"] = token
+        self.settings["api_tokens"] = self.api_auth.export()
         save_settings(self.settings, BASE_DIR)
         self.event_bus.publish("api.token_rotated", "REST API token 已轮换（旧 token 立即失效）",
                                source="app")
         return token
+
+    def issue_api_token(self, scope: str = "read", label: str = "") -> str:
+        """发一个子 token（read=只读）并持久化到设置。"""
+        token = self.api_auth.issue(scope, label)
+        self.settings["api_tokens"] = self.api_auth.export()
+        save_settings(self.settings, BASE_DIR)
+        self.event_bus.publish("api.token_issued",
+                               f"已发放{'只读' if scope == 'read' else '可写'} token：{label or '未命名'}",
+                               source="app")
+        return token
+
+    def revoke_api_token(self, token: str) -> bool:
+        """吊销一个子 token 并持久化；主 token 返回 False（请走轮换）。"""
+        if not self.api_auth.revoke(token):
+            return False
+        self.settings["api_tokens"] = self.api_auth.export()
+        save_settings(self.settings, BASE_DIR)
+        self.event_bus.publish("api.token_revoked", "子 token 已吊销", source="app")
+        return True
 
     def _bind_shortcuts(self):
         self.bind("<F5>", lambda _e: self.refresh_current(silent=False))

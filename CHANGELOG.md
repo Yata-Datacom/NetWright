@@ -3,6 +3,27 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.24.0] - 2026-11-02
+
+### Added（R6 多 token 与审计）
+- **`TokenAuth` 多 token 化**：`tokens: dict[token, {"scope": "read"|"write", "label"}]`；
+  主 token（write）`rotate()` 一键轮换（旧 token 立即 401，子 token 不受影响）；
+  `issue(scope, label)` 发只读/可写子 token，`revoke()` 单独吊销；
+  `rotation_log` 记录发放/吊销/轮换。`from_settings` 从 settings 的 `api_tokens`
+  键恢复（主 token 仍走 `api_token` 键，向后兼容）。
+- **REST 鉴权区分 401/403**：`nbapi.dispatch` 改走 `auth.authorize()`——
+  无效 token 401、只读 token 调写路由 403；v1 写接口（/api/apply）同样按
+  POST 校验 scope，只读 token 无法借旧接口绕过。
+- **调用来源审计**：每次 REST 调用（含被拒的）写一条审计——
+  `api.request` / `api.auth_denied`，带 method、path、**IP + token label**。
+- app 层新增 `issue_api_token()` / `revoke_api_token()`（持久化到设置）。
+
+### Tests
+- 新增 `tests/test_auth_multi.py`（8 项）：只读 GET 放行/POST 403、无效 401、
+  轮换旧 401 新可用、吊销子 token、审计含 IP+label（成功/拒访/无效 token 三类）、
+  settings 往返、旧单 token 用法兼容、健康检查公开。
+- 全量 **302 项 pytest 通过**（+8）。
+
 ## [3.23.0] - 2026-11-02
 
 ### Added（R14 模板引擎增强：条件 / 循环 / 精确报错）

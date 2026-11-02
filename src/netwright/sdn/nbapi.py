@@ -19,8 +19,21 @@ from __future__ import annotations
 
 from urllib.parse import parse_qs, urlparse
 
+from ..lib.controller import deploy as _deploy_mod
+
 API_PREFIX = "/api/v2"
 VERSION = "2.0"
+
+
+def _audit_request(method: str, path: str, client: str, label: str,
+                   error: str, denied: bool) -> None:
+    """R6：REST 调用审计——每次调用都记来源（IP + token label），失败另记 DENIED。"""
+    entry = {"action": "api.auth_denied" if denied else "api.request",
+             "method": method, "path": path, "ip": client or "-",
+             "token": label or "-", "status": "DENIED" if denied else "OK"}
+    if denied:
+        entry["error"] = error
+    _deploy_mod._audit(entry)
 
 
 def _events(store, query: dict) -> dict:
@@ -105,11 +118,13 @@ def _intent_action(store, body: dict, action: str) -> tuple[int, dict]:
 
 
 def dispatch(store, method: str, path: str, body: dict | None = None,
-             headers: dict | None = None) -> tuple[int, dict]:
+             headers: dict | None = None, client: str = "") -> tuple[int, dict]:
     """执行一条 v2 请求；返回 (HTTP 状态码, JSON 载荷)。
 
     除 ``/api/v2/health`` 外都需要 API token（``Authorization: Bearer …``
     或 ``X-API-Token``）；控制器未配置 auth 时保持开放（便于单测与内嵌使用）。
+    R6：只读 token 只能 GET（写操作 403），无效 token 401；
+    每次调用（含被拒的）都写一条来源审计（IP + token label）。
     """
     parsed = urlparse(path)
     route = parsed.path.rstrip("/") or "/"
@@ -122,13 +137,17 @@ def dispatch(store, method: str, path: str, body: dict | None = None,
         return 404, {"ok": False, "message": "未知端点"}
 
     auth = getattr(store, "auth", None)
-    if auth is not None and not auth.check(
-            parsed.path,
-            headers.get("authorization", ""),
-            headers.get("x-api-token", "")):
-        return 401, {"ok": False,
-                     "message": "缺少或无效的 API token",
-                     "hint": "请求头加 Authorization: Bearer <token>（GUI「REST API」页可查看）"}
+    if auth is not None:
+        ok, label, error = auth.authorize(
+            parsed.path, method,
+            headers.get("authorization", ""), headers.get("x-api-token", ""))
+        _audit_request(method, parsed.path, client, label, error, denied=not ok)
+        if not ok:
+            if label:      # token 有效但 scope 不足 → 403
+                return 403, {"ok": False, "message": error}
+            return 401, {"ok": False,
+                         "message": "缺少或无效的 API token",
+                         "hint": "请求头加 Authorization: Bearer <token>（GUI「REST API」页可查看）"}
 
     route = route[len(API_PREFIX):] or "/"
 
