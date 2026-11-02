@@ -207,6 +207,46 @@ class NetWrightApp:
 **禁止**：不要改 CI 的发布产物路径（`dist/NetWright.exe`），R10 暂缓期间不动发布流程。
 ---
 
+## 2.5 配置生成：现状与升级（R13 / R14 / R15）
+
+**现状（v3.18.1）**：`templates/` 116 个 `.cfg` + `library.json` 元数据；
+`lib/generator.py` 做 `{{var}}` 替换、设备表解析、文件名冲突检测、零残留校验；
+页面支持厂商过滤、载入清单设备、生成到目录、导出全部模板。
+**本质是"静态文本 + 变量替换"**，这是它的优点（简单、可读、可 diff），也是天花板。
+
+#### R13 模板 → 策略闭环（优先级最高）
+**问题**：现在生成的是磁盘上的 `.cfg`，下发要靠人；生成完不知道有没有生效。
+**目标**：模板 + 设备表 → 编译成 `Policy` → 走现有生命周期（预演/下发/校验/回滚/审计）。
+```python
+# lib/generator.py 新增
+def to_policies(template: dict, devices: list[dict], inventory) -> list[Policy]
+# sdn/lifecycle.py 复用：policy.commands 来自渲染后的行（过滤空行与注释）
+```
+**验收**：
+- `tests/test_template_policy.py`：一辆华为设备渲染出 N 条命令 → `Policy.commands == N`，
+  且 `Policy.params["template"]` 记录模板文件名 + sha256（审计可追）
+- 运行档案里能看到来源模板；回滚走 `reverse.py`（无反向命令时 blocked，与现有一致）
+- **禁止**：不要绕过生命周期直接 `ssh_client` 下发；不要在模板层做设备连接
+
+#### R14 模板引擎增强（条件 / 循环 / 精确报错）
+**问题**：`{{var}}` 只能替换。想要"有 vlan 200 才生成 DHCP 中继"就得复制模板。
+**目标**：支持两个最小指令，保持零第三方依赖：
+```
+{{#if var}} ... {{/if}}          # var 为空/0/false 时整段不输出
+{{#each vlan_list}} ... {{/each}} # 列表用逗号分隔，块内 {{item}} 可用
+```
+**验收**：
+- `tests/test_template_engine.py`：if 真假分支、each 空列表、each 嵌套变量、未闭合块报错（带行号）
+- 现有 116 个模板**全部仍能渲染**（`test_every_template_renders_clean` 不回归）
+- 报错信息要能定位：`第 12 行：{{#if}} 缺少 {{/if}}`
+
+#### R15 从现网反生成基线（可选，最后做）
+**问题**：老网络的"标准配置"只存在于设备里，没人写得出模板。
+**目标**：`read_config` → 脱敏（IP/密码/SNMP 团体名）→ 生成该厂商的候选模板，
+人工裁剪后入库。**必须脱敏**，否则等于把凭据写进模板库。
+**验收**：单测用样例配置断言输出中不含原 IP/密码；生成结果能通过 `render_template` 零残留校验。
+---
+
 ## 3. 已知的坑（都是这个项目真踩过的，别重踩）
 
 | 坑 | 症状 | 正确做法 |
