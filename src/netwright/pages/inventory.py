@@ -536,6 +536,8 @@ class BackupHistoryDialog(tk.Toplevel):
         WButton(btns, text="对比所选", command=self._diff_selected).pack(side=tk.LEFT)
         WButton(btns, text="最近两次", command=self._diff_latest).pack(side=tk.LEFT, padx=(6, 0))
         WButton(btns, text="与现网对比", command=self._diff_live).pack(side=tk.LEFT, padx=(6, 0))
+        WButton(btns, text="↩ 恢复到设备", command=self._restore_selected).pack(
+            side=tk.LEFT, padx=(6, 0))
 
         right = tk.Frame(body, bg=theme.panel)
         right.grid(row=0, column=1, sticky="nsew")
@@ -609,6 +611,73 @@ class BackupHistoryDialog(tk.Toplevel):
             self._show(result.get("diff") or "")
         else:
             self._show("现网配置与最近一次快照一致（没有漂移）。")
+
+    # ── R3 危险操作：把一份快照恢复到设备 ──
+    def _restore_selected(self):
+        """选一份快照 → 二次确认 → 后台恢复（先自动备份当前配置）。
+
+        线程模型遵守项目红线：SSH/下发在 worker 线程，worker **不碰 Tk**，
+        只置脏标记；对话框自己用 after 轮询收尾（与 events 页同一约定）。
+        """
+        selection = list(self.listbox.curselection())
+        if len(selection) != 1:
+            self._show("请先选中**一份**快照再点「恢复到设备」。")
+            return
+        entry = self.entries[selection[0]]
+        device = next((d for d in self.app.controller_store.inventory.devices
+                       if d.display_name == self.device), None)
+        if device is None:
+            self._show("设备清单里找不到这台设备（可能已被删除）。")
+            return
+        try:
+            text = self.backup.read(entry)
+        except OSError as exc:
+            self._show(f"读取快照失败：{exc}")
+            return
+        n_lines = sum(1 for line in text.splitlines()
+                      if line.strip() and not line.lstrip().startswith(("!", "#")))
+        if not messagebox.askyesno(
+                "恢复配置（危险操作）",
+                f"将把快照恢复到设备「{self.device}」，将覆盖 {n_lines} 行配置。\n"
+                f"快照：{entry.filename}\n"
+                "确认后会先自动备份当前配置，再下发快照命令；恢复失败不会重试。\n\n"
+                "确定继续吗？"):
+            return
+        if getattr(self, "_restore_running", False):
+            return
+        self._restore_running = True
+        self._restore_result = None
+        self._restore_dirty = False
+        self._show("正在恢复：自动备份当前配置 → 下发快照命令…（请勿关闭本窗口）")
+        def worker():
+            result = self.app.controller_store.restore_backup(device, entry.filename)
+            self._restore_result = result     # 只置数据，不碰 Tk
+            self._restore_dirty = True
+        threading.Thread(target=worker, daemon=True).start()
+        self.after(150, self._restore_poll)
+
+    def _restore_poll(self):
+        """主线程轮询 worker 结果（红线：后台线程不碰 Tk）。"""
+        if getattr(self, "_restore_dirty", False):
+            self._restore_dirty = False
+            self._restore_running = False
+            self._restore_done(self._restore_result or {})
+            return
+        if getattr(self, "_restore_running", False):
+            self.after(150, self._restore_poll)
+
+    def _restore_done(self, result: dict):
+        if result.get("ok"):
+            messagebox.showinfo(
+                "恢复完成",
+                f"将覆盖 {result['commands']} 行配置，已自动备份为 {result['pre_backup']}；"
+                f"已发送 {result['commands']} 条命令。\n"
+                "如需回退，请把这份备份再恢复一次。")
+            self._show(f"已从 {result['pre_backup']} 之前的快照恢复完成。")
+            self._load()
+        else:
+            messagebox.showerror("恢复未完成", result.get("error") or "未知错误")
+            self._show(f"恢复未完成：{result.get('error')}")
 
     def _show(self, text: str):
         self.diff_text.delete("1.0", tk.END)

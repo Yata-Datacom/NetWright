@@ -93,6 +93,89 @@ class ControllerStore:
             source="backup", device=name, changed=bool(diff))
         return {"device": name, "has_changes": bool(diff), "diff": diff}
 
+    def restore_backup(self, device, filename: str, timeout: float = 30.0) -> dict:
+        """把一份历史快照恢复到设备（R3 危险操作）。
+
+        顺序固定：读现网配置（读不到就**不发任何命令**）→ 自动备份当前配置 →
+        解析快照为命令（跳过空行与 !/# 注释）→ 一次性下发。
+        **失败绝不重试第二次**（半途状态比失败更危险），只报告。
+
+        返回 ``{"ok": bool, "pre_backup": str, "commands": int, "error": str}``；
+        无论成败都写一条 ``config.restore`` 审计。
+        """
+        from netwright.lib.controller import deploy as _deploy
+        from netwright.lib.errors import friendly_error
+
+        result = {"ok": False, "pre_backup": "", "commands": 0, "error": ""}
+        name = getattr(device, "display_name", "") or str(device)
+
+        def fail(msg: str) -> dict:
+            result["error"] = msg
+            _deploy._audit({"action": "config.restore", "device": name,
+                            "file": filename, "status": "FAILED", "error": msg,
+                            "commands": result["commands"],
+                            "pre_backup": result["pre_backup"]})
+            return result
+
+        if self.backups is None:
+            return fail("未配置备份目录（ControllerStore.backups 为空）")
+        adapter = self.registry.for_device(device)
+        if adapter is None:
+            return fail(f"没有匹配 {getattr(device, 'protocol', '?')} 的南向适配器")
+        if not hasattr(adapter, "read_config"):
+            return fail(f"{adapter.protocol} 适配器不支持配置回读，无法确认现网状态")
+
+        # 1) 先读现网：读不到就什么都不发（快照可能过期，盲目恢复是赌命）
+        try:
+            current = adapter.read_config(device, timeout=timeout)
+            if not (current or "").strip():
+                raise RuntimeError("设备返回空配置")
+        except Exception as exc:      # noqa: BLE001
+            return fail(f"读取现网配置失败，已中止（未发送任何命令）：{friendly_error(exc)}")
+
+        # 2) 恢复前自动备份当前配置（恢复失败时至少留有"恢复前"现场）
+        try:
+            entry = self.backup_device(device, timeout=timeout)
+        except Exception as exc:      # noqa: BLE001
+            return fail(f"恢复前自动备份失败，已中止（未发送任何命令）：{friendly_error(exc)}")
+        result["pre_backup"] = entry.get("file", "")
+
+        # 3) 解析快照
+        snapshot = next((e for e in self.backups.history(name)
+                         if e.filename == filename), None)
+        if snapshot is None:
+            return fail(f"找不到快照 {filename}")
+        try:
+            text = self.backups.read(snapshot)
+        except OSError as exc:
+            return fail(f"读取快照失败：{friendly_error(exc)}")
+        commands = [line.strip() for line in text.splitlines()
+                    if line.strip() and not line.lstrip().startswith(("!", "#"))]
+        result["commands"] = len(commands)
+        if not commands:
+            return fail("快照里没有可执行的配置命令")
+
+        # 4) 下发（一次尝试，失败不重试）
+        try:
+            outputs = adapter.run_commands(device, commands, timeout=timeout)
+        except Exception as exc:      # noqa: BLE001
+            return fail(f"下发失败（不重试）：{friendly_error(exc)}")
+        bad = [o for o in outputs if not o.ok]
+        if bad:
+            first = bad[0].error or (bad[0].output or "")[:120]
+            return fail(f"{len(bad)}/{len(outputs)} 条命令执行失败（不重试）：{first}")
+
+        result["ok"] = True
+        _deploy._audit({"action": "config.restore", "device": name, "file": filename,
+                        "status": "OK", "commands": len(commands),
+                        "pre_backup": result["pre_backup"]})
+        self.bus.publish(
+            "config.restore",
+            f"{name}: 已从快照 {filename} 恢复配置（{len(commands)} 条命令，"
+            f"恢复前备份 {result['pre_backup']}）",
+            source="restore", device=name, file=filename)
+        return result
+
     # ── 事件源（syslog / snmp trap）──
     def start_syslog(self, port: int | None = None) -> dict:
         if port:

@@ -3,6 +3,24 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.20.1] - 2026-11-02
+
+### Added（R3 配置回滚——危险操作）
+- **`ControllerStore.restore_backup(device, filename, timeout=30.0)`**：
+  返回 `{"ok", "pre_backup", "commands", "error"}`。顺序固定——读现网配置
+  （读不到**不发任何命令**）→ 恢复前自动 `backup_device()` → 解析快照
+  （跳过空行与 `!`/`#` 注释）→ 一次性下发；**失败绝不重试第二次**。
+  成败都写 `config.restore` 审计并发事件。
+- **备份历史对话框新增「↩ 恢复到设备」**：二次确认弹窗写明"将覆盖 N 行配置"+
+  快照名 + 自动备份提示；恢复在后台线程执行，线程模型遵守红线（worker 不碰 Tk，
+  对话框 after 轮询收尾）；完成弹窗显示"已自动备份为 <文件名>"。
+
+### Tests
+- 新增 `tests/test_restore.py`（6 项）：恢复前自动备份且 pre_backup 真实落盘、
+  读现网失败零下发、下发失败不重试（sent 只有一次）、成败审计、未知快照/纯注释快照拒绝。
+- GUI 冒烟新增 2 项：确认文案含影响行数、完成弹窗含备份文件名；未选中快照不进确认。
+- 全量 **262 项 pytest 通过**（+8）。
+
 ## [3.20.0] - 2026-11-02
 
 ### Added（R2 时间线联动）

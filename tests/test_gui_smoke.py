@@ -507,3 +507,97 @@ def test_smoke_timeline_linkage_fallbacks(app):
     page._open(TimelineItem(ts=_time.time(), kind="mystery", device="",
                             title="未知类型"))
     assert app._active_key == "dashboard"
+
+
+def test_smoke_restore_backup_dialog_flow(app, tmp_path, monkeypatch):
+    """R3 GUI：恢复对话框确认文案 + 后台恢复 + 完成弹窗（弹窗全部 mock）。"""
+    import time
+
+    from netwright.pages.inventory import BackupHistoryDialog
+    from netwright.sdn.backup import ConfigBackup
+    from netwright.sdn.southbound import CommandOutput
+
+    class FakeRestoreAdapter:
+        protocol = "cli"
+
+        def __init__(self):
+            self.sent = []
+
+        def read_config(self, device, timeout=15.0):
+            return "sysname LIVE\nvlan 1\n"
+
+        def run_commands(self, device, commands, timeout=15.0):
+            self.sent.append(list(commands))
+            return [CommandOutput(c, "ok", "") for c in commands]
+
+    adapter = FakeRestoreAdapter()
+    app.controller_store.registry.for_device = lambda _d: adapter
+
+    from netwright.lib.inventory import Device
+
+    app.inventory.devices = []
+    app.inventory.add(Device(host="192.0.2.1", vendor="huawei",
+                             hostname="恢复联动设备"))
+
+    boxes = {"ask": [], "info": [], "error": []}
+    monkeypatch.setattr("netwright.pages.inventory.messagebox.askyesno",
+                        lambda *a, **k: boxes["ask"].append(a) or True)
+    monkeypatch.setattr("netwright.pages.inventory.messagebox.showinfo",
+                        lambda *a, **k: boxes["info"].append(a))
+    monkeypatch.setattr("netwright.pages.inventory.messagebox.showerror",
+                        lambda *a, **k: boxes["error"].append(a))
+
+    backup = ConfigBackup(str(tmp_path / "bk"))
+    backup.save("恢复联动设备", "sysname OLD\nvlan 9\nvlan 10\n")   # 待恢复的快照
+    original = app.controller_store.backups
+    app.controller_store.backups = backup
+    try:
+        dialog = BackupHistoryDialog(app, "恢复联动设备")
+        dialog.listbox.selection_set(0)
+        dialog._restore_selected()
+        # worker 线程 + after 轮询：手动泵事件循环直到完成弹窗出现
+        for _ in range(200):
+            app.update()
+            if boxes["info"]:
+                break
+            time.sleep(0.05)
+        app.update()
+        assert boxes["ask"], "必须先弹二次确认"
+        confirm_text = boxes["ask"][0][1]
+        assert "将覆盖 3 行配置" in confirm_text, "确认弹窗要写明影响行数"
+        assert "自动备份" in confirm_text
+        assert adapter.sent == [["sysname OLD", "vlan 9", "vlan 10"]]
+        assert boxes["info"], "完成后要有结果弹窗"
+        done_text = boxes["info"][0][1]
+        assert "已自动备份为" in done_text and ".cfg" in done_text
+        dialog.destroy()
+    finally:
+        app.controller_store.backups = original
+
+
+def test_smoke_restore_backup_dialog_requires_selection(app, tmp_path, monkeypatch):
+    """R3 GUI：没选中快照时点恢复 → 提示且不弹确认（防止误操作）。"""
+    from netwright.lib.inventory import Device
+    from netwright.pages.inventory import BackupHistoryDialog
+    from netwright.sdn.backup import ConfigBackup
+
+    app.inventory.devices = []
+    app.inventory.add(Device(host="192.0.2.2", vendor="huawei",
+                             hostname="恢复联动设备B"))
+    backup = ConfigBackup(str(tmp_path / "bk2"))
+    backup.save("恢复联动设备B", "sysname B\n")
+    original = app.controller_store.backups
+    app.controller_store.backups = backup
+    try:
+        dialog = BackupHistoryDialog(app, "恢复联动设备B")
+        asked = []
+        monkeypatch.setattr("netwright.pages.inventory.messagebox.askyesno",
+                            lambda *a, **k: asked.append(a) or True)
+        dialog._restore_selected()          # 未选中任何行
+        assert not asked, "未选中快照时不应进入确认"
+        dialog.listbox.selection_set(0)
+        dialog._restore_selected()
+        assert asked, "选中后应弹二次确认"
+        dialog.destroy()
+    finally:
+        app.controller_store.backups = original
