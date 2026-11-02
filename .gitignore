@@ -28,3 +28,6 @@ profiles.json
 Thumbs.db
 .pytest_cache/
 .ruff_cache/
+
+# 配置备份（含设备配置，严禁入库）
+backups/

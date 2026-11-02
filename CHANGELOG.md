@@ -3,6 +3,27 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.12.0] - 2026-11-02
+
+### Added（意图生命周期 GUI + 配置备份）
+- **「运行档案」页**（意图与策略 → 运行档案）：列出每条策略的状态、命令数、风险、
+  能否回滚、更新时间；选中后看命令、反向命令、检查项、状态历史；按钮直接 **下发 / 校验 / 回滚**。
+- **Dry-Run 即建档**：在「意图下发」点 Dry-Run 时同时生成运行档案（状态 `planned`），
+  不需要先跑一遍再手工建任务。
+- **配置备份与差异**（`sdn/backup.py`，Oxidized 式）：
+  - 按设备目录存快照 `backups/<设备>/<YYYYmmdd-HHMMSS>.cfg`；
+  - 与上一份 sha256 相同则不落盘（标"无变化"），默认保留最近 30 份；
+  - `diff()` 输出 unified diff（可贴进工单）；
+  - 设备名自动清洗；空配置拒绝写入（避免空文件覆盖历史）。
+- **备份入口**：设备清单工具栏「🗄 备份配置」（选中优先，否则全部），后台线程执行，
+  结果显示"已更新 / 无变化 / 失败"。
+- **REST**：`GET /api/v2/backups`、`GET /api/v2/backups/diff`、
+  `POST /api/v2/backups`（批量，单次上限 50 台，部分失败返回 207）。
+
+### Tests
+- 新增 `tests/test_backup.py`（12 项）+ GUI「运行档案」冒烟 1 项。
+- 全量 **191 项 pytest 通过**。
+
 ## [3.11.0] - 2026-11-02
 
 ### Added（控制器能力：从"能下发"到"可回滚、可观测"）
@@ -31,7 +52,7 @@
 
 ### Tests
 - 新增 `tests/test_lifecycle.py`（16 项）与 `tests/test_southbound.py`（18 项）。
-- 全量 **178 项 pytest 通过**。
+- 全量 **191 项 pytest 通过**。
 
 ## [3.10.0] - 2026-11-02
 

@@ -269,6 +269,30 @@ def test_smoke_auto_refresh_toggle(app):
     assert app.auto_refresh is True and app._auto_job is not None
 
 
+def test_smoke_lifecycle_runs_tab(app):
+    """意图页 Dry-Run 会生成运行档案，运行档案页能列出并渲染详情。"""
+    from netwright.lib.inventory import Device
+
+    app.inventory.devices = []
+    app.inventory.add(Device(host="192.0.2.1", vendor="huawei", hostname="A"))
+    page = app.pages["controller"]
+    page.nb.select(1)
+    page._render_fields()
+    page.cmb_target.current(1)
+    page.field_vars["vlans"].set("10,20")
+    page.dry_run()
+
+    page.nb.select(3)          # 运行档案
+    page._runs_refresh()
+    children = page.runs_tree.get_children()
+    assert children, "Dry-Run 应生成至少一条运行档案"
+    page.runs_tree.selection_set(children[0])
+    page._render_run_detail()
+    detail = page.run_detail.get("1.0", "end")
+    assert "状态历史" in detail and "已预演" in detail
+    assert "undo vlan 10" in detail, "详情里应能看到反向命令"
+
+
 def test_smoke_help_dialog_and_demo_data(app):
     """引导面板可打开，一键演示数据能填满清单并跳到拓扑。"""
     from netwright.pages.help import show_help

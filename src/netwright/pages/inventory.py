@@ -31,7 +31,8 @@ class InventoryPage(Page):
         for text, cmd in (("＋ 添加设备", self.add_dialog), ("✎ 编辑", self.edit_dialog),
                           ("✖ 删除", self.remove_sel), ("导入 CSV…", self.import_csv),
                           ("导出 CSV", self.export_csv), ("⚡ 在线检测", self.alive_check),
-                          ("🔌 测试连接", self.test_connections)):
+                          ("🔌 测试连接", self.test_connections),
+                          ("🗄 备份配置", self.backup_configs)):
             WButton(bar, text=text, command=cmd).pack(side=tk.LEFT, padx=(0, 8))
         self.var_count = tk.StringVar()
         tk.Label(bar, textvariable=self.var_count, bg=theme.bg, fg=theme.muted,
@@ -415,3 +416,44 @@ class InventoryPage(Page):
                             "\n".join(results[:20]) +
                             ("\n…" if len(results) > 20 else "") +
                             "\n\n端口可达只代表网络通；登录是否成功还要看用户名/密码。")
+
+    # ── 配置备份（Oxidized 式：按设备存档，未变化不落盘）──
+    def backup_configs(self):
+        devices = self._selected_devices() or list(self.app.inventory.devices)
+        if not devices:
+            messagebox.showinfo("提示", "请先添加设备，或载入演示数据")
+            return
+        store = self.app.controller_store
+        if getattr(store, "backups", None) is None:
+            messagebox.showwarning("备份未启用", "当前控制器没有配置备份目录")
+            return
+        self.app.set_status(f"正在备份 {len(devices)} 台设备的配置…")
+        results: list[tuple] = []
+
+        def worker():
+            for device in devices:
+                try:
+                    entry = store.backup_device(device)
+                    results.append((device.display_name, True, entry["file"],
+                                    entry["changed"]))
+                except Exception as exc:      # noqa: BLE001
+                    results.append((device.display_name, False, str(exc), False))
+            self.app.after(0, self._backup_done, results)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _backup_done(self, results: list):
+        ok = [r for r in results if r[1]]
+        changed = [r for r in ok if r[3]]
+        self.app.set_status(
+            f"配置备份完成：{len(ok)}/{len(results)} 台成功，{len(changed)} 台有变化")
+        lines = []
+        for name, success, detail, was_changed in results:
+            if success:
+                lines.append(f"✓ {name}: {'已更新' if was_changed else '无变化'}（{detail}）")
+            else:
+                lines.append(f"✖ {name}: {detail}")
+        messagebox.showinfo("配置备份结果",
+                            "\n".join(lines[:20]) +
+                            ("\n…" if len(lines) > 20 else "") +
+                            f"\n\n存放目录：{self.app.controller_store.backups.root}")

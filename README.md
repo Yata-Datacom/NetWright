@@ -14,7 +14,7 @@
   <a href="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml"><img src="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml/badge.svg" alt="Build EXE"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
-  <img src="https://img.shields.io/badge/tests-178%20passed-brightgreen" alt="178 tests">
+  <img src="https://img.shields.io/badge/tests-191%20passed-brightgreen" alt="191 tests">
 </p>
 
 ---
@@ -83,9 +83,9 @@ pip install -e .          # 之后直接用 netwright 启动
 |---|---|---|
 | **概览** | KPI、最近事件、控制器状态、厂商分布、快捷入口 | 所有人（首页） |
 | **拓扑** | 力导向/环形/分层布局、缩放平移、节点检查器、搜索与"仅纳管"过滤 | 想看清网络结构 |
-| **意图与策略** | 意图目录 → Dry-Run → 确认下发 → 审计；REST v1/v2 说明 | 要批量改配置 |
+| **意图与策略** | 意图目录 → Dry-Run → **运行档案（下发/校验/回滚）** → 审计；REST v1/v2 | 要批量改配置 |
 | **事件** | 事件流（级别过滤）、南向通道能力、下发审计 | 排障与追责 |
-| **设备清单** | 增删改、CSV 导入导出、在线检测、**连接测试**、批量操作 | 台账维护 |
+| **设备清单** | 增删改、CSV 导入导出、在线检测、连接测试、**配置备份**、批量操作 | 台账维护 |
 | **资产盘点** | 种子设备 → LLDP/ARP → 协议探测 → 已知/新增关联 | 摸清家底 |
 | **批量巡检** | 9 套方案、异常规则、HTML 报告、趋势图 | 例行体检 |
 | **配置生成** | 116 模板 × 设备表、零残留校验、批量导出 | 开局/扩容 |
@@ -171,6 +171,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8899/api/v2/inte
 | `netwright_audit.log` | 下发审计 | 含 password 的参数不入日志 |
 | `netwright_controller.json` | 拓扑与策略快照 | 只有设备名/端口/链路 |
 | CSV 导出 | 台账 | **默认不含密码**（需要备份凭据请用清单文件） |
+| `backups/<设备>/*.cfg` | 配置快照（diff 用） | **含配置，可能有机密**：注意目录权限，勿提交 |
 
 - REST 默认只监听 `127.0.0.1`；`/api/apply` 必须显式 `"confirm": true`
 - SSH 默认 `AutoAddPolicy`（内网工具定位），严格校验请改 `lib/ssh_client.py`
@@ -192,7 +193,7 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 │  ├─ lib/                      # 纯逻辑：清单、巡检、生成、计算、意图、拓扑解析
 │  └─ pages/                    # 10 个工作区页面 + 新手引导
 ├─ templates/                   # 116 个配置模板 + library.json
-├─ tests/                       # 178 项 pytest（含 GUI 冒烟）
+├─ tests/                       # 191 项 pytest（含 GUI 冒烟）
 ├─ docs/                        # 用户指南 + 示例台账 + 截图
 └─ tools/                       # 图标生成、模板导入
 ```
@@ -205,7 +206,7 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 python -m venv .venv
 .venv/Scripts/pip install -e ".[dev]"     # Windows；Linux/macOS 用 .venv/bin/pip
 
-pytest tests/ -v                          # 178 项，含 GUI 冒烟（无显示环境自动跳过）
+pytest tests/ -v                          # 191 项，含 GUI 冒烟（无显示环境自动跳过）
 ruff check src tests main.py              # 核心规则 lint
 pyinstaller NetWright.spec --noconfirm    # 打包 exe
 python tools/make_icon.py                 # 重新生成图标

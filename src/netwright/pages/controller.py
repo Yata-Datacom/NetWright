@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import threading
+import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -9,7 +10,8 @@ from netwright.lib.controller import deploy as deploy_mod
 from netwright.lib.controller import intents as intents_mod
 from netwright.lib.inventory import VENDORS
 from netwright.theme import FONT_MONO, FONT_SMALL, theme
-from netwright.widgets import (Page, SectionCard, page_header, WButton, toast)
+from netwright.widgets import (Page, SectionCard, make_table, page_header, toast,
+                               WButton, zebra)
 
 
 def header(title, desc, page):
@@ -32,6 +34,7 @@ class ControllerPage(Page):
         self._topo_tab()
         self._intent_tab()
         self._api_tab()
+        self._runs_tab()
 
     # ────────── 拓扑 ──────────
     def _topo_tab(self):
@@ -181,7 +184,16 @@ class ControllerPage(Page):
                 self.preview.insert(tk.END, f"   {c}\n")
         for s in plan["skipped"]:
             self.preview.insert(tk.END, f"\n⚠ 跳过 {s}\n")
-        self.var_intent.set(f"计划覆盖 {len(plan['plan'])} 台设备")
+        # 同时生成生命周期档案：Dry-Run 就是"已预演"，下一步可直接下发/校验/回滚
+        try:
+            runs = self.app.controller_store.lifecycle.create(key, intent, devices)
+            for run in runs:
+                self.app.controller_store.lifecycle.plan(run)
+            self._runs_refresh()
+            self.var_intent.set(f"计划覆盖 {len(plan['plan'])} 台设备 · "
+                                f"已生成 {len(runs)} 条运行档案（见「运行档案」页）")
+        except Exception as exc:      # noqa: BLE001  档案失败不影响预览
+            self.var_intent.set(f"计划覆盖 {len(plan['plan'])} 台设备（档案生成失败：{exc}）")
 
     def apply(self):
         if not getattr(self, "_last_plan", None):
@@ -317,3 +329,170 @@ class ControllerPage(Page):
                        f"{e.get('device', e.get('skipped', ''))}  → {e.get('status', '')}\n")
         if not entries:
             box.insert(tk.END, "（暂无审计记录）")
+
+    # ────────── 运行档案（意图生命周期 GUI）──────────
+    STATE_TEXT = {
+        "compiled": "已编译", "planned": "已预演", "approved": "已批准",
+        "deploying": "下发中", "deployed": "已下发", "verified": "✓ 已校验",
+        "failed": "✖ 失败", "rolled_back": "↩ 已回滚", "rollback_blocked": "⚠ 不可回滚",
+    }
+    STATE_TAG = {
+        "verified": "ok", "rolled_back": "muted", "failed": "err",
+        "rollback_blocked": "warn", "deploying": "warn", "deployed": "info",
+    }
+
+    def _runs_tab(self):
+        tab = tk.Frame(self.nb, bg=theme.bg)
+        self.nb.add(tab, text=" 运行档案 ")
+
+        card = SectionCard(tab, title="意图运行档案",
+                           desc="Dry-Run 即生成档案；下发 / 校验 / 回滚都在本页完成")
+        card.pack(fill=tk.BOTH, expand=True, pady=(12, 10))
+        wrap, self.runs_tree = make_table(
+            card.body,
+            columns=["id", "device", "vendor", "state", "cmds", "risk", "reverse", "time"],
+            headings={"id": "档案号", "device": "设备", "vendor": "厂商",
+                      "state": "状态", "cmds": "命令", "risk": "风险",
+                      "reverse": "回滚", "time": "更新时间"},
+            widths={"id": 90, "device": 140, "vendor": 90, "state": 90,
+                    "cmds": 50, "risk": 60, "reverse": 90, "time": 140},
+            height=10)
+        wrap.pack(fill=tk.BOTH, expand=True)
+        self.runs_tree.tag_configure("ok", foreground=theme.ok)
+        self.runs_tree.tag_configure("warn", foreground=theme.warn)
+        self.runs_tree.tag_configure("err", foreground=theme.err)
+        self.runs_tree.tag_configure("muted", foreground=theme.muted)
+        self.runs_tree.tag_configure("info", foreground=theme.accent)
+        self.runs_tree.bind("<<TreeviewSelect>>", lambda _e: self._render_run_detail())
+
+        btns = tk.Frame(card.body, bg=theme.panel)
+        btns.pack(fill=tk.X, pady=(8, 0))
+        self.btn_run_deploy = WButton(btns, text="② 下发", bg=theme.accent,
+                                      command=lambda: self._run_action("deploy"))
+        self.btn_run_deploy.pack(side=tk.LEFT, padx=(0, 6))
+        self.btn_run_verify = WButton(btns, text="③ 校验",
+                                      command=lambda: self._run_action("verify"))
+        self.btn_run_verify.pack(side=tk.LEFT, padx=(0, 6))
+        self.btn_run_rollback = WButton(btns, text="↩ 回滚",
+                                        command=lambda: self._run_action("rollback"))
+        self.btn_run_rollback.pack(side=tk.LEFT, padx=(0, 6))
+        WButton(btns, text="刷新", command=self._runs_refresh).pack(side=tk.LEFT)
+        self.var_run = tk.StringVar(value="尚未创建运行档案")
+        tk.Label(btns, textvariable=self.var_run, bg=theme.panel, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.RIGHT)
+
+        detail_card = SectionCard(tab, title="档案详情", desc="状态历史 / 检查项 / 反向命令")
+        detail_card.pack(fill=tk.BOTH, expand=True)
+        self.run_detail = tk.Text(detail_card.body, height=8, bg=theme.panel_alt,
+                                  fg=theme.fg, relief=tk.FLAT, font=FONT_MONO,
+                                  highlightthickness=0, bd=0, padx=8, pady=6, wrap="word")
+        self.run_detail.pack(fill=tk.BOTH, expand=True)
+        self._runs_refresh()
+
+    def _runs_refresh(self):
+        lifecycle = getattr(self.app.controller_store, "lifecycle", None)
+        if lifecycle is None or not hasattr(self, "runs_tree"):
+            return
+        runs = lifecycle.recent(50)
+        self.runs_tree.delete(*self.runs_tree.get_children())
+        for index, run in enumerate(runs):
+            policy = run.policy
+            iid = run.id
+            if not iid:
+                continue
+            self.runs_tree.insert("", "end", iid=iid, values=(
+                iid, run.device, getattr(policy, "vendor", ""),
+                self.STATE_TEXT.get(run.state, run.state),
+                len(getattr(policy, "commands", ())),
+                getattr(policy, "risk", "low"),
+                "可回滚" if run.can_rollback else "不可回滚",
+                time.strftime("%H:%M:%S", time.localtime(run.updated))))
+            tag = self.STATE_TAG.get(run.state)
+            if tag:
+                self.runs_tree.item(iid, tags=(tag,))
+            zebra(self.runs_tree, iid, index)
+        self.var_run.set(f"{len(runs)} 条运行档案" if runs else "尚未创建运行档案（先在「意图下发」做 Dry-Run）")
+        self._render_run_detail()
+
+    def _selected_run(self):
+        selection = self.runs_tree.selection()
+        if not selection:
+            return None
+        return self.app.controller_store.lifecycle.get(selection[0])
+
+    def _render_run_detail(self):
+        box = getattr(self, "run_detail", None)
+        if box is None:
+            return
+        box.delete("1.0", tk.END)
+        run = self._selected_run()
+        if run is None:
+            box.insert(tk.END, "在上表选择一条档案查看详情。\n\n"
+                               "流程：Dry-Run（生成档案）→ 下发 → 校验 →（必要时）回滚")
+            return
+        policy = run.policy
+        box.insert(tk.END, f"档案 {run.id} · {run.device}（{getattr(policy, 'vendor', '')}）\n")
+        box.insert(tk.END, f"意图：{getattr(policy, 'intent_title', '')}  "
+                           f"风险：{getattr(policy, 'risk', 'low')}  "
+                           f"状态：{self.STATE_TEXT.get(run.state, run.state)}\n")
+        box.insert(tk.END, f"命令（{len(getattr(policy, 'commands', ()))} 条）：\n")
+        for command in getattr(policy, "commands", ()):
+            box.insert(tk.END, f"  {command}\n")
+        if run.reverse:
+            box.insert(tk.END, f"反向命令（{len(run.reverse)} 条）：\n")
+            for command in run.reverse:
+                box.insert(tk.END, f"  {command}\n")
+        else:
+            box.insert(tk.END, f"回滚策略：{run.reverse_reason or '未登记'}\n")
+        if run.checks:
+            box.insert(tk.END, "检查项：\n")
+            for check in run.checks:
+                mark = "✓" if check.get("ok") else "✖"
+                box.insert(tk.END, f"  {mark} {check.get('name')}: {check.get('detail')}\n")
+        box.insert(tk.END, "状态历史：\n")
+        for state, ts, note in run.history:
+            box.insert(tk.END, f"  {time.strftime('%H:%M:%S', time.localtime(ts))}  "
+                               f"{self.STATE_TEXT.get(state, state)}  {note}\n")
+        if run.error:
+            box.insert(tk.END, f"错误：{run.error}\n")
+
+    def _run_action(self, action: str):
+        run = self._selected_run()
+        if run is None:
+            messagebox.showinfo("提示", "请先在上表选择一条运行档案")
+            return
+        if action == "deploy" and run.state not in ("planned", "failed"):
+            messagebox.showinfo("提示", f"当前状态 {self.STATE_TEXT.get(run.state, run.state)} "
+                                        "不能下发；请在「意图下发」重新 Dry-Run")
+            return
+        if action == "rollback" and not run.can_rollback:
+            messagebox.showwarning("不可回滚", run.reverse_reason or "该意图没有安全的反向命令")
+            return
+        lifecycle = self.app.controller_store.lifecycle
+        self.var_run.set(f"{action} 执行中…")
+
+        def worker():
+            try:
+                if action == "deploy":
+                    result = lifecycle.deploy(run)
+                elif action == "verify":
+                    result = lifecycle.verify(run)
+                else:
+                    result = lifecycle.rollback(run)
+            except Exception as exc:      # noqa: BLE001
+                result = {"ok": False, "error": str(exc)}
+            self.app.after(0, lambda: self._run_done(action, result))
+
+        self.app.set_status(f"正在 {action}：{run.device}")
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _run_done(self, action: str, result: dict):
+        self._runs_refresh()
+        ok = result.get("ok")
+        state = self.STATE_TEXT.get(self._selected_run().state if self._selected_run() else "", "?")
+        self.app.set_status(f"{action} {'完成' if ok else '失败'} · {state}")
+        toast(self.app, f"{action} {'成功' if ok else '失败'}：{state}",
+              "ok" if ok else "err")
+        if not ok and result.get("error"):
+            messagebox.showwarning(f"{action} 失败", str(result["error"])[:500])
+

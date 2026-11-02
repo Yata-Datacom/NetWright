@@ -238,6 +238,25 @@ host,port,vendor,protocol,username,password,hostname,note,local_intf,peer_device
 
 > 端口可达 ≠ 登录成功。真正的登录验证在「批量巡检」里（会走 SSH/Telnet 认证）。
 
+### 配置备份与差异（v3.12）
+
+选中设备（不选则全部）→「🗄 备份配置」：
+
+- 每台设备一份目录：`backups/<设备名>/<时间戳>.cfg`，可以直接用资源管理器打开
+- **内容没变不会重复落盘**（按 sha256 判断），所以每天跑一次也不会堆垃圾
+- 默认保留最近 **30 份**（`ConfigBackup(keep=...)` 可调）
+- 备份结果会区分「已更新 / 无变化 / 失败」，失败会显示具体原因
+
+差异对比：
+
+```bash
+# 最近两次快照的 unified diff
+curl -H "Authorization: Bearer $TOKEN" \
+  "http://127.0.0.1:8899/api/v2/backups/diff?device=核心A"
+```
+
+也可以在 Python 里用 `store.backups.diff("核心A")` 直接拿到 diff 文本。
+
 ---
 
 ## 4. 资产盘点（一键发现）
@@ -316,6 +335,18 @@ Dry-Run 之后，一条意图会经历：**预演 → 下发 → 校验 →（�
 
 > 回滚是"能确定才做"：端口 access/trunk 互转、BGP 邻居、管理面基线都**不会**自动回滚，
 > 因为原状态只有设备知道——猜一条命令比不滚更危险。
+
+### 运行档案页（v3.12）
+
+「意图与策略 → 运行档案」是生命周期的操作面板：
+
+1. 先在「意图下发」点 **Dry-Run**——此时档案已生成（状态「已预演」）
+2. 切到「运行档案」，选中一条，右侧详情会显示：命令清单、反向命令、检查项、状态历史
+3. 依次点 **② 下发 → ③ 校验**；校验会回读设备确认意图真的生效
+4. 需要撤销时点 **↩ 回滚**；不可回滚的意图会直接弹窗说明原因（并标「⚠ 不可回滚」）
+
+> 状态徽章：已预演 / 已下发 / ✓ 已校验 / ✖ 失败 / ↩ 已回滚 / ⚠ 不可回滚。
+> 失败时详情里会写清是哪一步、什么错误，便于直接贴给厂商或写进工单。
 
 ### 事件源（v3.11）
 
@@ -425,6 +456,9 @@ v1 与 v2 并存：v1 面向脚本化既有功能，v2 是控制器语义接口�
 | GET `/api/v2/intents/runs` | 运行档案（状态、检查项、反向命令） |
 | GET `/api/v2/sources` | syslog / trap 监听状态 |
 | POST `/api/v2/sources/{start,stop}` | 启停事件源监听 |
+| GET `/api/v2/backups?device=` | 备份总览 / 某台设备的历史快照 |
+| GET `/api/v2/backups/diff?device=&old=&new=` | 两次快照的 unified diff |
+| POST `/api/v2/backups` | 触发备份（`device_hosts` 可限定，单次上限 50 台） |
 
 **鉴权（v3.11 起）**：除 `/api/v2/health` 外，所有 v2 请求都要带
 
@@ -466,6 +500,7 @@ curl -X POST http://127.0.0.1:8899/api/v2/policies/compile -H "Content-Type: app
 | `netwright_controller.json` | 控制器拓扑与策略快照 | 无凭据（只有设备名/端口/链路） |
 | `netwright_history_inspection.jsonl` | 巡检趋势摘要 | 无凭据 |
 | `netwright_snapshot_mac.json` | MAC 表快照 | 无凭据 |
+| `backups/<设备>/*.cfg` | 配置快照（v3.12） | **含设备配置，可能有机密**：注意备份目录权限 |
 | `presets.json` / `profiles.json` | 命令预设/连接档案 | 密码明文（旧机制） |
 
 - **导出 CSV 默认不含密码**；要备份凭据请复制 `netwright_devices.json`（DPAPI 密文）

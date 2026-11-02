@@ -37,6 +37,7 @@ from netwright.pages import NAV_GROUPS, PAGE_REGISTRY  # noqa: E402
 from netwright.pages.help import show_help  # noqa: E402
 from netwright.sdn import ControllerStore, EventBus  # noqa: E402
 from netwright.sdn.auth import TokenAuth  # noqa: E402
+from netwright.sdn.backup import ConfigBackup  # noqa: E402
 from netwright.theme import (  # noqa: E402
     FONT_SMALL, PRIMARY_HUES, SIDEBAR_COLLAPSED_W, SIDEBAR_W, TOPBAR_H,
     setup_ttk, theme,
@@ -83,8 +84,9 @@ class NetWrightApp(tk.Tk):
         self.inventory = Inventory()
         self.event_bus = EventBus()
         self.api_auth = TokenAuth.from_settings(self.settings)
-        self.controller_store = ControllerStore(self.inventory, self.event_bus,
-                                                auth=self.api_auth)
+        self.controller_store = ControllerStore(
+            self.inventory, self.event_bus, auth=self.api_auth,
+            backups=ConfigBackup(BASE_DIR, self.event_bus))
         save_settings(self.settings, BASE_DIR)
         self.controller_state = ControllerState(self.inventory, self.controller_store)
         self.controller_api = ControllerAPI(self.controller_state,

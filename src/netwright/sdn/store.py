@@ -26,7 +26,7 @@ class ControllerStore:
     """控制器内核状态。"""
 
     def __init__(self, inventory, bus: EventBus | None = None, registry=None,
-                 auth=None):
+                 auth=None, backups=None):
         self.inventory = inventory
         # 注意：不能写 ``bus or EventBus()`` —— EventBus 定义了 __len__，
         # 空总线是 falsy，会被悄悄换成另一条总线（页面与内核就看不到彼此的事件）。
@@ -34,6 +34,7 @@ class ControllerStore:
         self.registry = registry or default_registry(self.bus)
         self.compiler = PolicyCompiler(self.bus)
         self.auth = auth
+        self.backups = backups        # sdn.backup.ConfigBackup（可选，无则不落盘）
         self.lifecycle = IntentLifecycle(self)
         # 事件源（默认不启动，端口可能与系统服务冲突；由 UI/REST 显式开启）
         self.syslog = SyslogListener(self.bus)
@@ -48,6 +49,30 @@ class ControllerStore:
         self.last_discovery_at: float | None = None
         self._lock = threading.RLock()
         self.sync_inventory(publish=False)
+
+    # ── 配置备份 ──
+    def backup_device(self, device, timeout: float = 20.0) -> dict:
+        """读设备配置并落一份快照；返回快照信息。"""
+        if self.backups is None:
+            raise RuntimeError("未配置备份目录（ControllerStore.backups 为空）")
+        adapter = self.registry.for_device(device)
+        if adapter is None:
+            raise RuntimeError(f"没有匹配 {getattr(device, 'protocol', '?')} 的南向适配器")
+        if not hasattr(adapter, "read_config"):
+            raise RuntimeError(f"{adapter.protocol} 适配器不支持配置回读")
+        text = adapter.read_config(device, timeout=timeout)
+        if not (text or "").strip():
+            raise RuntimeError("设备返回空配置（命令不被支持或权限不足）")
+        entry = self.backups.save(device.display_name, text,
+                                  note=f"{getattr(device, 'host', '')} via {adapter.protocol}")
+        return entry.to_dict()
+
+    def backup_summary(self) -> dict:
+        if self.backups is None:
+            return {"enabled": False, "devices": [], "count": 0}
+        devices = self.backups.devices()
+        return {"enabled": True, "devices": devices, "count": len(devices),
+                "root": self.backups.root}
 
     # ── 事件源（syslog / snmp trap）──
     def start_syslog(self, port: int | None = None) -> dict:

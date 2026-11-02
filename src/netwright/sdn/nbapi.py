@@ -152,9 +152,50 @@ def dispatch(store, method: str, path: str, body: dict | None = None,
             return 200, {"ok": True, "runs": store.lifecycle.snapshot(limit)}
         if route == "/sources":
             return 200, {"ok": True, **store.listener_status()}
+        if route == "/backups":
+            device = (query.get("device") or [""])[0]
+            if not device:
+                return 200, {"ok": True, **store.backup_summary()}
+            if store.backups is None:
+                return 503, {"ok": False, "message": "备份未启用"}
+            entries = store.backups.history(device)
+            return 200, {"ok": True, "device": device,
+                         "entries": [e.to_dict() for e in entries]}
+        if route == "/backups/diff":
+            device = (query.get("device") or [""])[0]
+            if not device or store.backups is None:
+                return 400, {"ok": False, "message": "需要 device 参数且备份已启用"}
+            try:
+                text = store.backups.diff(device,
+                                          (query.get("old") or [None])[0],
+                                          (query.get("new") or [None])[0])
+            except ValueError as exc:
+                return 400, {"ok": False, "message": str(exc)}
+            return 200, {"ok": True, "device": device, "diff": text}
         return 404, {"ok": False, "message": "未知端点"}
 
     if method == "POST":
+        if route == "/backups":
+            if store.backups is None:
+                return 503, {"ok": False, "message": "备份未启用"}
+            hosts = body.get("device_hosts")
+            devices = list(store.inventory.devices)
+            if isinstance(hosts, list) and hosts:
+                devices = [d for d in devices if d.host in hosts]
+            if not devices:
+                return 404, {"ok": False, "message": "没有匹配的设备"}
+            if len(devices) > 50:
+                return 400, {"ok": False, "message": "单次最多备份 50 台（分批调用）"}
+            results = []
+            for device in devices:
+                try:
+                    entry = store.backup_device(device)
+                    results.append({"device": device.display_name, "ok": True, **entry})
+                except Exception as exc:      # noqa: BLE001  单台失败不影响其他设备
+                    results.append({"device": device.display_name, "ok": False,
+                                    "error": str(exc)})
+            ok = all(item["ok"] for item in results)
+            return (200 if ok else 207), {"ok": ok, "results": results}
         if route == "/sources/start":
             try:
                 store.start_syslog(body.get("syslog_port"))
