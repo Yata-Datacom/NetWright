@@ -293,6 +293,84 @@ def test_smoke_lifecycle_runs_tab(app):
     assert "undo vlan 10" in detail, "详情里应能看到反向命令"
 
 
+def test_smoke_settings_r9_extensions(app, tmp_path, monkeypatch):
+    """R9：备份目录切换（旧文件不动）/ 日志级别即时生效 / token 管理。"""
+    import logging
+    import os
+
+    from netwright.lib.inventory import Device
+    from netwright.lib.settings import load_settings
+    from netwright.sdn.backup import ConfigBackup
+
+    page = app.pages["settings"]
+    old_base = app.base_dir
+    app.base_dir = str(tmp_path)          # 设置持久化重定向到 tmp（不写仓库）
+    app.inventory.devices = []
+    app.inventory.add(Device(host="192.0.2.1", vendor="huawei", hostname="R9-SW"))
+
+    # ── 备份目录：切到 tmp 新目录，旧文件原地不动，新快照进新目录 ──
+    old_bk = ConfigBackup(str(tmp_path / "old"))
+    old_entry = old_bk.save("R9-SW", "sysname OLD\n")
+    original = app.controller_store.backups
+    app.controller_store.backups = old_bk
+    app.settings["backup_dir"] = ""
+    try:
+        monkeypatch.setattr("netwright.pages.settings.messagebox.askyesno",
+                            lambda *a, **k: True)
+        newbase = str(tmp_path / "newbase")
+        page.var_backup_dir.set(newbase)
+        page.migrate_backup_dir()
+        assert app.settings["backup_dir"] == newbase
+        assert app.controller_store.backups.root == os.path.join(newbase, "backups")
+        assert os.path.isfile(old_entry.path), "旧文件必须原地不动"
+
+        class FakeAdapter:
+            protocol = "cli"
+
+            def read_config(self, device, timeout=15.0):
+                return "sysname NEW\n"
+
+        app.controller_store.registry.for_device = lambda _d: FakeAdapter()
+        entry = app.controller_store.backup_device(app.inventory.devices[0])
+        assert entry["path"].startswith(os.path.join(newbase, "backups"))
+        loaded = load_settings(str(app.base_dir))
+        assert loaded["backup_dir"] == newbase, "备份目录改动要即时持久化"
+    finally:
+        app.controller_store.backups = original
+        app.settings["backup_dir"] = ""
+        page.refresh()
+
+    # ── 日志级别：保存后即时生效并持久化 ──
+    page.var_log.set("DEBUG")
+    page.save()
+    assert logging.getLogger("netwright").level == logging.DEBUG
+    assert load_settings(str(app.base_dir))["log_level"] == "DEBUG"
+    page.var_log.set("WARNING")
+    page.save()
+    assert logging.getLogger("netwright").level == logging.WARNING
+
+    # ── token 管理：发放只读 → 列表可见 → 吊销 ──
+    monkeypatch.setattr("netwright.pages.settings.simpledialog.askstring",
+                        lambda *a, **k: "ci-script")
+    monkeypatch.setattr("netwright.pages.settings.messagebox.showinfo",
+                        lambda *a, **k: None)
+    before = len(app.api_auth.tokens)
+    page.issue_readonly_token()
+    assert len(app.api_auth.tokens) == before + 1
+    readonly = next(t for t, i in app.api_auth.tokens.items()
+                    if i.get("label") == "ci-script")
+    assert app.api_auth.tokens[readonly]["scope"] == "read"
+    assert page.token_list.size() == len(app.api_auth.tokens)
+
+    page.token_list.selection_set(len(page._token_rows) - 1)   # 刚发放的子 token
+    monkeypatch.setattr("netwright.pages.settings.messagebox.askyesno",
+                        lambda *a, **k: True)
+    page.revoke_selected_token()
+    assert readonly not in app.api_auth.tokens, "吊销后 token 立即失效"
+    assert load_settings(str(app.base_dir))["api_tokens"] == app.api_auth.export()
+    app.base_dir = old_base
+
+
 def test_smoke_settings_page_save(app, tmp_path):
     """设置页：改端口/保留份数并保存，写入设置文件且不影响运行。"""
     from netwright.lib.settings import load_settings

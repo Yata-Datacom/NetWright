@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 
 FILENAME = "netwright_settings.json"
@@ -13,7 +14,11 @@ DEFAULTS = {
     "last_page": "dashboard",
     "auto_refresh": True,
     "nav_collapsed": False,
+    "log_level": "WARNING",       # R9：netwright.* 日志级别
+    "backup_dir": "",             # R9：备份目录（留空 = 程序目录/exe 同级）
 }
+
+LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
 
 def settings_path(base_dir: str) -> str:
@@ -54,3 +59,15 @@ def save_settings(settings: dict, base_dir: str) -> bool:
         return True
     except OSError:
         return False
+
+
+def apply_log_level(level: str) -> str:
+    """把日志级别应用到 netwright.* 命名空间（R9 设置项，改动即时生效）。
+
+    非法值回退 WARNING；返回实际生效的级别名。
+    """
+    name = str(level or "").strip().upper()
+    if name not in LOG_LEVELS:
+        name = "WARNING"
+    logging.getLogger("netwright").setLevel(getattr(logging, name))
+    return name

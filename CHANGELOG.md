@@ -3,6 +3,25 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.27.0] - 2026-11-02
+
+### Added（R9 设置页扩展）
+- **备份目录设置项**：填写新目录 →「迁移…」→ 二次确认后立即切换
+  （`set_backup_dir(move=False)`：**旧文件原地不动**，新快照进新目录），
+  设置键 `backup_dir` 即时持久化，重启后按它构造备份器。
+- **日志级别设置项**：DEBUG/INFO/WARNING/ERROR 下拉，保存后即时应用到
+  `netwright.*` 命名空间（`lib.settings.apply_log_level`，非法值回退 WARNING）。
+- **REST API token 管理区**：列表（label · scope · 掩码）＋发放只读 token
+  （起名对话框，发放后弹完整 token 供复制）、吊销选中（主 token 引导走轮换）、
+  轮换主 token——全部即时生效并持久化（R6 的 GUI 落地）。
+- 事件源默认端口设置项 v3.18 起已有，保持不动。
+
+### Tests
+- GUI 冒烟新增 1 项（R9 三合一）：备份目录切换后旧文件在原位、新快照进新目录、
+  设置即时落盘；DEBUG/WARNING 日志级别即时生效并持久化；发放→列表→吊销
+  token 全链路（弹窗全部 mock，避免测试挂起等点击）。
+- 全量 **314 项 pytest 通过**（+1）。
+
 ## [3.26.0] - 2026-11-02
 
 ### Added（R8 备份治理：保留份数 / 导出 zip / 目录迁移）

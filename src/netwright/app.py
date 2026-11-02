@@ -105,10 +105,13 @@ class NetWrightApp(tk.Tk):
         self.inventory = Inventory()
         self.event_bus = EventBus()
         self.api_auth = TokenAuth.from_settings(self.settings)
+        from netwright.lib.settings import apply_log_level
+        apply_log_level(self.settings.get("log_level", "WARNING"))
         from netwright.sdn.backup import DEFAULT_KEEP
+        backup_base = str(self.settings.get("backup_dir") or BASE_DIR)
         self.controller_store = ControllerStore(
             self.inventory, self.event_bus, auth=self.api_auth,
-            backups=ConfigBackup(BASE_DIR, self.event_bus,
+            backups=ConfigBackup(backup_base, self.event_bus,
                                  keep=int(self.settings.get("backup_keep", DEFAULT_KEEP)),
                                  device_keep=self.settings.get("backup_keep_device")))
         save_settings(self.settings, BASE_DIR)

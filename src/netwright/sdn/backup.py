@@ -315,11 +315,12 @@ class ConfigBackup:
                         _json.dumps(manifest, ensure_ascii=False, indent=2))
         return {"path": zip_path, "devices": len(names), "snapshots": count}
 
-    def migrate_root(self, new_base_dir: str) -> dict:
-        """迁移备份目录到新 base（R8 设置项），迁移后旧目录不再写入。
+    def migrate_root(self, new_base_dir: str, move: bool = True) -> dict:
+        """迁移备份目录到新 base（R8/R9），迁移后旧目录不再写入。
 
-        同盘且新位置空闲 → 整个 ``backups/`` 原子重命名（历史完整保留）；
-        否则新目录从空开始（旧目录保持原样，只读不再写入）。
+        :param move: True（同盘且目标空闲）→ 整个 ``backups/`` 原子重命名，
+            历史完整保留；False → 旧目录原地保留只读，新目录从空开始
+            （设置页切目录的默认语义：**旧文件不动**，新快照进新目录）。
         """
         old_root = self.root
         old_base = self.base_dir
@@ -327,7 +328,7 @@ class ConfigBackup:
         new_root = self.root
         moved = False
         os.makedirs(new_base_dir, exist_ok=True)   # rename 需要目标父目录存在
-        if os.path.isdir(old_root) and not os.path.exists(new_root):
+        if move and os.path.isdir(old_root) and not os.path.exists(new_root):
             try:
                 os.rename(old_root, new_root)      # 同盘原子；跨盘抛 OSError
                 moved = True

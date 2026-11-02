@@ -74,21 +74,22 @@ class ControllerStore:
         return {"enabled": True, "devices": devices, "count": len(devices),
                 "root": self.backups.root}
 
-    def set_backup_dir(self, new_base_dir: str) -> dict:
-        """迁移备份目录（R8 设置项）：迁移后旧目录不再写入。
+    def set_backup_dir(self, new_base_dir: str, move: bool = False) -> dict:
+        """迁移备份目录（R8/R9 设置项）：迁移后旧目录不再写入。
 
-        新的 ConfigBackup 继承全局保留份数与按设备保留份数；
-        旧目录是否搬走由 ``ConfigBackup.migrate_root`` 决定（同盘原子重命名）。
+        默认 ``move=False``（设置页语义：**旧文件原地不动**，新快照进新目录）；
+        ``move=True`` 且目标空闲时整个目录原子搬移。
+        新的 ConfigBackup 继承全局保留份数与按设备保留份数。
         """
         from .backup import ConfigBackup
 
         if self.backups is None:
             self.backups = ConfigBackup(new_base_dir, self.bus)
             return {"old": None, "new": self.backups.root, "moved": False}
-        result = self.backups.migrate_root(new_base_dir)
+        result = self.backups.migrate_root(new_base_dir, move=move)
         self.bus.publish("backup.migrated",
                          f"备份目录已迁移 → {result['new']}"
-                         + ("（历史已搬移）" if result["moved"] else "（旧目录保留只读）"),
+                         + ("（历史已搬移）" if result["moved"] else "（旧目录保留不动）"),
                          source="backup")
         return result
 
