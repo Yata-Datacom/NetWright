@@ -3,6 +3,24 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.13.0] - 2026-11-02
+
+### Added（错误提示打磨）
+- **`lib/errors.py`：技术异常 → 人话 + 下一步**。覆盖认证失败、连接超时、端口拒绝、
+  权限、文件缺失、`UnsupportedOperation`、`RestconfError`（按 401/403/404/409 给建议）、
+  `NetconfError`、`LifecycleError`；未知异常保留 `类型: 消息`，并**始终附带原始信息**便于排障。
+- **`friendly_text()`**：把上游已经字符串化的错误（巡检结果、命令回显）按关键字翻译。
+- 接入点：设备清单（连接测试、配置备份）、运行档案（下发/校验/回滚）、巡检详情。
+- 预留 `paramiko` 为可选：按类名识别，未安装也能用。
+
+### Changed
+- 事件页空状态：没有事件时表格显示一行引导（"可启动事件源监听，或在拓扑页做一次发现"），
+  不再是一张空白表。
+
+### Tests
+- 新增 `tests/test_errors.py`（9 项）：认证/超时/拒绝/校验/南向/生命周期/未知异常与关键字翻译。
+- 全量 **200 项 pytest 通过**。
+
 ## [3.12.0] - 2026-11-02
 
 ### Added（意图生命周期 GUI + 配置备份）
@@ -22,7 +40,7 @@
 
 ### Tests
 - 新增 `tests/test_backup.py`（12 项）+ GUI「运行档案」冒烟 1 项。
-- 全量 **191 项 pytest 通过**。
+- 全量 **200 项 pytest 通过**。
 
 ## [3.11.0] - 2026-11-02
 
@@ -52,7 +70,7 @@
 
 ### Tests
 - 新增 `tests/test_lifecycle.py`（16 项）与 `tests/test_southbound.py`（18 项）。
-- 全量 **191 项 pytest 通过**。
+- 全量 **200 项 pytest 通过**。
 
 ## [3.10.0] - 2026-11-02
 

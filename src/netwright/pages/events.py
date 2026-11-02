@@ -138,6 +138,10 @@ class EventsPage(Page):
 
         events = bus.snapshot(limit=200, min_severity=self._min_severity())
         self.tree.delete(*self.tree.get_children())
+        if not events:
+            self.tree.insert("", "end", values=(
+                "—", "ℹ 提示", "—", "—",
+                "暂无事件：可在下方「事件源」启动监听，或在拓扑页做一次发现"))
         for i, event in enumerate(events):
             data = event.to_dict()
             iid = self.tree.insert("", "end", values=(

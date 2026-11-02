@@ -7,6 +7,7 @@ from datetime import datetime
 from tkinter import filedialog, messagebox, ttk
 
 from netwright.lib import portscan, secrets as sec
+from netwright.lib.errors import friendly_error
 from netwright.lib.inventory import VENDORS, Device
 from netwright.theme import FONT_SMALL, theme
 from netwright.widgets import (
@@ -403,7 +404,8 @@ class InventoryPage(Page):
                         results.append(f"✓ {device.display_name}: {device.host}:{port} 端口可达"
                                        f"（{device.protocol.upper()}）")
                 except OSError as exc:
-                    results.append(f"✖ {device.display_name}: {device.host}:{port} 不可达（{exc}）")
+                    results.append(f"✖ {device.display_name}: {device.host}:{port} "
+                                   f"不可达（{friendly_error(exc)}）")
             self.app.after(0, self._test_done, results)
 
         self.app.set_status(f"正在测试 {len(devices)} 台设备的连通性…")
@@ -437,7 +439,7 @@ class InventoryPage(Page):
                     results.append((device.display_name, True, entry["file"],
                                     entry["changed"]))
                 except Exception as exc:      # noqa: BLE001
-                    results.append((device.display_name, False, str(exc), False))
+                    results.append((device.display_name, False, friendly_error(exc), False))
             self.app.after(0, self._backup_done, results)
 
         threading.Thread(target=worker, daemon=True).start()

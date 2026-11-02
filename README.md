@@ -14,7 +14,7 @@
   <a href="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml"><img src="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml/badge.svg" alt="Build EXE"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
-  <img src="https://img.shields.io/badge/tests-191%20passed-brightgreen" alt="191 tests">
+  <img src="https://img.shields.io/badge/tests-200%20passed-brightgreen" alt="200 tests">
 </p>
 
 ---
@@ -193,7 +193,7 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 │  ├─ lib/                      # 纯逻辑：清单、巡检、生成、计算、意图、拓扑解析
 │  └─ pages/                    # 10 个工作区页面 + 新手引导
 ├─ templates/                   # 116 个配置模板 + library.json
-├─ tests/                       # 191 项 pytest（含 GUI 冒烟）
+├─ tests/                       # 200 项 pytest（含 GUI 冒烟）
 ├─ docs/                        # 用户指南 + 示例台账 + 截图
 └─ tools/                       # 图标生成、模板导入
 ```
@@ -206,7 +206,7 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 python -m venv .venv
 .venv/Scripts/pip install -e ".[dev]"     # Windows；Linux/macOS 用 .venv/bin/pip
 
-pytest tests/ -v                          # 191 项，含 GUI 冒烟（无显示环境自动跳过）
+pytest tests/ -v                          # 200 项，含 GUI 冒烟（无显示环境自动跳过）
 ruff check src tests main.py              # 核心规则 lint
 pyinstaller NetWright.spec --noconfirm    # 打包 exe
 python tools/make_icon.py                 # 重新生成图标

@@ -210,7 +210,9 @@ class InspectPage(Page):
         for c in r.commands:
             self.detail.insert(tk.END, f"\n▸ {c.command}\n")
             if c.error:
-                self.detail.insert(tk.END, f"  [错误] {c.error}\n")
+                from netwright.lib.errors import friendly_text
+
+                self.detail.insert(tk.END, f"  [错误] {friendly_text(c.error)}\n")
             self.detail.insert(tk.END, c.output[:3000] + ("\n…(截断)" if len(c.output) > 3000 else ""))
         self.detail.see("1.0")
 

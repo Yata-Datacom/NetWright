@@ -21,6 +21,7 @@ import time
 from dataclasses import dataclass, field
 
 from ..lib.controller import deploy as deploy_mod
+from ..lib.errors import friendly_error, friendly_text
 from .reverse import reverse_commands
 
 STATES = ("compiled", "planned", "approved", "deploying", "deployed",
@@ -182,7 +183,7 @@ class IntentLifecycle:
         try:
             outputs = adapter.run_commands(device, list(run.policy.commands), timeout=timeout)
         except Exception as exc:      # noqa: BLE001  适配器异常统一转成失败状态
-            run.error = str(exc)
+            run.error = friendly_error(exc)
             self._touch(run, "failed", run.error)
             return {"ok": False, "error": run.error}
         failed = [o for o in outputs if not o.ok]
@@ -190,7 +191,9 @@ class IntentLifecycle:
                            "device": run.device, "commands": len(outputs),
                            "status": "OK" if not failed else "WARNING"})
         if failed:
-            run.error = f"{len(failed)} 条命令返回错误"
+            first = friendly_text(failed[0].error) if failed[0].error else ""
+            run.error = (f"{len(failed)} 条命令返回错误"
+                         + (f"（首条：{first}）" if first else ""))
             self._touch(run, "failed", run.error)
             return {"ok": False, "error": run.error, "outputs": [o.__dict__ for o in outputs]}
         self._touch(run, "deployed", f"{len(outputs)} 条命令执行完成")
@@ -237,8 +240,8 @@ class IntentLifecycle:
         try:
             outputs = adapter.run_commands(device, list(run.reverse), timeout=timeout)
         except Exception as exc:      # noqa: BLE001
-            run.error = str(exc)
-            self._touch(run, "failed", f"回滚失败：{exc}")
+            run.error = friendly_error(exc)
+            self._touch(run, "failed", f"回滚失败：{run.error}")
             return {"ok": False, "error": run.error}
         failed = [o for o in outputs if not o.ok]
         deploy_mod._audit({"action": "intent.rollback", "intent": run.policy.intent_key,
