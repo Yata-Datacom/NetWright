@@ -145,10 +145,14 @@ def restore_backup(self, device, filename: str, timeout: float = 30.0) -> dict
 **目标**：事件源默认端口、备份目录、日志级别、REST 多 token 管理。
 **验收**：改动即时持久化；改备份目录后新快照写入新目录（旧文件不动）
 
-#### R10 发布工程
-**目标**：`git tag` → CI 出 exe + SHA256 + Release；版本号三处一致（CI 已有检查）。
-**验收**：`pyinstaller NetWright.spec --noconfirm` 产物可启动、能读到 `templates/`（onedir 更稳）；
-Release 附件含 `NetWright.exe` 与 `SHA256SUMS.txt`
+#### R10 发布工程（⏸ 暂缓，用户明确"先不发版"）
+
+> 这一条**现在不要做**。等主体功能补齐、用户明确要发版时再开。
+> 届时目标：`git tag` → CI 出 exe + SHA256 + Release；版本号三处一致（CI 已有检查）。
+> 验收（届时再启用）：`pyinstaller NetWright.spec --noconfirm` 产物可启动、能读到
+> `templates/`（onedir 更稳）；Release 附件含 `NetWright.exe` 与 `SHA256SUMS.txt`。
+
+**当前不要碰**：不要创建 tag、不要改 CI 发布步骤、不要写 Release notes。
 
 ---
 
