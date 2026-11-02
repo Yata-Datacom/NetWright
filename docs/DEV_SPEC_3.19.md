@@ -155,6 +155,56 @@ def restore_backup(self, device, filename: str, timeout: float = 30.0) -> dict
 
 **当前不要碰**：不要创建 tag、不要改 CI 发布步骤、不要写 Release notes。
 
+### M1.5（性能专项，用户反馈"exe 卡卡"）
+
+#### R11 页面惰性构建（冷启动最大的一笔）
+**现状**：`NetWrightApp.__init__` 一次性构造全部 12 个页面（每个都带 Treeview/Canvas），
+冷启动一半时间花在"用户还没点开的页面"上。
+
+**目标**：页面在**第一次被 show 时**才构建；已构建的页面在同一会话内复用。
+
+**接口契约**（不要改测试的访问方式）：
+```python
+# app.py
+class LazyPages(dict):
+    """dict 子类：__missing__ 时按需构建，保持 app.pages[key] 的既有写法。"""
+    def __init__(self, app): ...
+    def __missing__(self, key): ...        # 调 app._ensure_page(key) 后返回
+
+class NetWrightApp:
+    def _ensure_page(self, key) -> Page:    # 幂等：已存在直接返回
+```
+**禁止**：
+- 不要在 `show()` 里重复构建（同一 key 二次 show 必须返回**同一对象**）
+- 不要让 `apply_theme()` 重建未构建过的页面（只重建已构建的）
+- 不要改 `PAGE_REGISTRY` 的 key、不要改 `Page.__init__` 签名
+
+**验收**：
+- `tests/test_lazy_pages.py`（骨架已就绪，实现前整文件 skip）：5 项必须全过
+  1. 新建 app 后 `len(app.pages) <= 2`（只建当前页）
+  2. `show("topology")` 后页面存在，且总数只 +1
+  3. 重复 `show` 返回同一页面对象（无重复构建）
+  4. `apply_theme()` 后已构建页仍在、未构建页仍未构建
+  5. 全部 `show` 一遍后 `len(app.pages) == len(PAGE_REGISTRY)`
+- `tools/bench_startup.py` 输出 `construct_ms` 与 `first_show_ms`，实现前后各跑一次，
+  构造时间应下降 ≥ 40%（在报告里贴数字，不许只写"更快了"）
+- 全量 `pytest tests/ -q` 全绿（现有 GUI 冒烟会循环 show 所有页，天然覆盖懒加载）
+
+**涉及文件**：`src/netwright/app.py`（主要）、`tests/test_lazy_pages.py`、`tools/bench_startup.py`
+
+#### R12 打包启动（exe 双击到出窗口）
+**现状**：onefile + `upx=True`，每次启动解压 24 MB 到 %TEMP%，叠加 UPX 解压与杀软扫描。
+
+**目标**：提供可选的 onedir 产物，并把单文件 spec 的 UPX 关掉做 A/B。
+
+**任务**：
+1. `NetWright.spec`：`upx=True` → `upx=False`（改一行，产物变大但启动更快、误报更少）
+2. 保留 `NetWright-onedir.spec`（已提供），补 `tools/bench_startup.py --exe <path>`
+   记录"进程启动→窗口可见"毫秒数（用 `time` + 轮询窗口句柄，或人工秒表也行，写清方法）
+3. 在 `docs/` 下记录对照表：onefile+upx / onefile / onedir 三者的体积与冷启动耗时
+
+**验收**：三次各测 5 次取中位数并写进文档；onedir 冷启动应明显低于 onefile。
+**禁止**：不要改 CI 的发布产物路径（`dist/NetWright.exe`），R10 暂缓期间不动发布流程。
 ---
 
 ## 3. 已知的坑（都是这个项目真踩过的，别重踩）
