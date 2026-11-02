@@ -43,6 +43,11 @@ class TimelinePage(Page):
         if store is None or not hasattr(self, "tree"):
             return
         self.items = build_timeline(store)
+        # 数据未变就跳过重建：10 秒刷新下这是最大的一笔开销
+        signature = (len(self.items), self.items[0].to_dict()["ts"] if self.items else 0)
+        if signature == getattr(self, "_refresh_sig", None) and self.tree.get_children():
+            return
+        self._refresh_sig = signature
         self.tree.delete(*self.tree.get_children())
         if not self.items:
             self.tree.insert("", "end", values=(

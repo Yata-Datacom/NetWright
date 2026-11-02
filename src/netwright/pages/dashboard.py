@@ -179,6 +179,13 @@ class DashboardPage(Page):
         for child in self.events_box.winfo_children():
             child.destroy()
         events = bus.snapshot(limit=8)
+        # 10 秒刷新：事件没变就跳过重建（否则每 10 秒销毁重建 8 行控件）
+        signature = (len(events), events[0].id if events else 0)
+        if signature == getattr(self, "_events_sig", None) and self.events_box.winfo_children():
+            return
+        self._events_sig = signature
+        for child in self.events_box.winfo_children():
+            child.destroy()
         if not events:
             tk.Label(self.events_box, text="暂无事件", bg=theme.panel, fg=theme.faint,
                      font=FONT_SMALL, anchor="w").pack(fill=tk.X, pady=6)

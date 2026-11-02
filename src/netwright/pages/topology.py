@@ -375,7 +375,19 @@ class TopologyPage(Page):
         self._drag_origin = None
 
     def _on_motion(self, event):
-        name = self._hit(event.x, event.y)
+        # 鼠标移动事件一秒能有上百个；直接重绘会和"拖动窗口"抢主线程。
+        # 这里 40ms 合并一次（约 25fps，足够跟手），并且只在悬停节点变化时才重绘。
+        self._hover_xy = (event.x, event.y)
+        if getattr(self, "_hover_job", None) is not None:
+            return
+        self._hover_job = self.after(40, self._apply_hover)
+
+    def _apply_hover(self):
+        self._hover_job = None
+        if not self.canvas.winfo_exists():
+            return
+        x, y = getattr(self, "_hover_xy", (0, 0))
+        name = self._hit(x, y)
         if name != self._hover:
             self._hover = name
             self.canvas.config(cursor="hand2" if name else "arrow")
@@ -509,10 +521,16 @@ def _layout_layers(graph) -> dict[str, tuple[float, float]]:
 
 
 def _layout_force(graph, iterations: int = 240) -> dict[str, tuple[float, float]]:
-    """Fruchterman-Reingold 力导向布局（确定性初始位置，结果可复现）。"""
+    """Fruchterman-Reingold 力导向布局（确定性初始位置，结果可复现）。
+
+    迭代次数按节点数自适应：算法是 O(n²·iter)。100 台设备若还跑 240 轮，
+    纯 Python 里要好几秒，用户看到的就是"点了没反应"。
+    这里给总计算量设预算（约 6000 节点·轮）：小图保质量，大图先保响应。
+    """
     names = sorted(graph.nodes)
     if not names:
         return {}
+    iterations = max(40, min(iterations, 6000 // max(1, len(names))))
     if len(names) == 1:
         return {names[0]: (0.0, 0.0)}
     pos: dict[str, list[float]] = {}

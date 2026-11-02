@@ -137,6 +137,12 @@ class EventsPage(Page):
         self.tile_crit.set(counts.get("critical", 0))
 
         events = bus.snapshot(limit=200, min_severity=self._min_severity())
+        # 自动刷新每 10 秒跑一次：数据没变就不要重建整张表（Treeview 重建在千行级并不便宜）
+        signature = (len(events), events[0].id if events else 0, self.var_filter.get())
+        if signature == getattr(self, "_refresh_sig", None) and self.tree.get_children():
+            self._render_sources()
+            return
+        self._refresh_sig = signature
         self.tree.delete(*self.tree.get_children())
         if not events:
             self.tree.insert("", "end", values=(
