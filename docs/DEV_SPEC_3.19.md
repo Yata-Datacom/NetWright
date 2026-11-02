@@ -203,7 +203,10 @@ class NetWrightApp:
    记录"进程启动→窗口可见"毫秒数（用 `time` + 轮询窗口句柄，或人工秒表也行，写清方法）
 3. 在 `docs/` 下记录对照表：onefile+upx / onefile / onedir 三者的体积与冷启动耗时
 
-**验收**：三次各测 5 次取中位数并写进文档；onedir 冷启动应明显低于 onefile。
+**基线实测（v3.18.2，UPX 已关）**：onefile 4.4 s / onedir 3.5 s（双击到窗口，本机 5 次内取中位）。
+两者都慢在 `NetWrightApp.__init__` 预构建 12 个页面——R11 做完后应降到 1.5 s 以内，再重测。
+
+**验收**：三次各测 5 次取中位数并写进文档；onedir 冷启动应明显低于 onefile，且 R11 落地后 onefile 也应 < 2 s。
 **禁止**：不要改 CI 的发布产物路径（`dist/NetWright.exe`），R10 暂缓期间不动发布流程。
 ---
 

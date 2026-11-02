@@ -16,6 +16,9 @@
 ### Tests
 - 新增 `tests/test_paths.py`（5 项）：data_dir 指向 exe 同级、exe 旁自定义模板优先、
   `_MEIPASS` 回退、打包环境模板可加载、源码环境仍 116 个。
+- **打包实测（本机，2026-11-02）**：onefile（UPX 关闭）双击到窗口 **4.4 s**，
+  onedir **3.5 s**，exe 内确认含 **116 个模板 + library.json + assets**（CArchive TOC 校验）。
+  两个版本都慢在"启动即构建全部 12 个页面"，对应规格 R11 惰性构建。
 - 全量 **232 项 pytest 通过**（+5）。
 
 ## [3.18.1] - 2026-11-02
