@@ -266,24 +266,34 @@ class TopologyPage(Page):
         if (w, h) != self._canvas_size:
             self._canvas_size = (w, h)
             self._fit_scale()
-        c.delete("all")
-        self._draw_grid(w, h)
+        # 分层重绘：网格只在尺寸变化时重建，鼠标悬停/缩放只重画边和节点。
+        # 之前每次 delete("all") 会重建几十条网格线，悬停时肉眼可见地卡。
+        c.delete("edge")
+        c.delete("node")
+        c.delete("hint")
+        if (w, h) != getattr(self, "_grid_size", None):
+            c.delete("grid")
+            self._draw_grid(w, h)
+            self._grid_size = (w, h)
         graph = self.app.controller_store.graph
         if not self._pos:
             c.create_text(w / 2, h / 2 - 10, text="拓扑为空",
-                          fill=theme.muted, font=("Microsoft YaHei UI", 12))
+                          fill=theme.muted, font=("Microsoft YaHei UI", 12),
+                          tags=("hint",))
             c.create_text(w / 2, h / 2 + 16,
                           text="在「设备清单」添加设备，或点右上角「从设备发现」",
-                          fill=theme.faint, font=FONT_SMALL)
+                          fill=theme.faint, font=FONT_SMALL, tags=("hint",))
             return
+        # 一次算好屏幕坐标，边和节点共用（避免同一点重复变换 N 次）
+        screens = {name: self._screen(name) for name in self._pos}
         # 链路
         for edge in graph.edges:
             if edge.a not in self._pos or edge.b not in self._pos:
                 continue
             if not (self._visible(edge.a) and self._visible(edge.b)):
                 continue
-            x1, y1 = self._screen(edge.a)
-            x2, y2 = self._screen(edge.b)
+            x1, y1 = screens[edge.a]
+            x2, y2 = screens[edge.b]
             hot = self._selected in (edge.a, edge.b)
             color = theme.accent if hot else (
                 theme.line if edge.kind == "ledger" else theme.muted)
@@ -294,7 +304,7 @@ class TopologyPage(Page):
             if hot and edge.a_port and edge.b_port:
                 c.create_text((x1 + x2) / 2, (y1 + y2) / 2 - 8,
                               text=f"{edge.a_port} ↔ {edge.b_port}",
-                              fill=theme.muted, font=("Consolas", 8))
+                              fill=theme.muted, font=("Consolas", 8), tags=("edge",))
         # 节点
         flash = self.app.controller_store.flashed_nodes(within=90)
         for name in sorted(self._pos):
@@ -303,30 +313,30 @@ class TopologyPage(Page):
             node = graph.nodes.get(name)
             vendor = getattr(node, "vendor", "") or "generic"
             color = VENDOR_COLORS.get(vendor, VENDOR_COLORS["generic"])
-            x, y = self._screen(name)
+            x, y = screens[name]
             selected = name == self._selected
             hovered = name == self._hover
             r = 11 if selected else (10 if hovered else 9)
             if name in flash:
                 # 最近 90 秒内有链路/设备事件：琥珀色脉冲圈（自动刷新会自然消退）
                 c.create_oval(x - r - 9, y - r - 9, x + r + 9, y + r + 9,
-                              outline=theme.warn, width=2, dash=(2, 3))
+                              outline=theme.warn, width=2, dash=(2, 3), tags=("node",))
             if selected:
                 c.create_oval(x - r - 6, y - r - 6, x + r + 6, y + r + 6,
-                              outline=theme.accent, width=2, dash=(3, 2))
+                              outline=theme.accent, width=2, dash=(3, 2), tags=("node",))
             c.create_oval(x - r, y - r, x + r, y + r, fill=color,
                           outline=theme.panel, width=2, tags=("node", f"node:{name}"))
             if getattr(node, "managed", False):
                 # 纳管标记：节点中心白点（不压边，避免看起来像缺口）
                 c.create_oval(x - 2.2, y - 2.2, x + 2.2, y + 2.2,
-                              fill="#FFFFFF", outline="")
+                              fill="#FFFFFF", outline="", tags=("node",))
             label = name if len(name) <= 18 else name[:17] + "…"
             c.create_text(x, y + r + 10, text=label, fill=theme.fg,
                           font=("Microsoft YaHei UI", 9 if selected else 8),
                           tags=("node", f"node:{name}"))
 
     def _draw_grid(self, w: int, h: int):
-        """点阵网格（用线段而不是上千个圆点，拖动重绘才不卡）。"""
+        """网格层（独立 tag）：只在画布尺寸变化时重建，悬停/缩放不重画。"""
         step = 40
         color = theme.topo_grid
         for x in range(step, w, step):

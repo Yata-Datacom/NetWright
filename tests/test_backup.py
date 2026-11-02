@@ -149,6 +149,28 @@ def test_nbapi_backup_requires_device_match(tmp_path):
     assert status == 404 and body["ok"] is False
 
 
+def test_latest_does_not_hash_whole_history(tmp_path, monkeypatch):
+    """性能回归：latest() 只读最新一份，不再遍历/哈希全部快照。"""
+    backup = ConfigBackup(str(tmp_path))
+    for index in range(6):
+        backup.save("SW-1", CONFIG_V1 + f"# rev {index}\n")
+    backup._digests.clear()
+    touched = []
+    original = backup._digest
+    monkeypatch.setattr(backup, "_digest",
+                        lambda path, stat=None: touched.append(path) or original(path, stat))
+    entry = backup.latest("SW-1")
+    assert entry is not None
+    assert len(touched) <= 1, f"latest 读了 {len(touched)} 份快照，应只读最新一份"
+
+
+def test_history_still_lists_everything(tmp_path):
+    backup = ConfigBackup(str(tmp_path))
+    for index in range(3):
+        backup.save("SW-1", CONFIG_V1 + f"# rev {index}\n")
+    assert len(backup.history("SW-1")) == 3
+
+
 # ── 现网对比（漂移检测）─────────────────────────────────────────────
 def test_diff_against_latest_snapshot(tmp_path):
     backup = ConfigBackup(str(tmp_path))

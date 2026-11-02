@@ -96,10 +96,18 @@ class InventoryPage(Page):
 
     # ── 渲染 ──
     def refresh(self):
-        # 自动刷新每 10 秒跑一次：先记住选中行，刷新后还原（否则用户勾选会被"吞掉"）
+        # 自动刷新每 10 秒跑一次：先算一个轻量签名，没变化就不重建表格。
+        # 重建一棵 Treeview 在几百台设备时并不便宜，而"什么都没变"是常态。
+        devices = self.app.inventory.devices
+        signature = (len(devices), tuple(
+            (d.host, d.port, d.display_name, d.vendor, d.protocol, d.username,
+             d.password, d.note, getattr(d, "_alive", None)) for d in devices))
+        if signature == getattr(self, "_refresh_sig", None) and self.tree.get_children():
+            return
+        self._refresh_sig = signature
+        # 先记住选中行，刷新后还原（否则用户勾选会被"吞掉"）
         keep = self._selected_indices()
         self.tree.delete(*self.tree.get_children())
-        devices = self.app.inventory.devices
         for i, d in enumerate(devices):
             alive = getattr(d, "_alive", None)
             alive_text = "—" if alive is None else ("● 在线" if alive else "○ 离线")

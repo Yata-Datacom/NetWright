@@ -336,6 +336,39 @@ def test_smoke_backup_history_dialog(app, tmp_path):
         app.controller_store.backups = original
 
 
+def test_smoke_inventory_refresh_skips_when_unchanged(app):
+    """性能回归：设备没变化时，10 秒自动刷新不应重建整棵表格。"""
+    from netwright.lib.inventory import Device
+
+    app.inventory.devices = []
+    app.inventory.add(Device(host="192.0.2.1", hostname="A"))
+    page = app.pages["inventory"]
+    page.refresh()
+    calls = []
+    original = page.tree.delete
+    page.tree.delete = lambda *a, **k: calls.append(1) or original(*a, **k)
+    try:
+        page.refresh()
+        assert calls == [], "签名未变时不应重建表格"
+        app.inventory.add(Device(host="192.0.2.2", hostname="B"))
+        page.refresh()
+        assert calls, "设备新增后必须重建"
+    finally:
+        page.tree.delete = original
+
+
+def test_smoke_topology_grid_layer_is_reused(app):
+    """性能回归：网格层只在尺寸变化时重建，重复绘制不新增网格线。"""
+    app.show("topology")
+    page = app.pages["topology"]
+    page.refresh()
+    page._draw()
+    first = len(page.canvas.find_withtag("grid"))
+    page._draw()
+    assert len(page.canvas.find_withtag("grid")) == first
+    assert page._grid_size == (page.canvas.winfo_width(), page.canvas.winfo_height())
+
+
 def test_smoke_help_dialog_and_demo_data(app):
     """引导面板可打开，一键演示数据能填满清单并跳到拓扑。"""
     from netwright.pages.help import show_help

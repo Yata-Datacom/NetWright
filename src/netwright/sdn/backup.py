@@ -26,10 +26,30 @@ _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 _SEQ_RE = re.compile(r"-(\d+)\.cfg$")
 
 
+def _split_name(filename: str) -> tuple:
+    """把 ``YYYYmmdd-HHMMSS-ffffff[-N].cfg`` 拆成可比较的键。
+
+    为什么不用正则取序号：``-(\\d+)\\.cfg$`` 会先匹配到时刻/微秒段，
+    把基础文件当成第 211941 份；按 '-' 分段并把每段转成整数最稳。
+    尾部多出来的段（同微秒碰撞时的 -1/-2）也纳入键，保证顺序严格单调。
+    """
+    stem = filename[:-4] if filename.endswith(".cfg") else (filename or "")
+    parts = stem.split("-")
+    date = parts[0] if parts else ""
+    clock = parts[1] if len(parts) > 1 else ""
+    tail = tuple(int(p) if p.isdigit() else 0 for p in parts[2:])
+    return (date, clock) + tail
+
+
 def _sequence(filename: str) -> int:
-    """同一秒内的第 N 份快照（文件名后缀 -1/-2…），用于稳定排序。"""
-    match = _SEQ_RE.search(filename or "")
-    return int(match.group(1)) if match else 0
+    """同一时刻内的第 N 份快照（用于展示/兼容），取键的最后一段。"""
+    key = _split_name(filename)
+    return int(key[-1]) if key and isinstance(key[-1], int) else 0
+
+
+def _sort_key(filename: str) -> tuple:
+    """文件名排序键（严格单调）：(日期, 时刻, 微秒, 同刻序号…)。"""
+    return _split_name(filename)
 
 
 @dataclass
@@ -64,6 +84,9 @@ class ConfigBackup:
         self.base_dir = base_dir
         self.bus = bus
         self.keep = max(2, int(keep))
+        # 摘要缓存：键是 (路径, mtime_ns, size)。备份目录只在 save/prune 时变化，
+        # 缓存能把 "每次 save 都重算全部快照 sha256" 的 O(n) IO 降到 O(1)。
+        self._digests: dict[tuple, str] = {}
 
     # ── 路径 ──
     @property
@@ -79,6 +102,34 @@ class ConfigBackup:
         os.makedirs(path, exist_ok=True)
         return path
 
+    def _digest(self, path: str, stat=None) -> str:
+        """文件 sha256（带缓存）；缓存键含 mtime/size，文件被外部改动会自动失效。"""
+        try:
+            stat = stat or os.stat(path)
+        except OSError:
+            return ""
+        key = (path, stat.st_mtime_ns, stat.st_size)
+        digest = self._digests.get(key)
+        if digest is not None:
+            return digest
+        try:
+            with open(path, "rb") as handle:
+                digest = hashlib.sha256(handle.read()).hexdigest()
+        except OSError:
+            return ""
+        self._digests[key] = digest
+        return digest
+
+    def _latest_path(self, device: str) -> str | None:
+        """最快的"最新一份"：只按文件名排序，不读任何文件内容。"""
+        folder = os.path.join(self.root, self._safe(device))
+        if not os.path.isdir(folder):
+            return None
+        names = [n for n in os.listdir(folder) if n.endswith(".cfg")]
+        if not names:
+            return None
+        return os.path.join(folder, max(names, key=_sort_key))
+
     # ── 写入 ──
     def save(self, device: str, text: str, note: str = "") -> BackupEntry:
         """保存一份快照；内容与上次相同则不落盘（changed=False）。"""
@@ -91,17 +142,26 @@ class ConfigBackup:
             return BackupEntry(device=device, path=previous.path, ts=previous.ts,
                                size=previous.size, sha256=digest, changed=False)
         folder = self._device_dir(device)
-        stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
-        path = os.path.join(folder, f"{stamp}.cfg")
-        suffix = 1
-        while os.path.exists(path):        # 同一秒内多次备份
-            path = os.path.join(folder, f"{stamp}-{suffix}.cfg")
-            suffix += 1
+        # 文件名 = 秒级时间戳 + 同秒自增序号。
+        # 不用"时钟微秒"做序号：Windows 的 time_ns 在快速连续写入时会抖动甚至回退，
+        # 曾导致新快照被排到最旧、随后被 prune 删掉（真丢数据）。
+        second = time.strftime("%Y%m%d-%H%M%S")
+        counter = 0
+        for name in os.listdir(folder):
+            if not (name.startswith(second) and name.endswith(".cfg")):
+                continue
+            tail = name[len(second):-4].lstrip("-")
+            if tail.isdigit():
+                counter = max(counter, int(tail) + 1)
+        path = os.path.join(folder, f"{second}-{counter:06d}.cfg")
+        while os.path.exists(path):        # 极端并发下的兜底
+            counter += 1
+            path = os.path.join(folder, f"{second}-{counter:06d}.cfg")
         with open(path, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text if text.endswith("\n") else text + "\n")
         entry = BackupEntry(device=device, path=path, ts=time.time(),
                             size=len(data), sha256=digest, changed=True)
-        self._prune(device)
+        self._prune(device, protect=path)
         if self.bus is not None:
             self.bus.publish(
                 "config.backup",
@@ -122,21 +182,31 @@ class ConfigBackup:
             path = os.path.join(folder, name)
             try:
                 stat = os.stat(path)
-                with open(path, "rb") as handle:
-                    digest = hashlib.sha256(handle.read()).hexdigest()
             except OSError:
                 continue
+            digest = self._digest(path, stat)
             entries.append(BackupEntry(device=device, path=path,
                                        ts=stat.st_mtime_ns / 1e9,
                                        size=stat.st_size, sha256=digest))
         # 同一秒内可能有多份（文件名带 -1/-2 后缀）：按 (时间, 序号) 排序，
         # 避免只按 mtime 排序时同秒快照顺序不稳定（prune 会删错）。
-        return sorted(entries, key=lambda e: (e.ts, _sequence(e.filename)),
-                      reverse=True)
+        return sorted(entries, key=lambda e: _sort_key(e.filename), reverse=True)
 
     def latest(self, device: str) -> BackupEntry | None:
-        items = self.history(device)
-        return items[0] if items else None
+        """最新一份快照。
+
+        性能：只 stat 最新文件（按文件名排序），不再遍历/哈希整个历史目录；
+        内容摘要走 ``_digest`` 缓存，重复调用几乎零 IO。
+        """
+        path = self._latest_path(device)
+        if path is None:
+            return None
+        try:
+            stat = os.stat(path)
+        except OSError:
+            return None
+        return BackupEntry(device=device, path=path, ts=stat.st_mtime_ns / 1e9,
+                           size=stat.st_size, sha256=self._digest(path, stat))
 
     def devices(self) -> list[str]:
         if not os.path.isdir(self.root):
@@ -186,9 +256,12 @@ class ConfigBackup:
         return self.diff_text(self.read(latest), text, latest.filename, label)
 
     # ── 清理 ──
-    def _prune(self, device: str) -> None:
+    def _prune(self, device: str, protect: str | None = None) -> None:
+        """只保留最近 ``keep`` 份；``protect`` 指定的文件永不删除（刚写入的那份）。"""
         items = self.history(device)
         for entry in items[self.keep:]:
+            if protect and os.path.abspath(entry.path) == os.path.abspath(protect):
+                continue
             try:
                 os.remove(entry.path)
             except OSError:
