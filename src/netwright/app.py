@@ -32,6 +32,7 @@ from netwright import __version__  # noqa: E402
 from netwright.lib.controller.restapi import ControllerAPI, ControllerState  # noqa: E402
 from netwright.lib.inventory import Inventory  # noqa: E402
 from netwright.lib.settings import load_settings, save_settings  # noqa: E402
+from netwright.paths import resource_dir  # noqa: E402
 from netwright.pages import NAV_GROUPS, PAGE_REGISTRY  # noqa: E402
 from netwright.pages.help import show_help  # noqa: E402
 from netwright.sdn import ControllerStore, EventBus  # noqa: E402
@@ -73,7 +74,7 @@ class NetWrightApp(tk.Tk):
         self.configure(bg=theme.bg)
         self.option_add("*Font", ("Microsoft YaHei UI", 10))
         setup_ttk(self)
-        ico = os.path.join(BASE_DIR, "assets", "icon.ico")
+        ico = os.path.join(resource_dir("assets"), "icon.ico")
         if os.path.isfile(ico):
             try:
                 self.iconbitmap(ico)

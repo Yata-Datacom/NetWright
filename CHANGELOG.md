@@ -3,6 +3,21 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.18.2] - 2026-11-02
+
+### Fixed（打包后模板丢失）
+- **exe 里看不到配置模板**：onefile 把 `datas` 解压到 `sys._MEIPASS`，但代码按"exe 同级目录"
+  找 `templates/`，于是模板数变成 0。新增 `netwright/paths.py` 区分两类路径：
+  - `data_dir()`：可写数据（清单/设置/审计/备份）→ **exe 同级**，升级不丢数据；
+  - `resource_dir(name)`：只读资源（templates/assets）→ 优先 exe 同级（允许用户自带模板），
+    其次 `_MEIPASS`（打包内置），最后源码树。
+- 生成器与图标统一走 `resource_dir()`；`list_builtin_templates()` 在打包环境能读到 116 个模板。
+
+### Tests
+- 新增 `tests/test_paths.py`（5 项）：data_dir 指向 exe 同级、exe 旁自定义模板优先、
+  `_MEIPASS` 回退、打包环境模板可加载、源码环境仍 116 个。
+- 全量 **232 项 pytest 通过**（+5）。
+
 ## [3.18.1] - 2026-11-02
 
 ### Fixed（"exe 卡卡"的三处主要来源）
