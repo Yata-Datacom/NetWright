@@ -24,7 +24,7 @@ def _base_dir() -> str:
     return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 
-TEMPLATE_DIR = resource_dir("templates")
+TEMPLATE_DIR = resource_dir("templates", prefer_local=True)
 
 
 def render_template(template_text: str, variables: dict[str, str]) -> str:
@@ -117,7 +117,7 @@ def list_builtin_templates(base_dir: str | None = None) -> list[dict]:
     按清单文件 mtime 缓存——116 个模板反复读取只在首次/变更后有 IO。
     """
     # 只读资源：打包后模板在 sys._MEIPASS，而不是 exe 同级（见 paths.resource_dir）
-    tdir = os.path.join(base_dir, "templates") if base_dir else resource_dir("templates")
+    tdir = os.path.join(base_dir, "templates") if base_dir else resource_dir("templates", prefer_local=True)
     base = tdir
     manifest_path = os.path.join(tdir, "library.json")
     try:

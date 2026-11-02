@@ -32,10 +32,18 @@ def test_data_dir_is_exe_side_when_frozen(tmp_path, monkeypatch):
     assert paths.data_dir() == str(exe_dir)
 
 
-def test_resource_dir_prefers_user_templates_next_to_exe(tmp_path, monkeypatch):
+def test_templates_prefer_user_copy_next_to_exe(tmp_path, monkeypatch):
     exe_dir, _ = _fake_frozen(tmp_path, monkeypatch)
     (exe_dir / "templates").mkdir()
-    assert paths.resource_dir("templates") == str(exe_dir / "templates")
+    assert paths.resource_dir("templates", prefer_local=True) == str(exe_dir / "templates")
+
+
+def test_assets_prefer_bundled_even_if_local_exists(tmp_path, monkeypatch):
+    """图标必须用打包内置的：exe 旁的旧 assets 不能盖住新图标。"""
+    exe_dir, meipass = _fake_frozen(tmp_path, monkeypatch)
+    (exe_dir / "assets").mkdir()
+    (meipass / "assets").mkdir()
+    assert paths.resource_dir("assets") == str(meipass / "assets")
 
 
 def test_resource_dir_falls_back_to_bundled_meipass(tmp_path, monkeypatch):

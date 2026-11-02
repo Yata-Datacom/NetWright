@@ -3,6 +3,18 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.18.3] - 2026-11-02
+
+### Fixed（exe 图标/资源优先级）
+- `resource_dir()` 增加 `prefer_local`：**模板**优先 exe 旁（允许自带模板），
+  **图标/图片**优先打包内置（防止 exe 旁的旧 `assets/` 盖住新 logo）。
+- 实测确认：`dist/NetWright.exe` 内嵌 7 档尺寸的新 logo（16…256），
+  `ExtractAssociatedIcon` 取出的 32×32 即控制器枢纽图标。
+
+### Tests
+- `tests/test_paths.py` 增加"资源 vs 模板优先级"断言（6 项）。
+- 全量 **233 项 pytest 通过**。
+
 ## [3.18.2] - 2026-11-02
 
 ### Fixed（打包后模板丢失）

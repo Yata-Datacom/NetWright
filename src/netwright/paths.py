@@ -38,18 +38,22 @@ def bundled_root() -> str | None:
     return getattr(sys, "_MEIPASS", None)
 
 
-def resource_dir(name: str) -> str:
+def resource_dir(name: str, prefer_local: bool = False) -> str:
     """只读资源目录（如 ``templates`` / ``assets``）。
 
+    :param prefer_local: True 时优先 exe 同级目录（**模板**需要，用户可自带），
+                         False 时优先打包内置（**图标**需要，避免旧 assets 盖住新图标）。
+
     查找顺序：
-      1. exe 同级同名目录（用户想改模板不用重新打包）
-      2. ``sys._MEIPASS``（打包时 ``datas`` 带进去的）
+      1. ``sys._MEIPASS``（打包内置）或 exe 同级（取决于 prefer_local）
+      2. 另一个
       3. 源码树（开发/测试）
     """
-    candidates = [os.path.join(data_dir(), name)]
+    local = os.path.join(data_dir(), name)
     meipass = bundled_root()
-    if meipass:
-        candidates.append(os.path.join(meipass, name))
+    bundled = os.path.join(meipass, name) if meipass else None
+    candidates = [local, bundled] if prefer_local else [bundled, local]
+    candidates = [c for c in candidates if c]
     candidates.append(os.path.join(repo_root(), name))
     for candidate in candidates:
         if os.path.isdir(candidate):
