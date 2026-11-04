@@ -3,6 +3,16 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.29.1] - 2026-11-04
+
+### Changed（冷启动）
+- **paramiko 改为按需加载**：`lib/__init__` 原来在导入期 `import paramiko`，连带 invoke/cryptography 约 **0.9 s**；改用 `importlib.util.find_spec` 探测，SSH 真正连接时才由 `ssh_client.run_commands` 内部导入。
+- 实测：`import netwright.app` **1173 ms → 584 ms（-50%）**；`tools/bench_startup.py` App 构造 368–461 ms。
+- onefile exe 双击到窗口 2.6–3.2 s（提取/Tk 初始化占大头），收益主要在源码启动与首屏。
+
+### Tests
+- 全量 **326 passed, 2 skipped**；ruff 干净。
+
 ## [3.29.0] - 2026-11-02
 
 ### Added（R15 从现网反生成基线——必须脱敏）

@@ -11,6 +11,7 @@
 | construct_ms（页面构造累计） | **257 ms**（12 页） | **34 ms**（1 页） | **-87%** |
 | first_show_ms（首次 show） | 27 ms | 61 ms（含当前页构建） | — |
 | total_ms（App 构造总耗时） | 814 ms | **337 ms** | **-59%** |
+| import netwright.app（v3.29.1 惰性 paramiko） | 1217 ms | **584 ms** | **-52%** |
 | pages_built（启动时构建页面数） | 12 | **1** | 只建当前页 |
 
 - 规格要求 construct 下降 ≥ 40%，实际 **-87%**。
