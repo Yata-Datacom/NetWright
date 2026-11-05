@@ -7,7 +7,7 @@
 **A single-file, zero-install workbench for frontline network engineers — and a lightweight SDN controller console that actually runs**<br/>
 Device inventory · topology discovery · intent → policy · batch inspection · config generation · daily tools, all in one program
 
-<sub>[**English**](README.md) · [**简体中文**](README.zh-CN.md) · [**User guide (中文)**](docs/USER_GUIDE.zh-CN.md)</sub>
+<sub>[**English**](README.md) · [**简体中文**](README.zh-CN.md) · [**User guide**](docs/USER_GUIDE.md)</sub>
 
 <a href="https://github.com/Yata-Datacom/NetWright/releases"><img src="https://img.shields.io/github/v/release/Yata-Datacom/NetWright?style=for-the-badge&color=5E81AC&label=Download" alt="Download" /></a>
 <a href="https://github.com/Yata-Datacom/NetWright/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Yata-Datacom/NetWright/ci?style=for-the-badge&label=CI&color=5E81AC&logo=githubactions&logoColor=white" alt="CI" /></a>
@@ -33,7 +33,7 @@ Device inventory · topology discovery · intent → policy · batch inspection 
 
 **⬇️ Download:** [Releases](https://github.com/Yata-Datacom/NetWright/releases) — single-file Windows exe, no install, no Python.
 
-**v4.0.2** · [CHANGELOG](CHANGELOG.md) · [User guide (中文)](docs/USER_GUIDE.zh-CN.md) · [Development & Tests](#-development)
+**v4.0.2** · [CHANGELOG](CHANGELOG.md) · [User guide](docs/USER_GUIDE.md) · [Development & Tests](#-development)
 
 ---
 
@@ -174,8 +174,8 @@ curl -X POST -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8899/api/v2/inte
      -d '{"run_ids":["pol-0001"]}'
 ```
 
-Full endpoint list: [User guide · 12. REST API](docs/USER_GUIDE.zh-CN.md) (Chinese);
-layering and trade-offs: [ARCHITECTURE](docs/ARCHITECTURE.md) (Chinese).
+Full endpoint list: [User guide · 12. REST API](docs/USER_GUIDE.md);
+layering and trade-offs: [ARCHITECTURE](docs/ARCHITECTURE.md).
 
 ---
 
