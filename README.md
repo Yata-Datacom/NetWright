@@ -208,12 +208,36 @@ NetForge/                       # 仓库目录名沿用历史，包名是 netwri
 python -m venv .venv
 .venv/Scripts/pip install -e ".[dev]"     # Windows；Linux/macOS 用 .venv/bin/pip
 
-pytest tests/ -v                          # 326 项，含 GUI 冒烟（无显示环境自动跳过）
+pytest tests/ -v                          # 330 项，含 GUI 冒烟（无显示环境自动跳过）
 ruff check src tests main.py              # 核心规则 lint
-pyinstaller NetWright.spec --noconfirm    # 打包 exe
 python tools/make_icon.py                 # 重新生成图标
 ```
 
+## 打包
+
+两种产物，按场景选：
+
+| 产物 | 命令 | 体积 | 双击→窗口 | 适用 |
+|---|---|---|---|---|
+| 单文件 | `pyinstaller NetWright.spec --noconfirm` | 19.3 MB | 2.4–2.9 s | 发给别人 |
+| 目录版 | `pyinstaller NetWright-onedir.spec --noconfirm` | 45.7 MB / 1107 文件 | **0.6 s** | 自己日常用 |
+
+一键出两份（产物在 `dist/`）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\build_all.ps1            # 构建并报告体积
+powershell -ExecutionPolicy Bypass -File tools\build_all.ps1 -NoBuild   # 只报告已有产物
+```
+
+> PowerShell 7 用户也可以用 `pwsh tools/build_all.ps1`。脚本以 UTF-8 BOM 保存，
+> 兼容 Windows PowerShell 5.1（无 BOM 时中文会被按 ANSI 解析而报语法错）。
+
+- onefile 每次启动都要把整包解压到 `%TEMP%`，再叠加杀软扫描，所以慢；
+  onedir 只在构建时解压一次，启动直接读文件。
+- 两份都带 `templates/`（116 个模板）与 `assets/`。**只读资源**优先取打包内置
+  （`_MEIPASS`），**可写数据**（清单/设置/审计/备份）落在 exe 同级目录，升级不丢数据。
+- `upx` 已关闭：压缩会拖慢启动，且更容易被杀软误报。
+- 已裁掉用不到的 PIL AVIF 插件（省 5.2 MB）；界面只需 PNG/ICO 预览。
 代码约定见 [CONTRIBUTING.md](CONTRIBUTING.md)：业务逻辑放 `lib/`（可单测），页面只做装配；
 颜色/间距必须来自 `theme.py` 令牌。
 

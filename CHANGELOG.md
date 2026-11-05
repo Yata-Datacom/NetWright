@@ -3,6 +3,17 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.29.3] - 2026-11-05
+
+### Added（打包说明与脚本）
+- `tools/build_all.ps1`：一条命令出「单文件 + 目录版」两份产物并报告体积/文件数；
+  `-NoBuild` 只报告已有产物。兼容 Windows PowerShell 5.1（脚本存为 UTF-8 BOM）。
+- README 新增「打包」章节：两产物对照（19.3 MB / 2.4–2.9 s 与 45.7 MB / **0.6 s**）、
+  资源与数据目录规则、UPX 关闭原因、AVIF 裁剪说明。
+
+### Tests
+- 无代码路径变化；全量 **330 passed, 2 skipped**；ruff 干净。
+
 ## [3.29.2] - 2026-11-05
 
 ### Changed（体积与绘制）
