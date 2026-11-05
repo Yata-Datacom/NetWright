@@ -3,6 +3,16 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.35.0] - 2026-11-05
+
+### Docs
+- README：测试徽章 234 → 385；功能表补「运维中心」、意图目录说明。
+- USER_GUIDE 新增「13. 运维中心」：合规/漂移/路径/健康/意图目录五小节，后续章节顺延为 14/15。
+- 出厂 `templates/compliance.json`（与 example 一致）：合规规则开箱即改，不用先复制。
+
+### Tests
+- 全量 **385 passed, 2 skipped**；ruff 干净。
+
 ## [3.34.0] - 2026-11-05
 
 ### Added

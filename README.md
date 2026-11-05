@@ -14,7 +14,7 @@
   <a href="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml"><img src="https://github.com/Yata-Datacom/NetWright/actions/workflows/build.yml/badge.svg" alt="Build EXE"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
-  <img src="https://img.shields.io/badge/tests-234%20passed-brightgreen" alt="234 tests">
+  <img src="https://img.shields.io/badge/tests-385%20passed-brightgreen" alt="385 tests">
 </p>
 
 ---
@@ -83,7 +83,7 @@ pip install -e .          # 之后直接用 netwright 启动
 |---|---|---|
 | **概览** | KPI、最近事件、控制器状态、厂商分布、快捷入口 | 所有人（首页） |
 | **拓扑** | 力导向/环形/分层布局、缩放平移、节点检查器、搜索与"仅纳管"过滤 | 想看清网络结构 |
-| **意图与策略** | 意图目录 → Dry-Run → **运行档案（下发/校验/回滚）** → 审计；REST v1/v2 | 要批量改配置 |
+| **意图与策略** | 意图目录（参数化 → 运行档案）→ Dry-Run → **运行档案（下发/校验/回滚）** → 审计；REST v1/v2 | 要批量改配置 |
 | **事件** | 事件流（级别过滤）、南向通道能力、下发审计 | 排障与追责 |
 | **设备清单** | 增删改、CSV 导入导出、在线检测、连接测试、**配置备份**、批量操作 | 台账维护 |
 | **资产盘点** | 种子设备 → LLDP/ARP → 协议探测 → 已知/新增关联 | 摸清家底 |
@@ -92,6 +92,7 @@ pip install -e .          # 之后直接用 netwright 启动
 | **工具箱** | 子网/VLSM、端口扫描、在线检测、密码生成 | 日常零碎 |
 | **命令速查** | 场景 × 厂商 CLI 备忘，即时过滤，双击复制 | 忘了命令时 |
 | **时间线** | 事件 + 配置快照 + 意图运行合成时间轴 | 排障时回看"那会儿发生了什么" |
+| **运维中心** | 合规检查（8 条规则，可配置）、配置漂移、路径追踪、SNMP 健康 | 日常运维与体检 |
 | **设置** | REST / Syslog / Trap 端口、备份保留份数、自动刷新 | 部署到不同环境时 |
 
 ---
