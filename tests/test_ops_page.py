@@ -1,6 +1,7 @@
 """运维中心页面（合规/路径/漂移）——冒烟与行为测试。"""
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -143,3 +144,26 @@ def test_catalog_adopt_creates_lifecycle_runs(app):
     assert runs[-1].state == "compiled"
     assert "vlan 321" in " ".join(runs[-1].policy.commands)
     assert runs[-1].policy.intent_key == "catalog:vlan_add"
+def test_health_card_renders_metrics(app):
+    """展示逻辑直接测：异步线程在 pytest 里没有 mainloop，无法走 after 回主线程。"""
+    page = app.pages["ops"]
+    assert hasattr(page, "btn_health")
+    page._health_done({"ok": True, "values": {}, "errors": {"cpu_1min": "TimeoutError"},
+                       "cpu_util": 21, "mem_util": 63.5, "uptime_hours": 12.0})
+    text = page.var_health.get()
+    assert "CPU 21%" in text and "63.5%" in text and "失败 1 项" in text
+
+
+def test_health_card_reports_failure(app):
+    page = app.pages["ops"]
+    page._health_done({"ok": False, "error": "socket.timeout: timed out"})
+    assert "采样失败" in page.var_health.get()
+
+
+def test_health_example_rules_file_is_valid():
+    from netwright.lib.compliance import load_rules
+
+    path = os.path.join(ROOT, "templates", "compliance.example.json")
+    data = json.load(open(path, encoding="utf-8"))
+    assert len(data["rules"]) >= 8
+    assert len(load_rules(path)) >= 8

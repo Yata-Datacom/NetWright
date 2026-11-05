@@ -113,6 +113,33 @@ class OpsPage(Page):
                  fg=theme.muted, font=FONT_SMALL, anchor="w", justify=tk.LEFT,
                  wraplength=320).pack(fill=tk.X)
 
+        # ── 设备健康（SNMP） ──
+        card_health = SectionCard(body, title="设备健康（SNMPv2c）",
+                                  desc="标准 OID：CPU / 内存 / uptime；按 OID 单独报错")
+        card_health.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 12))
+        hrow = tk.Frame(card_health.body, bg=theme.panel)
+        hrow.pack(fill=tk.X, pady=(0, 6))
+        tk.Label(hrow, text="设备", bg=theme.panel, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.LEFT)
+        self.var_health_device = tk.StringVar()
+        self.cmb_health = ttk.Combobox(hrow, textvariable=self.var_health_device,
+                                       width=26, font=FONT_SMALL)
+        self.cmb_health.pack(side=tk.LEFT, padx=(6, 10))
+        tk.Label(hrow, text="Community", bg=theme.panel, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.LEFT)
+        self.var_health_community = tk.StringVar(value="public")
+        tk.Entry(hrow, textvariable=self.var_health_community, width=12,
+                 font=FONT_SMALL, bg=theme.panel_alt, fg=theme.fg, relief=tk.FLAT,
+                 highlightthickness=1,
+                 highlightbackground=theme.line).pack(side=tk.LEFT, padx=(6, 10))
+        self.btn_health = WButton(hrow, text="采样", command=self.run_health)
+        self.btn_health.pack(side=tk.LEFT)
+        self.var_health = tk.StringVar(value="选择设备后点「采样」")
+        tk.Label(card_health.body, textvariable=self.var_health, bg=theme.panel,
+                 fg=theme.fg, font=FONT_SMALL, anchor="w", justify=tk.LEFT,
+                 wraplength=720).pack(fill=tk.X)
+        self._health_busy = False
+
         self._drift_busy = False
         self.refresh()
 
@@ -228,6 +255,55 @@ class OpsPage(Page):
             self.app.after(60000, self._schedule_drift)
         except Exception:      # noqa: BLE001  页面销毁后停止轮询
             pass
+
+    def run_health(self):
+        """后台采样一台设备（网络操作不占主线程）。"""
+        if self._health_busy:
+            return
+        host = self._selected_host()
+        if not host:
+            toast(self.app, "请先选择设备", "info")
+            return
+        device = next((d for d in self.app.inventory.devices if d.host == host), None)
+        if device is None:
+            toast(self.app, f"清单里没有 {host}", "warn")
+            return
+        community = (self.var_health_community.get() or "public").strip()
+        self._health_busy = True
+        self.btn_health.set_loading(True)
+        self.var_health.set("采样中…")
+
+        def worker():
+            from netwright.lib.health import collect
+            try:
+                result = collect(device, community)
+            except Exception as exc:      # noqa: BLE001
+                result = {"ok": False, "error": str(exc)}
+            try:
+                self.app.after(0, lambda r=result: self._health_done(r))
+            except Exception:      # noqa: BLE001
+                pass
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _health_done(self, result: dict):
+        self._health_busy = False
+        self.btn_health.set_loading(False)
+        if result.get("error"):
+            self.var_health.set(f"采样失败：{result['error']}")
+            return
+        parts = []
+        if "cpu_util" in result:
+            parts.append(f"CPU {result['cpu_util']}%")
+        if "mem_util" in result:
+            parts.append(f"内存 {result['mem_util']}%")
+        if "uptime_hours" in result:
+            parts.append(f"运行 {result['uptime_hours']} 小时")
+        errors = result.get("errors", {})
+        text = " · ".join(parts) if parts else "没有取到可用指标"
+        if errors:
+            text += f"；失败 {len(errors)} 项：{next(iter(errors))}"
+        self.var_health.set(text)
 
     def run_drift(self):
         if self._drift_busy:

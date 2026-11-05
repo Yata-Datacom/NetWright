@@ -3,6 +3,17 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.34.0] - 2026-11-05
+
+### Added
+- **运维中心 → 设备健康卡（SNMPv2c）**：选设备 + community → 后台采样 → 显示 CPU / 内存 / uptime；
+  按 OID 统计失败项（例如设备不支持 UCD 内存 MIB）。
+- **`templates/compliance.example.json`**：8 条出厂规则样例，复制成 `compliance.json` 即生效，
+  带 `_comment` 字段说明 `severity` 与 `missing` 语义。
+
+### Tests
+- 健康卡展示/失败提示 2 项 + 样例规则文件校验 1 项；全量 **385 passed, 2 skipped**；ruff 干净。
+
 ## [3.33.0] - 2026-11-05
 
 ### Added

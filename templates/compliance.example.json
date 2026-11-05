@@ -1,0 +1,64 @@
+{
+  "_comment": "合规规则样例。复制为 templates/compliance.json 后生效（改完无需重启）。severity: critical|high|medium|low；missing=true 表示「配置里找不到才算违规」。",
+  "rules": [
+    {
+      "id": "telnet.enabled",
+      "title": "启用 Telnet（明文传输）",
+      "severity": "critical",
+      "pattern": "^\\s*(transport\\s+input\\s+.*telnet|telnet\\s+server\\s+enable)",
+      "hint": "改用 SSH：transport input ssh / undo telnet server enable"
+    },
+    {
+      "id": "snmp.default-community",
+      "title": "SNMP 使用默认团体名",
+      "severity": "critical",
+      "pattern": "snmp-server\\s+community\\s+(public|private)\\b",
+      "hint": "改强团体名并加 ACL：snmp-server community <随机串> ro <ACL>"
+    },
+    {
+      "id": "password.plaintext",
+      "title": "明文口令",
+      "severity": "critical",
+      "pattern": "^\\s*(enable\\s+password|password\\s+0)\\b",
+      "hint": "改用 enable secret"
+    },
+    {
+      "id": "http.server",
+      "title": "启用 HTTP 明文管理",
+      "severity": "high",
+      "pattern": "^\\s*ip\\s+http\\s+server\\b",
+      "hint": "no ip http server；需要 Web 管理就用 HTTPS 并限制源地址"
+    },
+    {
+      "id": "ntp.missing",
+      "title": "未配置 NTP（日志时间不可信）",
+      "severity": "high",
+      "pattern": "^\\s*ntp\\s+(server|peer|unicast-server)",
+      "missing": true,
+      "hint": "配置内部 NTP：ntp server <内网NTP>"
+    },
+    {
+      "id": "logging.missing",
+      "title": "未配置远程日志",
+      "severity": "medium",
+      "pattern": "^\\s*(logging\\s+(host|trap|server)|info-center\\s+loghost)",
+      "missing": true,
+      "hint": "把日志送到 Syslog 服务器（本工具内置接收，端口见设置页）"
+    },
+    {
+      "id": "vty.no-timeout",
+      "title": "VTY 无空闲超时",
+      "severity": "medium",
+      "pattern": "^\\s*line\\s+vty",
+      "hint": "line vty 下配置 exec-timeout 5 0"
+    },
+    {
+      "id": "banner.missing",
+      "title": "无登录告警横幅",
+      "severity": "low",
+      "pattern": "^\\s*banner\\s+(motd|login|exec)",
+      "missing": true,
+      "hint": "加登录横幅，便于合规取证"
+    }
+  ]
+}
