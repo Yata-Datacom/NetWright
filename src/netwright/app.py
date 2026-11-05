@@ -32,6 +32,7 @@ from netwright import __version__  # noqa: E402
 from netwright import demo as demo_mod  # noqa: E402
 from netwright.lib.controller.restapi import ControllerAPI, ControllerState  # noqa: E402
 from netwright.lib.inventory import Inventory  # noqa: E402
+from netwright.lib.migrations import ensure_current  # noqa: E402
 from netwright.lib.settings import load_settings, save_settings  # noqa: E402
 from netwright.paths import resource_dir  # noqa: E402
 from netwright.pages import NAV_GROUPS, PAGE_REGISTRY  # noqa: E402
@@ -89,6 +90,8 @@ class NetWrightApp(tk.Tk):
 
         # ── 设置（含主题记忆）──
         self.settings = load_settings(BASE_DIR)
+        # v4：配置文件 schema 迁移（先备份再补齐，失败不阻止启动）
+        self._migration = ensure_current(self.settings, BASE_DIR, save_settings)
         theme.use_mode(self.settings.get("theme_mode", "dark"),
                        self.settings.get("theme_hue", "蓝"))
         self.configure(bg=theme.bg)

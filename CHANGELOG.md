@@ -3,6 +3,27 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [4.0.0] - 2026-11-05
+
+> 第一个"可交付"的主版本：API 契约冻结、配置可迁移、能力覆盖运维日常。
+
+### Added
+- **配置 schema 版本与迁移**（`lib/migrations.py`）：启动时自动把 v3 配置升到 v4，
+  迁移前备份 `.bak`，只补键/改名/不删未知键，失败不阻止启动。
+- **REST v4**：`/api/v4/*` 与 v2 等价，v2 兼容保留；契约写入 `docs/API_V4.md`。
+- **升级指南** `docs/UPGRADE.md`：数据位置、迁移行为、行为变化、回退步骤。
+
+### 本版本包含的能力
+- 控制器：拓扑发现、意图下发（预演/下发/校验/回滚）、意图目录、运行档案、
+  OpenFlow 编译与可选传输
+- 运维：设备清单、批量巡检、配置生成（116 模板）、配置备份/差异/漂移、
+  合规检查、路径追踪、SNMP 健康
+- 可观测：事件流、时间线、审计、异步任务、环境自检
+- 交付：单文件 19.3 MB 与目录版（0.6 s 启动）、`tools/build_all.ps1` 一键出包
+
+### Tests
+- 新增 `tests/test_migrations.py`（6 项）；全量 **396 passed, 2 skipped**；ruff 干净。
+
 ## [3.36.0] - 2026-11-05
 
 ### Added

@@ -130,6 +130,12 @@ def dispatch(store, method: str, path: str, body: dict | None = None,
     route = parsed.path.rstrip("/") or "/"
     query = parse_qs(parsed.query)
     body = body or {}
+    # v4：统一版本前缀——/api/v4/* 与 /api/v2/* 等价（v2 保持兼容）
+    # 注意 route/auth 都基于 parsed.path，所以必须同时改 parsed，否则 v4 会 404
+    if route.startswith("/api/v4/"):
+        route = "/api/v2/" + route[len("/api/v4/"):]
+        path = route
+        parsed = parsed._replace(path=route)
     headers = {str(k).lower(): v for k, v in (headers or {}).items()}
     method = (method or "GET").upper()
 
