@@ -67,10 +67,14 @@ jobs:
             dist/SHA256SUMS.txt
           generate_release_notes: true
           body: |
-            ## 安装
+            ## Install / 安装
+
+            Download `NetWright.exe` and double-click — no Python required. Data files are created next to the exe.
             下载 `NetWright.exe` 双击运行，无需 Python；数据文件生成在同目录。
 
-            ## 校验
+            ## Verify / 校验
+
+            See `SHA256SUMS.txt` — Windows: `Get-FileHash .\NetWright.exe -Algorithm SHA256`.
             见 `SHA256SUMS.txt`（Windows：`Get-FileHash .\NetWright.exe -Algorithm SHA256`）。
 
-            完整变更见 [CHANGELOG.md](https://github.com/Yata-Datacom/NetWright/blob/main/CHANGELOG.md)。
+            Full changelog / 完整变更: [CHANGELOG.md](https://github.com/Yata-Datacom/NetWright/blob/main/CHANGELOG.md)。
