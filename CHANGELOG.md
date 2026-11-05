@@ -3,6 +3,16 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [4.0.1] - 2026-11-05
+
+### Added（交付工程）
+- `tools/build_all.ps1` 构建后生成 `dist/SHA256SUMS.txt`（dist 相对路径，便于校验）。
+- `tools/check_links.py`：检查 Markdown 相对链接，发布前跑一次防死链。
+- `docs/RELEASE_CHECKLIST.md`：发布前六步清单（代码/打包/自检/升级/文档/交付）。
+
+### Tests
+- 全量 **396 passed, 2 skipped**；ruff 干净；链接检查 13 个文件无死链。
+
 ## [4.0.0] - 2026-11-05
 
 > 第一个"可交付"的主版本：API 契约冻结、配置可迁移、能力覆盖运维日常。
