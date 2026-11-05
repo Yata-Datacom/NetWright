@@ -81,3 +81,9 @@ def test_tasks_route_lists_and_404s(tmp_path):
     assert status == 200 and body["task"]["state"] == "done"
     status, _ = nbapi.dispatch(store, "GET", "/api/v2/tasks/nope", headers=HEADERS)
     assert status == 404
+
+def test_selfcheck_route(tmp_path):
+    store = _store(tmp_path)
+    status, body = nbapi.dispatch(store, "GET", "/api/v2/selfcheck", headers=HEADERS)
+    assert status == 200 and body["checks"]
+    assert body["healthy"] is True

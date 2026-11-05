@@ -155,6 +155,11 @@ def dispatch(store, method: str, path: str, body: dict | None = None,
         if route in ("/health", "/"):
             return 200, {"ok": True, "service": "netwright-controller",
                          "api": VERSION, **store.summary()}
+        if route == "/selfcheck":
+            from netwright.lib.selfcheck import run_checks, summarize
+            checks = run_checks(store.inventory.settings if hasattr(store.inventory, "settings") else None)
+            ok, line = summarize(checks)
+            return 200, {"ok": True, "healthy": ok, "summary": line, "checks": checks}
         if route == "/catalog":
             from .catalog import describe
             return 200, {"ok": True, "entries": describe()}

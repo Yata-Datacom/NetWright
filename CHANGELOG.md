@@ -3,6 +3,17 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.36.0] - 2026-11-05
+
+### Added
+- **环境自检** `lib/selfcheck.py`：版本/运行环境/模板库/图标/数据目录可写/备份目录可写/SSH 支持/REST 端口占用，
+  每项带 `hint`（怎么修）；单项异常不影响其他项。
+- **CLI** `tools/diagnose.py`：输出带 OK/FAIL 的自检表，失败返回码 1（可放进排障手册）。
+- **REST** `GET /api/v2/selfcheck`：返回 `healthy/summary/checks`，可用于部署后探活。
+
+### Tests
+- 新增 `tests/test_selfcheck.py`（4 项）+ 自检路由 1 项；全量 **390 passed, 2 skipped**；ruff 干净。
+
 ## [3.35.0] - 2026-11-05
 
 ### Docs
