@@ -624,6 +624,17 @@ curl -X POST http://127.0.0.1:8899/api/v2/policies/compile -H "Content-Type: app
 
 ---
 
+### 14.5 环境自检（v3.36+）
+
+程序行为异常（打不开、没模板、端口冲突）时先跑自检：
+
+```bash
+.venv\Scripts\python.exe tools\diagnose.py
+```
+
+会逐项检查版本/运行环境/模板库/图标/目录可写/SSH 支持/REST 端口，失败项给出修复提示。
+同一能力也有 REST：`GET /api/v2/selfcheck`（返回 healthy + checks）。
+
 ## 15. 常见问题
 
 **Q：巡检按钮提示缺 paramiko？**
