@@ -33,3 +33,7 @@ Thumbs.db
 
 # 本地截图临时产物
 docs/screenshots/_raw/
+
+# 内部文档（不进公开仓库）
+WORKLOG.md
+docs/HANDOFF.md
