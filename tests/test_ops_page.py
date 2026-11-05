@@ -127,3 +127,19 @@ def test_path_trace_unreachable_is_explicit(app):
     page.var_dst.set("Y")
     page.run_path()
     assert "不可达" in page.var_path.get()
+
+def test_catalog_adopt_creates_lifecycle_runs(app):
+    from netwright.lib.inventory import Device
+
+    app.inventory.add(Device(host="192.0.2.77", hostname="SW-77", vendor="huawei",
+                             note="测试"))
+    page = app.pages["controller"]
+    page.cmb_catalog.current(0)
+    page._catalog_params()
+    page._param_vars["vlan_id"].set("321")
+    page._catalog_adopt()
+    runs = list(app.controller_store.lifecycle.runs.values())
+    assert runs, "应写入运行档案"
+    assert runs[-1].state == "compiled"
+    assert "vlan 321" in " ".join(runs[-1].policy.commands)
+    assert runs[-1].policy.intent_key == "catalog:vlan_add"

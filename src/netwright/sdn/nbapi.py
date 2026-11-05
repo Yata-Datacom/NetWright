@@ -310,6 +310,15 @@ def dispatch(store, method: str, path: str, body: dict | None = None,
             result = shortest_path(store.graph, src, dst, avoid=set(body.get("avoid") or []))
             result["description"] = describe_path(result)
             return 200, {"ok": True, "path": result}
+        if route == "/health/snmp":
+            from netwright.lib.health import collect
+            host = str(body.get("device_host") or body.get("host") or "")
+            community = str(body.get("community") or "public")
+            device = next((d for d in store.inventory.devices if d.host == host), None)
+            if device is None:
+                return 404, {"ok": False, "message": f"清单里没有 {host}"}
+            return 200, {"ok": True, "health": collect(device, community,
+                                                    timeout=float(body.get("timeout", 2.0)))}
         if route == "/policies/compile":
             return _compile(store, body)
         if route.startswith("/intents/"):

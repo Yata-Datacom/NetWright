@@ -10,6 +10,8 @@
 """
 from __future__ import annotations
 
+import json
+import os
 import re
 from dataclasses import dataclass
 
@@ -74,8 +76,45 @@ RULES: tuple[Rule, ...] = (
 )
 
 
-def scan(config_text: str, rules: tuple[Rule, ...] = RULES) -> list[Finding]:
+def load_rules(path: str | None = None) -> tuple[Rule, ...]:
+    """从 ``templates/compliance.json`` 读规则；文件缺失/格式错就退回内置 8 条。
+
+    规则可配置的意义：不同单位的安全红线不一样（有的允许 telnet 内网实验环境），
+    硬编码只会逼用户改代码。
+    """
+    global _RULES_CACHE
+    if path is None:
+        from ..paths import resource_dir
+        path = os.path.join(resource_dir("templates", prefer_local=True), "compliance.json")
+    try:
+        stamp = os.path.getmtime(path)
+    except OSError:
+        return RULES
+    cached = _RULES_CACHE
+    if cached and cached[0] == path and cached[1] == stamp:
+        return cached[2]
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+        rules = []
+        for item in data.get("rules", []):
+            rules.append(Rule(str(item["id"]), str(item["title"]),
+                              str(item.get("severity", "medium")),
+                              re.compile(item["pattern"], re.IGNORECASE | re.MULTILINE),
+                              str(item.get("hint", "")), bool(item.get("missing", False))))
+        rules = tuple(rules)
+    except (OSError, ValueError, KeyError, re.error):
+        return RULES
+    _RULES_CACHE = (path, stamp, rules)
+    return rules
+
+
+_RULES_CACHE: tuple[str, float, tuple[Rule, ...]] | None = None
+
+
+def scan(config_text: str, rules: tuple[Rule, ...] | None = None) -> list[Finding]:
     """扫描配置文本，返回命中的问题（按严重度排序，同级保持规则顺序）。"""
+    rules = rules if rules is not None else load_rules()
     text = config_text or ""
     lines = text.splitlines()
     findings: list[Finding] = []

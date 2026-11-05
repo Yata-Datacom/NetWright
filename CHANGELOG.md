@@ -3,6 +3,19 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.33.0] - 2026-11-05
+
+### Added
+- **意图目录 → 运行档案**：控制器页「提交到运行档案」按每台设备厂商生成 Policy 并 `lifecycle.adopt`，
+  进入 `compiled` 等预演；单台生成失败只提示不阻塞其余设备。
+- **合规规则可配置**：`templates/compliance.json`（文件缺失自动退回内置 8 条），
+  带 mtime 缓存；用户可按本单位安全红线增删规则，不用改代码。
+- **SNMP 健康采集** `lib/health.py`：CPU/内存/uptime 标准 OID，按 OID 记录错误、
+  单点失败不影响其他；REST `POST /api/v2/health/snmp`（host + community）。
+
+### Tests
+- 新增 `tests/test_health_rules.py`（5 项）+ 目录入库用例 1 项；全量 **382 passed, 2 skipped**；ruff 干净。
+
 ## [3.32.0] - 2026-11-05
 
 ### Added（把 v3.30 能力全部接到界面）

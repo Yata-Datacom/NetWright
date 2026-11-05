@@ -258,7 +258,8 @@ class ControllerPage(Page):
         ttk.Combobox(bar, textvariable=self.var_catalog_vendor, state="readonly",
                      width=10, font=FONT_SMALL,
                      values=["huawei", "h3c", "cisco", "ruijie"]).pack(side=tk.LEFT, padx=(6, 10))
-        WButton(bar, text="生成命令", command=self._catalog_preview).pack(side=tk.LEFT)
+        WButton(bar, text="生成命令", command=self._catalog_preview).pack(side=tk.LEFT, padx=(0, 8))
+        WButton(bar, text="提交到运行档案", command=self._catalog_adopt).pack(side=tk.LEFT)
 
         self._param_frame = tk.Frame(tab, bg=theme.bg)
         self._param_frame.pack(fill=tk.X, padx=12, pady=4)
@@ -297,6 +298,47 @@ class ControllerPage(Page):
                      bg=theme.panel_alt, fg=theme.fg, relief=tk.FLAT,
                      highlightthickness=1,
                      highlightbackground=theme.line).pack(side=tk.LEFT)
+
+    def _catalog_adopt(self):
+        """把当前目录意图收进生命周期：按每台设备的厂商生成 Policy，进入 compiled。"""
+        import uuid
+
+        from netwright.sdn.catalog import build_commands
+        from netwright.sdn.policy import Policy
+
+        entry = self._catalog_entry()
+        params = {name: var.get() for name, var in self._param_vars.items()}
+        devices = list(self.app.inventory.devices)
+        if not devices:
+            toast(self.app, "设备清单为空，先添加设备或载入演示数据", "info")
+            return
+        policies, failed = [], []
+        for device in devices:
+            vendor = getattr(device, "vendor", "huawei") or "huawei"
+            try:
+                plan = build_commands(entry.key, params, vendor)
+            except ValueError as exc:
+                failed.append(f"{device.host}: {exc}")
+                continue
+            policies.append(Policy(
+                id=uuid.uuid4().hex[:12], intent_key=f"catalog:{entry.key}",
+                intent_title=entry.title, params=dict(params),
+                device=getattr(device, "display_name", "") or device.host,
+                host=device.host, vendor=vendor,
+                commands=tuple(plan["commands"]), risk=plan["risk"]))
+        if not policies:
+            toast(self.app, failed[0] if failed else "没有可下发的设备", "warn")
+            return
+        runs = self.app.controller_store.lifecycle.adopt(
+            policies, intent_title=f"意图目录 / {entry.title}")
+        if hasattr(self, "_runs_refresh"):
+            try:
+                self._runs_refresh()
+            except Exception:      # noqa: BLE001
+                pass
+        toast(self.app, f"已加入运行档案：{len(runs)} 台（等待预演）", "ok")
+        if failed:
+            toast(self.app, f"{len(failed)} 台生成失败：{failed[0]}", "warn")
 
     def _catalog_preview(self):
         from netwright.sdn.catalog import build_commands
