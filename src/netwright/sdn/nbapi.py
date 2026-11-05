@@ -155,6 +155,20 @@ def dispatch(store, method: str, path: str, body: dict | None = None,
         if route in ("/health", "/"):
             return 200, {"ok": True, "service": "netwright-controller",
                          "api": VERSION, **store.summary()}
+        if route == "/catalog":
+            from .catalog import describe
+            return 200, {"ok": True, "entries": describe()}
+        if route == "/tasks":
+            tasks = getattr(store, "tasks", None)
+            if tasks is None:
+                return 503, {"ok": False, "message": "任务管理器未初始化"}
+            return 200, {"ok": True, "tasks": tasks.list(limit=50)}
+        if route.startswith("/tasks/"):
+            tasks = getattr(store, "tasks", None)
+            record = tasks.get(route.split("/", 2)[-1]) if tasks else None
+            if record is None:
+                return 404, {"ok": False, "message": "任务不存在或已过期"}
+            return 200, {"ok": True, "task": record}
         if route == "/snapshot":
             return 200, {"ok": True, **store.snapshot()}
         if route == "/topology":
@@ -235,6 +249,30 @@ def dispatch(store, method: str, path: str, body: dict | None = None,
                                     "error": str(exc)})
             ok = all(item["ok"] for item in results)
             return (200 if ok else 207), {"ok": ok, "results": results}
+        if route == "/compliance/scan":
+            from netwright.lib.compliance import report as _compliance_report
+            configs = body.get("configs")
+            if configs:
+                if not isinstance(configs, list):
+                    return 400, {"ok": False, "message": "configs 必须是数组"}
+                results = [_compliance_report(c.get("text", ""), c.get("device", "")) for c in configs]
+                return 200, {"ok": True, "results": results}
+            hosts = body.get("device_hosts") or []
+            if not hosts:
+                return 400, {"ok": False, "message": "需要 configs 或 device_hosts"}
+            backups = getattr(store, "backups", None)
+            if backups is None:
+                return 503, {"ok": False, "message": "未配置备份目录"}
+            results = []
+            for host in hosts[:50]:
+                entry = backups.latest(host)
+                if entry is None:
+                    results.append({"device": host, "score": None, "total": 0,
+                                    "findings": [], "counts": {},
+                                    "message": "没有配置快照"})
+                    continue
+                results.append(_compliance_report(backups.read(entry), host))
+            return 200, {"ok": True, "results": results}
         if route == "/openflow/validate":
             flows = body.get("flows") or []
             if not isinstance(flows, list) or not flows:
@@ -256,6 +294,22 @@ def dispatch(store, method: str, path: str, body: dict | None = None,
             return 200, {"ok": True, **store.listener_status()}
         if route == "/sources/stop":
             return 200, {"ok": True, **store.stop_listeners()}
+        if route == "/catalog/plan":
+            from .catalog import build_commands
+            key = body.get("key", "")
+            vendor = body.get("vendor", "huawei")
+            try:
+                return 200, {"ok": True, "plan": build_commands(key, body.get("params") or {}, vendor)}
+            except ValueError as exc:
+                return 400, {"ok": False, "message": str(exc)}
+        if route == "/topology/path":
+            from .pathtrace import describe_path, shortest_path
+            src, dst = body.get("src", ""), body.get("dst", "")
+            if not src or not dst:
+                return 400, {"ok": False, "message": "需要 src 与 dst"}
+            result = shortest_path(store.graph, src, dst, avoid=set(body.get("avoid") or []))
+            result["description"] = describe_path(result)
+            return 200, {"ok": True, "path": result}
         if route == "/policies/compile":
             return _compile(store, body)
         if route.startswith("/intents/"):

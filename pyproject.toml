@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netwright"
-version = "3.29.3"
+version = "3.30.0"
 description = "NetWright — 网络工程师工作台 + SDN 控制器控制台：拓扑 / 意图策略 / 南向适配 / 事件总线 / REST v2"
 readme = "README.md"
 requires-python = ">=3.10"

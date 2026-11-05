@@ -3,6 +3,22 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.30.0] - 2026-11-05
+
+### Added（运维/控制器能力：A/B/C/D/F/G）
+- **A 配置合规检查** `lib/compliance.py`：8 条规则（Telnet/默认团体名/明文口令/HTTP 明文/VTY 无超时/缺 NTP/缺远程日志/缺横幅），命中带行号与证据、100 分制扣分、按严重度排序；REST `POST /api/v2/compliance/scan`（内联配置或按备份扫描）。
+- **B 定时漂移巡检** `sdn/schedule.py`：可注入时钟的 `IntervalJob`（到期才跑、失败不中断、记录 last_error）+ `drift_scan()` 只返回有漂移的设备与出错设备。
+- **C SNMPv2c 主动采集** `sdn/sources/snmp_client.py`：自实现 BER 编解码的 `snmp_get`，不引入 pysnmp；community 不进日志。
+- **D 意图目录** `sdn/catalog.py`：5 个参数化意图（加 VLAN/改描述/开关端口/聚合/ACL 放行），华为/H3C 与 Cisco 命令差异、缺参数/未知厂商直接报错、能安全回滚才给 reverse；REST `GET /api/v2/catalog`、`POST /api/v2/catalog/plan`。
+- **F 路径追踪** `sdn/pathtrace.py`：BFS 最短路 + 排除节点 + 人话描述；REST `POST /api/v2/topology/path`。
+- **G 异步任务** `sdn/tasks.py`：线程池 + 最近 200 条任务表（不持久化，审计另有日志），`ControllerStore.tasks`；REST `GET /api/v2/tasks`、`GET /api/v2/tasks/{id}`。
+
+### Tests
+- 新增 6 个测试文件（合规/目录/漂移/路径/任务/接口）：全量 **367 passed, 2 skipped**；ruff 干净。
+
+### Known
+- 这 6 项目前只有后端 + REST，**界面入口尚未接**（下一步：设备清单加「合规检查」、控制器页加「意图目录」、拓扑页加「路径追踪」）。
+
 ## [3.29.3] - 2026-11-05
 
 ### Added（打包说明与脚本）

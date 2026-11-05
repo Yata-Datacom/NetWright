@@ -36,6 +36,8 @@ class ControllerStore:
         self.auth = auth
         self.backups = backups        # sdn.backup.ConfigBackup（可选，无则不落盘）
         self.lifecycle = IntentLifecycle(self)
+        from .tasks import TaskManager
+        self.tasks = TaskManager()          # 异步任务（巡检/备份等长任务用它）
         # 事件源（默认不启动，端口可能与系统服务冲突；由 UI/REST 显式开启）
         self.syslog = SyslogListener(self.bus)
         self.snmp_trap = SnmpTrapListener(self.bus)
