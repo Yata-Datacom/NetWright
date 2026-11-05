@@ -3,6 +3,19 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [4.0.2] - 2026-11-05
+
+### Changed（工程化管理）
+- `.gitignore` 重写：补 `*.bak`、`netwright_settings.json.*.bak`，清掉历史乱码与误入的脏行。
+- 新增 `.gitattributes`（统一 LF、二进制标记）与 `.editorconfig`。
+- 新增 `tools/check_version.py`：版本三处一致校验。
+- CI：ruff 覆盖 `tools/`；新增「文档与版本一致性」job（版本 + 死链 + README 体积守卫）。
+- README 增加「仓库工程化」对照表。
+- 清理误提交的 `netwright_settings.json.v3.*.bak`。
+
+### Tests
+- 全量 **396 passed, 2 skipped**；ruff 干净；死链检查通过。
+
 ## [4.0.1] - 2026-11-05
 
 ### Added（交付工程）

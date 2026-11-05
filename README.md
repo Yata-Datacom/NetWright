@@ -244,6 +244,21 @@ powershell -ExecutionPolicy Bypass -File tools\build_all.ps1 -NoBuild   # 只报
 
 ---
 
+## 仓库工程化
+
+| 关注点 | 做法 |
+|---|---|
+| 测试 | `pytest`（396 项，GUI 无显示环境自动跳过）；CI 双平台 × 双 Python |
+| 静态检查 | `ruff check src tests main.py tools` |
+| 版本一致 | `tools/check_version.py`（`__init__` / `pyproject` / `CHANGELOG` 顶部） |
+| 文档健康 | `tools/check_links.py`（相对链接无死链）+ README 体积守卫 |
+| 环境自检 | `tools/diagnose.py`（8 项）或 `GET /api/v4/selfcheck` |
+| 打包 | `tools/build_all.ps1`（单文件 + 目录版 + SHA256SUMS） |
+| 发布前 | `docs/RELEASE_CHECKLIST.md` 六步清单 |
+| 数据安全 | 运行时数据/凭据/备份一律 `.gitignore`，杜绝入库 |
+
+CI 见 `.github/workflows/ci.yml`（测试矩阵 + 文档一致性两个 job）。
+
 ## 路线图
 
 - [x] v3.9 控制台外壳 + 拓扑画布 + 事件总线 + 策略编译 + 南向骨架 + REST v2

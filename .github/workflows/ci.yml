@@ -35,7 +35,7 @@ jobs:
           pip install paramiko pytest ruff pillow
 
       - name: Lint (ruff, core rules)
-        run: ruff check src tests main.py
+        run: ruff check src tests main.py tools
 
       - name: Smoke import (catch syntax/import errors fast)
         run: python -c "import sys; sys.path.insert(0, 'src'); import netwright, netwright.app, netwright.sdn, netwright.pages"
@@ -71,4 +71,32 @@ jobs:
           changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
           assert f"## [{version}]" in changelog, f"CHANGELOG 缺少 {version} 条目"
           print(f"版本一致：{version}")
+          PY
+
+  docs-consistency:
+    name: 文档与版本一致性
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 版本三处一致
+        run: python tools/check_version.py
+
+      - name: Markdown 死链检查
+        run: python tools/check_links.py
+
+      - name: README 体积守卫（防止再次出现超大文件）
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path("README.md").read_text(encoding="utf-8")
+          assert len(text) < 60_000, f"README 过大：{len(text)} 字符"
+          longest = max(len(line) for line in text.splitlines())
+          assert longest < 300, f"README 存在超长行：{longest}"
+          print(f"README OK：{len(text)} 字符，最长行 {longest}")
           PY

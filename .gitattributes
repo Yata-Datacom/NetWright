@@ -1,0 +1,17 @@
+# 统一换行（仓库内 LF，Windows 检出 CRLF）
+* text=auto eol=lf
+
+# 二进制
+*.png binary
+*.jpg binary
+*.ico binary
+*.exe binary
+*.pyd binary
+*.dll binary
+*.zip binary
+
+# PowerShell 脚本保留 CRLF + BOM 由文件自身保证
+*.ps1 text eol=crlf
+
+# Markdown 不做 diff 折叠
+*.md linguist-documentation

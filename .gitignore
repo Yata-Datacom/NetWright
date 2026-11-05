@@ -10,6 +10,7 @@ dist/
 # 运行时数据（含 DPAPI 加密凭据，严禁入库）
 netwright_devices.json
 netwright_settings.json
+netwright_settings.json.*.bak
 netwright_audit.log
 netwright_history_*.jsonl
 netwright_snapshot_*.json
@@ -19,15 +20,16 @@ netforge_settings.json
 netforge_audit.log
 presets.json
 profiles.json
+backups/
 
 # 日志与杂项
 *.log
+*.bak
 .gitmsg
-=3.4
 .DS_Store
 Thumbs.db
 .pytest_cache/
 .ruff_cache/
 
-# 配置备份（含设备配置，严禁入库）
-backups/
+# 本地截图临时产物
+docs/screenshots/_raw/
