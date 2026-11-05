@@ -54,10 +54,14 @@ jobs:
           from pathlib import Path
           text = Path("README.md").read_text(encoding="utf-8")
           assert len(text) < 120_000, f"README 体积异常：{len(text)} 字符"
-          assert text.lstrip().startswith("# "), "README 应以一级标题开头"
+          # 允许两种合规开头：直接一级标题，或居中的 HTML 容器（<div align="center"> 内含一级标题）
+          head = text.lstrip()
+          assert head.startswith("# ") or head.startswith("<div") or head.startswith("<h1"), \
+              "README 应以一级标题或居中 HTML 容器开头"
+          assert "\n# " in text or text.lstrip().startswith("# "), "README 缺少一级标题"
           longest = max(len(line) for line in text.splitlines())
           assert longest < 2000, f"单行过长（{longest}），疑似粘贴事故"
-          print(f"README OK：{len(text)} 字符 / {len(text.splitlines())} 行")
+          print(f"README OK：{len(text)} 字符 / {len(text.splitlines())} 行 / 最长行 {longest}")
           PY
       - name: 文档与版本一致性
         run: |
@@ -82,7 +86,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
+          # 本 job 不装任何第三方依赖，故不启用 pip 缓存：
+          # 空 requirements.txt 下 setup-python 的缓存后置步骤会以失败退出（Post Run … failure），
+          # 把一个本来全绿的 job 拖成红。纯文档检查不需要缓存。
 
       - name: 版本三处一致
         run: python tools/check_version.py
