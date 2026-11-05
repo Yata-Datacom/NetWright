@@ -4,6 +4,12 @@ from __future__ import annotations
 import os
 import sys
 import time
+import tracemalloc  # noqa: F401  # 提前完整初始化：
+# CPython 3.12 下 pytest 的 unraisableexception 插件在处理 Tk 析构异常时会调
+# tracemalloc.get_object_traceback()，若该模块此刻仍是 partially initialized
+# （循环导入），会抛 AttributeError 并把整条用例判成
+# RuntimeError: Failed to process unraisable exception。
+# 在 conftest 顶部先完整 import 一次，把这条失败路径堵在源头。
 
 import tkinter as tk
 

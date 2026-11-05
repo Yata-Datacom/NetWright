@@ -15,6 +15,11 @@
 
 ### Tests
 - 全量 **396 passed, 2 skipped**；ruff 干净；死链检查通过。
+- 修 CI 在 Python 3.12 下红的问题：`tests/conftest.py` 顶部提前 `import tracemalloc`。
+  CPython 3.12 中 pytest 的 unraisable 插件在处理 Tk 析构异常时会调
+  `tracemalloc.get_object_traceback()`，若该模块此刻仍是 partially initialized（循环导入），
+  会抛 `AttributeError` 并把用例判成 `RuntimeError: Failed to process unraisable exception`。
+  提前完整 import 一次即堵住该失败路径（本机 py3.12.13 复现 → 修复后 396 passed）。
 
 ## [4.0.1] - 2026-11-05
 
