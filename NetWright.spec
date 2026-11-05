@@ -14,6 +14,9 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+# 裁掉用不到的 PIL AVIF 插件（约 7.7 MB）：界面只需要 PNG/ICO 预览
+a.binaries = [b for b in a.binaries if "avif" not in b[0].lower()]
+
 pyz = PYZ(a.pure)
 
 exe = EXE(

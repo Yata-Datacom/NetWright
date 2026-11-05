@@ -3,6 +3,22 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式。
 
+## [3.29.2] - 2026-11-05
+
+### Changed（体积与绘制）
+- **打包裁剪 PIL AVIF 插件**：onefile **24.5 MB → 19.3 MB（-21%）**；界面只需 PNG/ICO 预览，
+  AVIF 的 `_avif.pyd` 单文件就占 7.7 MB（未压缩）。
+- **拓扑视口裁剪**：放大/平移后画布外的边与节点不再生成 Canvas 元素（此前只按搜索/纳管过滤）。
+  100+ 节点时缩放与悬停更顺；边界留 60px 余量避免元素闪断。
+
+### Verified（不属于本次改动，复核结论）
+- 巡检已是并发：`inspector.run_batch(workers=20)` 用 ThreadPoolExecutor，且 R7 已支持取消。
+- 备份导出 zip 用 `zf.write(entry.path)` 流式写盘，不把整包读进内存。
+- onedir 实测：冷启动首轮 2.46 s，**暖启动 0.47–0.59 s**（onefile 2.4–3.2 s）。
+
+### Tests
+- 新增 `tests/test_topology_culling.py`（4 项）；全量 **330 passed, 2 skipped**；ruff 干净。
+
 ## [3.29.1] - 2026-11-04
 
 ### Changed（冷启动）

@@ -23,6 +23,11 @@ KIND_LABEL = {"switch": "交换机", "router": "路由器", "host": "主机",
               "controller": "控制器", "unknown": "未知"}
 
 
+
+def _in_view(x: float, y: float, w: int, h: int, pad: float = 60.0) -> bool:
+    """屏幕坐标是否落在视口内（带 pad 余量，避免边缘元素闪断）。"""
+    return -pad <= x <= w + pad and -pad <= y <= h + pad
+
 class TopologyPage(Page):
     """拓扑画布页面。"""
 
@@ -286,11 +291,17 @@ class TopologyPage(Page):
             return
         # 一次算好屏幕坐标，边和节点共用（避免同一点重复变换 N 次）
         screens = {name: self._screen(name) for name in self._pos}
+
+        def in_view(name: str) -> bool:          # 视口裁剪：画布外不再生成元素
+            x, y = screens[name]
+            return _in_view(x, y, w, h)
         # 链路
         for edge in graph.edges:
             if edge.a not in self._pos or edge.b not in self._pos:
                 continue
             if not (self._visible(edge.a) and self._visible(edge.b)):
+                continue
+            if not (in_view(edge.a) or in_view(edge.b)):
                 continue
             x1, y1 = screens[edge.a]
             x2, y2 = screens[edge.b]
@@ -308,7 +319,7 @@ class TopologyPage(Page):
         # 节点
         flash = self.app.controller_store.flashed_nodes(within=90)
         for name in sorted(self._pos):
-            if not self._visible(name):
+            if not self._visible(name) or not in_view(name):
                 continue
             node = graph.nodes.get(name)
             vendor = getattr(node, "vendor", "") or "generic"
