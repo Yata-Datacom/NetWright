@@ -11,6 +11,7 @@ from .events import EventsPage
 from .generation import GeneratePage
 from .inspection import InspectPage
 from .inventory import InventoryPage
+from .ops import OpsPage
 from .settings import SettingsPage
 from .timeline import TimelinePage
 from .topology import TopologyPage
@@ -28,6 +29,7 @@ PAGE_REGISTRY = {
     "toolbox": ("工具箱", "⚒", ToolboxPage),
     "cheat": ("命令速查", "▣", CheatPage),
     "timeline": ("时间线", "≣", TimelinePage),
+    "ops": ("运维中心", "✚", OpsPage),
     "settings": ("设置", "⚙", SettingsPage),
 }
 
@@ -51,6 +53,7 @@ NAV_GROUPS = [
     ]),
     ("系统", [
         ("timeline", "时间线", "≣"),
+        ("ops", "运维中心", "✚"),
         ("settings", "设置", "⚙"),
     ]),
 ]
