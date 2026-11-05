@@ -33,6 +33,7 @@ class ControllerPage(Page):
         self.nb.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 16))
         self._topo_tab()
         self._intent_tab()
+        self._catalog_tab()
         self._api_tab()
         self._runs_tab()
 
@@ -234,6 +235,87 @@ class ControllerPage(Page):
         self.preview.see(tk.END)
 
     # ────────── REST API ──────────
+    # ────────── 意图目录（D） ──────────
+    def _catalog_tab(self):
+        """把 sdn/catalog.py 的参数化意图接到界面：选条目 → 填参 → 生成命令（不下发）。"""
+        from netwright.sdn.catalog import CATALOG
+
+        tab = tk.Frame(self.nb, bg=theme.bg)
+        self.nb.add(tab, text="意图目录")
+        bar = tk.Frame(tab, bg=theme.bg)
+        bar.pack(fill=tk.X, padx=12, pady=(8, 4))
+        tk.Label(bar, text="意图", bg=theme.bg, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.LEFT)
+        self._catalog_entries = CATALOG
+        self.cmb_catalog = ttk.Combobox(
+            bar, state="readonly", width=24, font=FONT_SMALL,
+            values=[f"{e.title}（{e.risk}）" for e in CATALOG])
+        self.cmb_catalog.pack(side=tk.LEFT, padx=(6, 10))
+        self.cmb_catalog.bind("<<ComboboxSelected>>", lambda _e: self._catalog_params())
+        tk.Label(bar, text="厂商", bg=theme.bg, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.LEFT)
+        self.var_catalog_vendor = tk.StringVar(value="huawei")
+        ttk.Combobox(bar, textvariable=self.var_catalog_vendor, state="readonly",
+                     width=10, font=FONT_SMALL,
+                     values=["huawei", "h3c", "cisco", "ruijie"]).pack(side=tk.LEFT, padx=(6, 10))
+        WButton(bar, text="生成命令", command=self._catalog_preview).pack(side=tk.LEFT)
+
+        self._param_frame = tk.Frame(tab, bg=theme.bg)
+        self._param_frame.pack(fill=tk.X, padx=12, pady=4)
+        self._param_vars: dict[str, tk.StringVar] = {}
+        tk.Label(tab, text="预演结果（只生成命令，不下发；确认后再走「意图下发」）",
+                 bg=theme.bg, fg=theme.faint, font=FONT_SMALL,
+                 anchor="w").pack(fill=tk.X, padx=12)
+        self.txt_catalog = tk.Text(tab, height=12, font=FONT_MONO, bg=theme.panel_alt,
+                                   fg=theme.fg, relief=tk.FLAT, wrap=tk.NONE,
+                                   highlightthickness=1, highlightbackground=theme.line)
+        self.txt_catalog.pack(fill=tk.BOTH, expand=True, padx=12, pady=(4, 12))
+        self._catalog_params()
+
+    def _catalog_entry(self):
+        index = self.cmb_catalog.current()
+        if index < 0:
+            index = 0
+            self.cmb_catalog.current(0)
+        return self._catalog_entries[index]
+
+    def _catalog_params(self):
+        """按所选意图重建参数输入框（必填项标 *）。"""
+        for child in self._param_frame.winfo_children():
+            child.destroy()
+        self._param_vars = {}
+        entry = self._catalog_entry()
+        for param in entry.params:
+            row = tk.Frame(self._param_frame, bg=theme.bg)
+            row.pack(fill=tk.X, pady=2)
+            label = f"{param.label}{'*' if param.required else ''}"
+            tk.Label(row, text=label, width=16, anchor="w", bg=theme.bg,
+                     fg=theme.muted, font=FONT_SMALL).pack(side=tk.LEFT)
+            var = tk.StringVar(value=param.default)
+            self._param_vars[param.name] = var
+            tk.Entry(row, textvariable=var, width=28, font=FONT_SMALL,
+                     bg=theme.panel_alt, fg=theme.fg, relief=tk.FLAT,
+                     highlightthickness=1,
+                     highlightbackground=theme.line).pack(side=tk.LEFT)
+
+    def _catalog_preview(self):
+        from netwright.sdn.catalog import build_commands
+
+        entry = self._catalog_entry()
+        params = {name: var.get() for name, var in self._param_vars.items()}
+        try:
+            plan = build_commands(entry.key, params, self.var_catalog_vendor.get())
+        except ValueError as exc:
+            toast(self.app, str(exc), "warn")
+            return
+        lines = ["# 命令", *plan["commands"], ""]
+        if plan["reverse"]:
+            lines += ["# 反向（可安全回滚）", *plan["reverse"], ""]
+        else:
+            lines += ["# 反向：无（旧值未知，生命周期会判 rollback_blocked）", ""]
+        lines.append(f"# 风险等级：{plan['risk']}")
+        self.txt_catalog.delete("1.0", tk.END)
+        self.txt_catalog.insert("1.0", "\n".join(lines))
     def _api_tab(self):
         tab = tk.Frame(self.nb, bg=theme.bg)
         self.nb.add(tab, text=" REST API ")

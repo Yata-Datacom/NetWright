@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import threading
+import time
 import tkinter as tk
 from tkinter import ttk
 
@@ -76,7 +77,8 @@ class OpsPage(Page):
         self.var_dst = tk.StringVar()
         self.cmb_dst = ttk.Combobox(row, textvariable=self.var_dst, width=14)
         self.cmb_dst.pack(side=tk.LEFT, padx=(4, 8))
-        WButton(row, text="追踪", command=self.run_path).pack(side=tk.LEFT)
+        WButton(row, text="追踪", command=self.run_path).pack(side=tk.LEFT, padx=(0, 6))
+        WButton(row, text="在拓扑上高亮", command=self.highlight_on_topology).pack(side=tk.LEFT)
         self.var_path = tk.StringVar(value="输入起点与终点后点「追踪」")
         tk.Label(card_path.body, textvariable=self.var_path, bg=theme.panel,
                  fg=theme.fg, font=FONT_SMALL, anchor="w", justify=tk.LEFT,
@@ -90,6 +92,23 @@ class OpsPage(Page):
                                  command=self.run_drift)
         self.btn_drift.pack(anchor="w", pady=(0, 6))
         self.var_drift = tk.StringVar(value="尚未扫描")
+        settings = self.app.settings
+        self.var_drift_daily = tk.BooleanVar(value=bool(settings.get("drift_daily", False)))
+        self.var_drift_hours = tk.StringVar(value=str(settings.get("drift_hours", 24)))
+        self._drift_interval = max(1.0, float(settings.get("drift_hours", 24))) * 3600
+        self._last_drift = time.monotonic()
+        daily_row = tk.Frame(card_drift.body, bg=theme.panel)
+        daily_row.pack(fill=tk.X, pady=(0, 6))
+        tk.Checkbutton(daily_row, text="每日自动检查", variable=self.var_drift_daily,
+                       command=self._toggle_daily, bg=theme.panel, fg=theme.fg,
+                       selectcolor=theme.panel_alt, activebackground=theme.panel,
+                       activeforeground=theme.fg, highlightthickness=0, bd=0,
+                       font=FONT_SMALL, cursor="hand2").pack(side=tk.LEFT)
+        tk.Label(daily_row, text="周期(小时)", bg=theme.panel, fg=theme.muted,
+                 font=FONT_SMALL).pack(side=tk.LEFT, padx=(10, 4))
+        tk.Entry(daily_row, textvariable=self.var_drift_hours, width=5, font=FONT_SMALL,
+                 bg=theme.panel_alt, fg=theme.fg, relief=tk.FLAT,
+                 highlightthickness=1, highlightbackground=theme.line).pack(side=tk.LEFT)
         tk.Label(card_drift.body, textvariable=self.var_drift, bg=theme.panel,
                  fg=theme.muted, font=FONT_SMALL, anchor="w", justify=tk.LEFT,
                  wraplength=320).pack(fill=tk.X)
@@ -166,6 +185,50 @@ class OpsPage(Page):
         result = shortest_path(self.app.controller_store.graph, src, dst)
         self.var_path.set(describe_path(result))
 
+    def highlight_on_topology(self):
+        src = self.var_src.get().strip()
+        dst = self.var_dst.get().strip()
+        if not src or not dst:
+            toast(self.app, "请填写起点与终点", "info")
+            return
+        self.app.show("topology")
+        page = self.app.pages.get("topology")
+        if page is not None and hasattr(page, "show_path"):
+            description = page.show_path(src, dst)
+            toast(self.app, description, "info" if "不可达" not in description else "warn")
+
+    def _toggle_daily(self):
+        """持久化自动检查开关；周期改动下次生效。"""
+        from netwright.lib.settings import save_settings
+
+        enabled = bool(self.var_drift_daily.get())
+        try:
+            hours = max(1.0, float(self.var_drift_hours.get() or 24))
+        except ValueError:
+            hours = 24.0
+            self.var_drift_hours.set("24")
+        self._drift_interval = hours * 3600
+        self.app.settings["drift_daily"] = enabled
+        self.app.settings["drift_hours"] = hours
+        save_settings(self.app.settings, self.app.base_dir)
+        if enabled:
+            self._last_drift = 0.0          # 开启后尽快跑一次
+            self._schedule_drift()
+            toast(self.app, f"已开启自动漂移检查（每 {hours:g} 小时）", "ok")
+        else:
+            toast(self.app, "已关闭自动漂移检查", "info")
+
+    def _schedule_drift(self):
+        if not self.var_drift_daily.get():
+            return
+        if time.monotonic() - self._last_drift >= self._drift_interval:
+            self._last_drift = time.monotonic()
+            self.run_drift()
+        try:
+            self.app.after(60000, self._schedule_drift)
+        except Exception:      # noqa: BLE001  页面销毁后停止轮询
+            pass
+
     def run_drift(self):
         if self._drift_busy:
             return
@@ -179,7 +242,10 @@ class OpsPage(Page):
                 result = drift_scan(store)
             except Exception as exc:      # noqa: BLE001
                 result = {"error": str(exc)}
-            self.app.after(0, lambda r=result: self._drift_done(r))
+            try:
+                self.app.after(0, lambda r=result: self._drift_done(r))
+            except Exception:      # noqa: BLE001  窗口已关闭时线程不应崩
+                pass
 
         threading.Thread(target=worker, daemon=True).start()
 

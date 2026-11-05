@@ -79,6 +79,48 @@ def test_path_trace_reports_reachable(app):
     assert page.var_path.get().startswith("A → B")
 
 
+def test_topology_path_highlight(app):
+    graph = app.controller_store.graph
+    graph.add_edge("A", "B", "Gi0/1", "Gi0/2")
+    app.show("topology")
+    page = app.pages["topology"]
+    text = page.show_path("A", "B")
+    assert text.startswith("A → B")
+    assert page._path_nodes == {"A", "B"}
+
+
+def test_catalog_tab_generates_commands(app):
+    page = app.pages["controller"]
+    page.cmb_catalog.current(0)
+    page._catalog_params()
+    page._param_vars["vlan_id"].set("123")
+    page._catalog_preview()
+    text = page.txt_catalog.get("1.0", "end")
+    assert "vlan 123" in text
+    assert "风险等级" in text
+
+
+def test_catalog_tab_reports_validation_errors(app):
+    page = app.pages["controller"]
+    page.cmb_catalog.current(0)
+    page._catalog_params()
+    page._param_vars["vlan_id"].set("")
+    page._catalog_preview()
+    assert "vlan" not in page.txt_catalog.get("1.0", "end").lower()
+
+
+def test_drift_daily_toggle_persists(app):
+    page = app.pages["ops"]
+    page.var_drift_hours.set("6")
+    page.var_drift_daily.set(True)
+    page._toggle_daily()
+    assert app.settings["drift_daily"] is True
+    assert app.settings["drift_hours"] == 6.0
+    page.var_drift_daily.set(False)
+    page._toggle_daily()
+    assert app.settings["drift_daily"] is False
+
+
 def test_path_trace_unreachable_is_explicit(app):
     page = app.pages["ops"]
     page.var_src.set("X")

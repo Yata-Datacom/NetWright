@@ -305,7 +305,8 @@ class TopologyPage(Page):
                 continue
             x1, y1 = screens[edge.a]
             x2, y2 = screens[edge.b]
-            hot = self._selected in (edge.a, edge.b)
+            path = getattr(self, "_path_nodes", set())
+            hot = self._selected in (edge.a, edge.b) or (edge.a in path and edge.b in path)
             color = theme.accent if hot else (
                 theme.line if edge.kind == "ledger" else theme.muted)
             width = 2 if hot else 1
@@ -332,7 +333,7 @@ class TopologyPage(Page):
                 # 最近 90 秒内有链路/设备事件：琥珀色脉冲圈（自动刷新会自然消退）
                 c.create_oval(x - r - 9, y - r - 9, x + r + 9, y + r + 9,
                               outline=theme.warn, width=2, dash=(2, 3), tags=("node",))
-            if selected:
+            if selected or name in getattr(self, "_path_nodes", set()):
                 c.create_oval(x - r - 6, y - r - 6, x + r + 6, y + r + 6,
                               outline=theme.accent, width=2, dash=(3, 2), tags=("node",))
             c.create_oval(x - r, y - r, x + r, y + r, fill=color,
@@ -345,6 +346,19 @@ class TopologyPage(Page):
             c.create_text(x, y + r + 10, text=label, fill=theme.fg,
                           font=("Microsoft YaHei UI", 9 if selected else 8),
                           tags=("node", f"node:{name}"))
+
+    def show_path(self, src: str, dst: str) -> str:
+        """高亮一条源到目的的最短路径（只读，不改任何设备）。"""
+        from netwright.sdn.pathtrace import describe_path, shortest_path
+
+        result = shortest_path(self.app.controller_store.graph, src, dst)
+        self._path_nodes = set(result["nodes"]) if result["reachable"] else set()
+        self._draw()
+        return describe_path(result)
+
+    def clear_path(self) -> None:
+        self._path_nodes = set()
+        self._draw()
 
     def _draw_grid(self, w: int, h: int):
         """网格层（独立 tag）：只在画布尺寸变化时重建，悬停/缩放不重画。"""
